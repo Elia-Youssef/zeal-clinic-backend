@@ -31,7 +31,7 @@ func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return c.JSON(401, utils.Response{Error: "Not Authorized"})
 		}
 
-		expiresAt, err := time.Parse(time.RFC3339, dbToken.ExpiresAt)
+		expiresAt, err := dbToken.ExpiresAt.Time()
 		if err != nil || expiresAt.Before(time.Now().UTC()) {
 			log.Println("Error: [Auth] Token expired")
 			t := models.Token{Token: tokenStr}
@@ -55,7 +55,7 @@ func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 
 		c.Set("user", user)
 		c.Set("role", user.Role)
-		c.Set("scopes", []string(role.Scopes))
+		c.Set("scopes", role.Scopes)
 
 		return next(c)
 	}

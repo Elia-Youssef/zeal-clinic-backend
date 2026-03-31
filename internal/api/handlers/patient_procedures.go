@@ -40,12 +40,9 @@ func CreatePatientProcedure(c echo.Context) error {
 		log.Println("Error: [CreatePatientProcedure] invalid request:", err)
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
 	}
-	v := NewValidator()
-	v.Required("patientId", pp.PatientID, "Patient ID")
-	v.Required("procedureId", pp.ProcedureID, "Procedure ID")
-	if v.HasErrors() {
-		log.Println("Error: [CreatePatientProcedure] validation failed:", v.Fields)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: v.Fields})
+	if err := pp.IsValid(); err != nil {
+		log.Println("Error: [CreatePatientProcedure] validation failed:", err)
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
 	}
 	if err := pp.Create(); err != nil {
 		log.Println("Error: [CreatePatientProcedure] failed to create patient procedure:", err)
@@ -75,7 +72,12 @@ func UpdatePatientProcedure(c echo.Context) error {
 }
 
 func DeletePatientProcedure(c echo.Context) error {
-	pp := models.PatientProcedure{ID: c.Param("id")}
+	id := c.Param("id")
+	if models.HasDependencies(id, map[string]string{"patient_procedure_sessions": "patient_procedure_id"}) {
+		return c.JSON(http.StatusConflict, utils.Response{Error: "cannot delete patient procedure: has related records"})
+	}
+
+	pp := models.PatientProcedure{ID: id}
 	if err := pp.Delete(); err == sql.ErrNoRows {
 		log.Println("Error: [DeletePatientProcedure] patient procedure not found:", err)
 		return c.JSON(http.StatusNotFound, utils.Response{Error: "patient procedure not found"})
@@ -86,21 +88,3 @@ func DeletePatientProcedure(c echo.Context) error {
 	return c.JSON(http.StatusOK, utils.Response{Success: true})
 }
 
-// Sessions
-func UpdatePatientProcedureSession(c echo.Context) error {
-	var updates map[string]interface{}
-	if err := c.Bind(&updates); err != nil {
-		log.Println("Error: [UpdatePatientProcedureSession] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
-	}
-	delete(updates, "id")
-	s := models.PatientProcedureSession{ID: c.Param("sessionId")}
-	if err := s.Update(updates); err == sql.ErrNoRows {
-		log.Println("Error: [UpdatePatientProcedureSession] session not found:", err)
-		return c.JSON(http.StatusNotFound, utils.Response{Error: "session not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdatePatientProcedureSession] failed to update session:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to update session"})
-	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: s})
-}

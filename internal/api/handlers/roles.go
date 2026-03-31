@@ -38,7 +38,7 @@ func GetRoleByName(c echo.Context) error {
 func UpdateRole(c echo.Context) error {
 	var updates map[string]interface{}
 	if err := c.Bind(&updates); err != nil {
-		log.Println("Error: [UpdateRole] invalid request body")
+		log.Println("Error: [UpdateRole] invalid request body:", err)
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
 	}
 	delete(updates, "name")

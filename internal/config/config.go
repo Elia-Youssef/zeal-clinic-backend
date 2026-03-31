@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -18,6 +20,7 @@ var (
 )
 
 func Load() {
+	_ = godotenv.Load() // silently ignore if .env doesn't exist
 	Port = getEnv("PORT", "8080")
 	DBPath = getEnv("DB_PATH", "clinic.db")
 	JWTSecret = getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release")

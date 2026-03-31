@@ -31,7 +31,7 @@ func GenerateToken(user models.User) (string, error) {
 	t := models.Token{
 		Token:     signed,
 		UserID:    user.ID,
-		ExpiresAt: expiresAt.UTC().Format(time.RFC3339),
+		ExpiresAt: models.DateFrom(expiresAt),
 	}
 	if err := t.Create(); err != nil {
 		return "", errors.New("failed to store token")

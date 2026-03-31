@@ -40,17 +40,12 @@ func CreateProcedure(c echo.Context) error {
 		log.Println("Error: [CreateProcedure] invalid request:", err)
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
 	}
-	v := NewValidator()
-	v.Required("name", p.Name, "Name")
-	if v.HasErrors() {
-		log.Println("Error: [CreateProcedure] validation failed:", v.Fields)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: v.Fields})
+	if err := p.IsValid(); err != nil {
+		log.Println("Error: [CreateProcedure] validation failed:", err)
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
 	}
 	if p.ProcedureType == "" {
 		p.ProcedureType = "Clinic Procedure"
-	}
-	if p.CommissionType == "" {
-		p.CommissionType = "percentage"
 	}
 	p.IsActive = true
 	if err := p.Create(); err != nil {
@@ -79,7 +74,12 @@ func UpdateProcedure(c echo.Context) error {
 }
 
 func DeleteProcedure(c echo.Context) error {
-	proc := models.Procedure{ID: c.Param("id")}
+	id := c.Param("id")
+	if models.HasDependencies(id, map[string]string{"patient_procedures": "procedure_id"}) {
+		return c.JSON(http.StatusConflict, utils.Response{Error: "cannot delete procedure: has related records"})
+	}
+
+	proc := models.Procedure{ID: id}
 	if err := proc.Delete(); err == sql.ErrNoRows {
 		log.Println("Error: [DeleteProcedure] procedure not found:", err)
 		return c.JSON(http.StatusNotFound, utils.Response{Error: "procedure not found"})
@@ -90,39 +90,3 @@ func DeleteProcedure(c echo.Context) error {
 	return c.JSON(http.StatusOK, utils.Response{Success: true})
 }
 
-// Sessions
-func CreateProcedureSession(c echo.Context) error {
-	var s models.ProcedureSession
-	if err := c.Bind(&s); err != nil {
-		log.Println("Error: [CreateProcedureSession] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
-	}
-	s.ProcedureID = c.Param("id")
-	v := NewValidator()
-	v.Required("name", s.Name, "Name")
-	v.Positive("sessionNumber", float64(s.SessionNumber), "Session number")
-	if v.HasErrors() {
-		log.Println("Error: [CreateProcedureSession] validation failed:", v.Fields)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: v.Fields})
-	}
-	if s.Currency == "" {
-		s.Currency = "USD"
-	}
-	if err := s.Create(); err != nil {
-		log.Println("Error: [CreateProcedureSession] failed to create session:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create session"})
-	}
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: s})
-}
-
-func DeleteProcedureSession(c echo.Context) error {
-	s := models.ProcedureSession{ID: c.Param("sessionId")}
-	if err := s.Delete(); err == sql.ErrNoRows {
-		log.Println("Error: [DeleteProcedureSession] session not found:", err)
-		return c.JSON(http.StatusNotFound, utils.Response{Error: "session not found"})
-	} else if err != nil {
-		log.Println("Error: [DeleteProcedureSession] failed to delete session:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to delete session"})
-	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true})
-}

@@ -1,7 +1,8 @@
 package models
 
 import (
-	"time"
+	"database/sql"
+	"errors"
 
 	"github.com/google/uuid"
 )
@@ -15,25 +16,66 @@ type AuditLogEntry struct {
 	EntityID   string `json:"entityId"`
 	Details    string `json:"details"`
 	IPAddress  string `json:"ipAddress"`
-	CreatedAt  string `json:"createdAt"`
+	CreatedAt  Date `json:"createdAt"`
+}
+
+const auditLogEntryColumnsNoId = `user_name, user_role, action, entity_type, entity_id, details, ip_address, created_at`
+const auditLogEntryColumns = `id, ` + auditLogEntryColumnsNoId
+
+type AuditLogEntryList []AuditLogEntry
+
+func (m *AuditLogEntry) ScanRow(row *sql.Row) error {
+	if row == nil {
+		return errors.New("nil AuditLogEntry row")
+	}
+	return row.Scan(&m.ID, &m.UserName, &m.UserRole, &m.Action, &m.EntityType, &m.EntityID, &m.Details, &m.IPAddress, &m.CreatedAt)
+}
+
+func (l *AuditLogEntryList) ScanRows(rows *sql.Rows) error {
+	if rows == nil {
+		return errors.New("nil AuditLogEntry rows")
+	}
+	*l = AuditLogEntryList{}
+	for rows.Next() {
+		var item AuditLogEntry
+		err := rows.Scan(&item.ID, &item.UserName, &item.UserRole, &item.Action, &item.EntityType, &item.EntityID, &item.Details, &item.IPAddress, &item.CreatedAt)
+		if err != nil {
+			continue
+		}
+		*l = append(*l, item)
+	}
+	return nil
 }
 
 func (e *AuditLogEntry) Log() error {
-	e.ID = uuid.New().String()
+	e.ID = uuid.Must(uuid.NewV7()).String()
 	if e.CreatedAt == "" {
-		e.CreatedAt = time.Now().UTC().Format("2006-01-02 15:04:05")
+		e.CreatedAt = DateNow()
 	}
 
-	_, err := DB.Exec(`INSERT INTO audit_log (id, user_name, user_role, action, entity_type, entity_id, details, ip_address, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?)`,
+	_, err := DB.Exec(`INSERT INTO audit_log (`+auditLogEntryColumns+`) VALUES (?,?,?,?,?,?,?,?,?)`,
 		e.ID, e.UserName, e.UserRole, e.Action, e.EntityType, e.EntityID, e.Details, e.IPAddress, e.CreatedAt,
 	)
 	return err
 }
 
-func (e *AuditLogEntry) GetAll(entityType, entityID, action string, limit int) ([]AuditLogEntry, error) {
-	query := `SELECT id, user_name, user_role, action, entity_type, entity_id, details, ip_address, created_at
-		FROM audit_log WHERE 1=1`
+func (e *AuditLogEntry) GetByUserName(userName string, limit int) (AuditLogEntryList, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	rows, err := DB.Query(`SELECT `+auditLogEntryColumns+` FROM audit_log WHERE user_name = ? ORDER BY created_at DESC LIMIT ?`, userName, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list AuditLogEntryList
+	list.ScanRows(rows)
+	return list, nil
+}
+
+func (e *AuditLogEntry) GetAll(entityType, entityID, action string, limit int) (AuditLogEntryList, error) {
+	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log WHERE 1=1`
 	var args []interface{}
 
 	if entityType != "" {
@@ -64,13 +106,7 @@ func (e *AuditLogEntry) GetAll(entityType, entityID, action string, limit int) (
 	}
 	defer rows.Close()
 
-	var entries []AuditLogEntry
-	for rows.Next() {
-		var entry AuditLogEntry
-		if err := rows.Scan(&entry.ID, &entry.UserName, &entry.UserRole, &entry.Action, &entry.EntityType, &entry.EntityID, &entry.Details, &entry.IPAddress, &entry.CreatedAt); err != nil {
-			return nil, err
-		}
-		entries = append(entries, entry)
-	}
-	return entries, rows.Err()
+	var list AuditLogEntryList
+	list.ScanRows(rows)
+	return list, nil
 }

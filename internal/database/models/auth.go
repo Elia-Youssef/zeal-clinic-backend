@@ -1,45 +1,62 @@
 package models
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 )
-
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
-}
-
-type LoginResponse struct {
-	Token string `json:"token"`
-	User  string `json:"user"`
-	Role  string `json:"role"`
-}
 
 type Token struct {
 	ID        string `json:"id"`
 	Token     string `json:"token"`
 	UserID    string `json:"userId"`
-	ExpiresAt string `json:"expiresAt"`
-	CreatedAt string `json:"createdAt"`
+	ExpiresAt Date `json:"expiresAt"`
+	CreatedAt Date `json:"createdAt"`
+}
+
+const tokenColumnsNoId = `token, user_id, expires_at, created_at`
+const tokenColumns = `id, ` + tokenColumnsNoId
+
+type TokenList []Token
+
+func (m *Token) ScanRow(row *sql.Row) error {
+	if row == nil {
+		return errors.New("nil Token row")
+	}
+	return row.Scan(&m.ID, &m.Token, &m.UserID, &m.ExpiresAt, &m.CreatedAt)
+}
+
+func (l *TokenList) ScanRows(rows *sql.Rows) error {
+	if rows == nil {
+		return errors.New("nil Token rows")
+	}
+	*l = TokenList{}
+	for rows.Next() {
+		var item Token
+		err := rows.Scan(&item.ID, &item.Token, &item.UserID, &item.ExpiresAt, &item.CreatedAt)
+		if err != nil {
+			continue
+		}
+		*l = append(*l, item)
+	}
+	return nil
 }
 
 func (t *Token) Create() error {
-	id := uuid.New().String()
+	id := uuid.Must(uuid.NewV7()).String()
 	_, err := DB.Exec(
-		`INSERT INTO tokens (id, token, user_id, expires_at, created_at) VALUES (?,?,?,?,?)`,
-		id, t.Token, t.UserID, t.ExpiresAt, time.Now().UTC().Format(time.RFC3339),
+		`INSERT INTO tokens (`+tokenColumns+`) VALUES (?,?,?,?,?)`,
+		id, t.Token, t.UserID, t.ExpiresAt, DateNow(),
 	)
 	return err
 }
 
 func (t *Token) GetByValue(tokenStr string) error {
-	err := DB.QueryRow(
-		`SELECT id, token, user_id, expires_at, created_at FROM tokens WHERE token = ?`, tokenStr,
-	).Scan(&t.ID, &t.Token, &t.UserID, &t.ExpiresAt, &t.CreatedAt)
+	err := t.ScanRow(DB.QueryRow(
+		`SELECT `+tokenColumns+` FROM tokens WHERE token = ?`, tokenStr,
+	))
 	if err != nil {
 		return fmt.Errorf("get token: %w", err)
 	}

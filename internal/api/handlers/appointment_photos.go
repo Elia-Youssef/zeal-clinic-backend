@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -20,7 +19,7 @@ import (
 func GetAppointmentPhotos(c echo.Context) error {
 	items, err := (&models.AppointmentPhoto{}).GetByAppointmentID(c.Param("id"))
 	if err != nil {
-		log.Println("Error: GetAppointmentPhotos failed to fetch photos")
+		log.Println("Error: GetAppointmentPhotos failed to fetch photos:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch photos"})
 	}
 	if items == nil {
@@ -34,7 +33,7 @@ func UploadAppointmentPhoto(c echo.Context) error {
 
 	file, err := c.FormFile("photo")
 	if err != nil {
-		log.Println("Error: UploadAppointmentPhoto photo file required")
+		log.Println("Error: UploadAppointmentPhoto photo file required:", err)
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "photo file required"})
 	}
 
@@ -52,7 +51,7 @@ func UploadAppointmentPhoto(c echo.Context) error {
 
 	src, err := file.Open()
 	if err != nil {
-		log.Println("Error: UploadAppointmentPhoto failed to read file")
+		log.Println("Error: UploadAppointmentPhoto failed to read file:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to read file"})
 	}
 	defer src.Close()
@@ -62,7 +61,7 @@ func UploadAppointmentPhoto(c echo.Context) error {
 	destPath := filepath.Join("uploads", filename)
 	dst, err := os.Create(destPath)
 	if err != nil {
-		log.Println("Error: UploadAppointmentPhoto failed to save file")
+		log.Println("Error: UploadAppointmentPhoto failed to save file:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to save file"})
 	}
 	defer dst.Close()
@@ -70,17 +69,13 @@ func UploadAppointmentPhoto(c echo.Context) error {
 
 	photo := models.AppointmentPhoto{
 		AppointmentID: appointmentID,
-		PhotoType:     c.FormValue("photoType"),
 		FilePath:      "/uploads/" + filename,
 		Caption:       c.FormValue("caption"),
-		CreatedAt:     time.Now().Format(time.RFC3339),
-	}
-	if photo.PhotoType == "" {
-		photo.PhotoType = "other"
+		CreatedAt:     models.DateNow(),
 	}
 
 	if err := photo.Create(); err != nil {
-		log.Println("Error: UploadAppointmentPhoto failed to save photo record")
+		log.Println("Error: UploadAppointmentPhoto failed to save photo record:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to save photo record"})
 	}
 	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: photo})
@@ -90,10 +85,10 @@ func DeleteAppointmentPhoto(c echo.Context) error {
 	photo := models.AppointmentPhoto{ID: c.Param("photoId")}
 	if err := photo.GetByID(photo.ID); err != nil {
 		if err == sql.ErrNoRows {
-			log.Println("Error: DeleteAppointmentPhoto photo not found")
+			log.Println("Error: DeleteAppointmentPhoto photo not found:", err)
 			return c.JSON(http.StatusNotFound, utils.Response{Error: "photo not found"})
 		}
-		log.Println("Error: DeleteAppointmentPhoto failed to find photo")
+		log.Println("Error: DeleteAppointmentPhoto failed to find photo:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to find photo"})
 	}
 
@@ -102,7 +97,7 @@ func DeleteAppointmentPhoto(c echo.Context) error {
 	os.Remove(filePath)
 
 	if err := photo.Delete(); err != nil {
-		log.Println("Error: DeleteAppointmentPhoto failed to delete photo")
+		log.Println("Error: DeleteAppointmentPhoto failed to delete photo:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to delete photo"})
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true})

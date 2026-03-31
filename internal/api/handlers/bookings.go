@@ -30,7 +30,7 @@ func GetBookingAvailability(c echo.Context) error {
 	// Get already-booked slots for this date
 	bookedSlots, err := (&models.Booking{}).GetBookedSlots(date)
 	if err != nil {
-		log.Println("Error: GetBookingAvailability failed to check availability")
+		log.Println("Error: GetBookingAvailability failed to check availability:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to check availability"})
 	}
 	bookedSet := make(map[string]bool)
@@ -63,7 +63,7 @@ func CheckBookingPatient(c echo.Context) error {
 	}
 	found, firstName, err := (&models.Booking{}).PatientCheckByPhone(phone)
 	if err != nil {
-		log.Println("Error: CheckBookingPatient check failed")
+		log.Println("Error: CheckBookingPatient check failed:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "check failed"})
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: map[string]interface{}{
@@ -76,32 +76,21 @@ func CheckBookingPatient(c echo.Context) error {
 func CreatePublicBooking(c echo.Context) error {
 	var b models.Booking
 	if err := c.Bind(&b); err != nil {
-		log.Println("Error: CreatePublicBooking invalid request")
+		log.Println("Error: CreatePublicBooking invalid request:", err)
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
 	}
-	v := NewValidator()
-	v.Required("clientName", b.ClientName, "Client name")
-	v.MinLength("clientName", b.ClientName, 2, "Client name")
-	v.Required("clientPhone", b.ClientPhone, "Phone")
-	v.Phone("clientPhone", b.ClientPhone)
-	v.Email("clientEmail", b.ClientEmail)
-	v.Required("serviceCategory", b.ServiceCategory, "Service category")
-	v.Required("serviceName", b.ServiceName, "Service name")
-	v.Required("preferredDate", b.PreferredDate, "Preferred date")
-	v.Date("preferredDate", b.PreferredDate)
-	v.Required("preferredTime", b.PreferredTime, "Preferred time")
-	if v.HasErrors() {
-		log.Println("Error: CreatePublicBooking validation failed")
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: v.Fields})
+	if err := b.IsValid(); err != nil {
+		log.Println("Error: CreatePublicBooking validation failed:", err)
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
 	}
 
 	if err := b.Create(); err != nil {
 		// Check if it's a booking limit error
 		if strings.Contains(err.Error(), "booking limit reached") {
-			log.Println("Error: CreatePublicBooking booking limit reached")
+			log.Println("Error: CreatePublicBooking booking limit reached:", err)
 			return c.JSON(http.StatusTooManyRequests, utils.Response{Error: err.Error()})
 		}
-		log.Println("Error: CreatePublicBooking failed to create booking")
+		log.Println("Error: CreatePublicBooking failed to create booking:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create booking"})
 	}
 	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: b})
@@ -115,7 +104,7 @@ func GetAllBookings(c echo.Context) error {
 
 	bookings, err := (&models.Booking{}).GetAll(status, date)
 	if err != nil {
-		log.Println("Error: GetAllBookings failed to fetch bookings")
+		log.Println("Error: GetAllBookings failed to fetch bookings:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch bookings"})
 	}
 	if bookings == nil {
@@ -139,7 +128,7 @@ func ConfirmBooking(c echo.Context) error {
 
 	booking := models.Booking{ID: c.Param("id")}
 	if err := booking.Confirm(body.RoomID); err == sql.ErrNoRows {
-		log.Println("Error: ConfirmBooking booking not found")
+		log.Println("Error: ConfirmBooking booking not found:", err)
 		return c.JSON(http.StatusNotFound, utils.Response{Error: "booking not found"})
 	} else if err != nil {
 		log.Println("Error: ConfirmBooking " + err.Error())
@@ -151,10 +140,10 @@ func ConfirmBooking(c echo.Context) error {
 func CancelBooking(c echo.Context) error {
 	booking := models.Booking{ID: c.Param("id")}
 	if err := booking.Cancel(); err == sql.ErrNoRows {
-		log.Println("Error: CancelBooking booking not found")
+		log.Println("Error: CancelBooking booking not found:", err)
 		return c.JSON(http.StatusNotFound, utils.Response{Error: "booking not found"})
 	} else if err != nil {
-		log.Println("Error: CancelBooking failed to cancel booking")
+		log.Println("Error: CancelBooking failed to cancel booking:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to cancel booking"})
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: booking})

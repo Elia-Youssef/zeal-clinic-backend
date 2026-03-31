@@ -17,14 +17,11 @@ func CreateServer() *echo.Echo {
 	e := echo.New()
 
 	// Middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     config.CORSOrigins,
-		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
-		AllowHeaders:     []string{echo.HeaderContentType, echo.HeaderAuthorization},
-		AllowCredentials: true,
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "${time_rfc3339} | ${status} | ${latency_human} | ${method} ${uri}\n",
 	}))
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
 
 	// Static & health
 	e.Static("/uploads", "./uploads")
@@ -46,21 +43,30 @@ func CreateServer() *echo.Echo {
 	routes.SetupRoomRoutes(api)
 	routes.SetupAllergyRoutes(api)
 	routes.SetupProcedureRoutes(api)
+	routes.SetupProcedureSessionRoutes(api)
+	routes.SetupProcedureAllergyConflictRoutes(api)
 	routes.SetupPatientRoutes(api)
+	routes.SetupPatientAllergyRoutes(api)
+	routes.SetupPatientProcedureRoutes(api)
 	routes.SetupAppointmentRoutes(api)
+	routes.SetupAppointmentPhotoRoutes(api)
 	routes.SetupScheduleAvailabilityRoutes(api)
-	routes.SetupInventoryRoutes(api)
-	routes.SetupTeamRoutes(api)
+	routes.SetupProductRoutes(api)
+	routes.SetupProductCategoryRoutes(api)
+	routes.SetupProductAllergyConflictRoutes(api)
+	routes.SetupEmployeeRoutes(api)
+	routes.SetupEmployeeSalaryRoutes(api)
 	routes.SetupBookingRoutes(api, pub)
 	routes.SetupPrescriptionRoutes(api)
-	routes.SetupConsentRoutes(api)
 	routes.SetupBalanceRoutes(api)
-	routes.SetupExchangeRateRoutes(api)
-	routes.SetupWaitlistRoutes(api)
+	routes.SetupTransactionRoutes(api)
+	routes.SetupClientInvoiceRoutes(api)
+	routes.SetupClientPaymentRoutes(api)
+	routes.SetupSupplierInvoiceRoutes(api)
+	routes.SetupSupplierPaymentRoutes(api)
+	routes.SetupCurrencyRoutes(api)
 	routes.SetupAuditRoutes(api)
 	routes.SetupReportRoutes(api)
-	routes.SetupNotificationRoutes(api)
-
 	return e
 }
 

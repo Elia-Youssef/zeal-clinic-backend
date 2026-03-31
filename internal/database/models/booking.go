@@ -1,7 +1,9 @@
 package models
 
 import (
+	"clinic-api/internal/validation"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,7 +19,7 @@ type Booking struct {
 	ReferralSource  string `json:"referralSource"`
 	ServiceCategory string `json:"serviceCategory"`
 	ServiceName     string `json:"serviceName"`
-	PreferredDate   string `json:"preferredDate"`
+	PreferredDate   Date   `json:"preferredDate"`
 	PreferredTime   string `json:"preferredTime"`
 	DurationMinutes int    `json:"durationMinutes"`
 	Status          string `json:"status"`
@@ -25,15 +27,93 @@ type Booking struct {
 	PatientID       string `json:"patientId"`
 	RoomID          string `json:"roomId"`
 	Notes           string `json:"notes"`
-	CreatedAt       string `json:"createdAt"`
-	UpdatedAt       string `json:"updatedAt"`
+	CreatedAt       Date   `json:"createdAt"`
+	UpdatedAt       Date   `json:"updatedAt"`
+}
+
+func (b *Booking) IsValid() error {
+	e := make(validation.Errors)
+	if msg := validation.Required(b.ClientName, "Client name"); msg != "" {
+		e["clientName"] = msg
+	} else if msg := validation.MinLength(b.ClientName, 2, "Client name"); msg != "" {
+		e["clientName"] = msg
+	}
+	if msg := validation.Required(b.ClientPhone, "Phone"); msg != "" {
+		e["clientPhone"] = msg
+	} else if msg := validation.Phone(b.ClientPhone); msg != "" {
+		e["clientPhone"] = msg
+	}
+	if msg := validation.Email(b.ClientEmail); msg != "" {
+		e["clientEmail"] = msg
+	}
+	if msg := validation.Required(b.ServiceCategory, "Service category"); msg != "" {
+		e["serviceCategory"] = msg
+	}
+	if msg := validation.Required(b.ServiceName, "Service name"); msg != "" {
+		e["serviceName"] = msg
+	}
+	if msg := validation.Required(string(b.PreferredDate), "Preferred date"); msg != "" {
+		e["preferredDate"] = msg
+	} else if msg := validation.Date(string(b.PreferredDate)); msg != "" {
+		e["preferredDate"] = msg
+	}
+	if msg := validation.Required(b.PreferredTime, "Preferred time"); msg != "" {
+		e["preferredTime"] = msg
+	}
+	if len(e) > 0 {
+		return e
+	}
+	return nil
+}
+
+const bookingColumnsNoId = `client_name, client_phone, client_email, is_new_client, referral_source,
+	service_category, service_name, preferred_date, preferred_time, duration_minutes,
+	status, appointment_id, patient_id, room_id, notes, created_at, updated_at`
+const bookingColumns = `id, ` + bookingColumnsNoId
+
+type BookingList []Booking
+
+func (b *Booking) ScanRow(row *sql.Row) error {
+	if row == nil {
+		return errors.New("nil booking row")
+	}
+	var isNew int
+	err := row.Scan(
+		&b.ID, &b.ClientName, &b.ClientPhone, &b.ClientEmail, &isNew, &b.ReferralSource,
+		&b.ServiceCategory, &b.ServiceName, &b.PreferredDate, &b.PreferredTime, &b.DurationMinutes,
+		&b.Status, &b.AppointmentID, &b.PatientID, &b.RoomID, &b.Notes, &b.CreatedAt, &b.UpdatedAt,
+	)
+	if err != nil {
+		return err
+	}
+	b.IsNewClient = isNew == 1
+	return nil
+}
+
+func (l *BookingList) ScanRows(rows *sql.Rows) error {
+	if rows == nil {
+		return errors.New("nil booking rows")
+	}
+	*l = BookingList{}
+	for rows.Next() {
+		var item Booking
+		var isNew int
+		err := rows.Scan(
+			&item.ID, &item.ClientName, &item.ClientPhone, &item.ClientEmail, &isNew, &item.ReferralSource,
+			&item.ServiceCategory, &item.ServiceName, &item.PreferredDate, &item.PreferredTime, &item.DurationMinutes,
+			&item.Status, &item.AppointmentID, &item.PatientID, &item.RoomID, &item.Notes, &item.CreatedAt, &item.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+		item.IsNewClient = isNew == 1
+		*l = append(*l, item)
+	}
+	return nil
 }
 
 func (b *Booking) GetAll(status, date string) ([]Booking, error) {
-	query := `SELECT id, client_name, client_phone, client_email, is_new_client, referral_source,
-		service_category, service_name, preferred_date, preferred_time, duration_minutes,
-		status, appointment_id, patient_id, room_id, notes, created_at, updated_at
-		FROM bookings WHERE 1=1`
+	query := `SELECT ` + bookingColumns + ` FROM bookings WHERE 1=1`
 	var args []interface{}
 
 	if status != "" {
@@ -52,28 +132,16 @@ func (b *Booking) GetAll(status, date string) ([]Booking, error) {
 	}
 	defer rows.Close()
 
-	var bookings []Booking
-	for rows.Next() {
-		b, err := scanBooking(rows)
-		if err != nil {
-			return nil, err
-		}
-		bookings = append(bookings, b)
+	var list BookingList
+	if err := list.ScanRows(rows); err != nil {
+		return nil, err
 	}
-	return bookings, rows.Err()
+	return list, rows.Err()
 }
 
 func (b *Booking) GetByID(id string) error {
-	row := DB.QueryRow(`SELECT id, client_name, client_phone, client_email, is_new_client, referral_source,
-		service_category, service_name, preferred_date, preferred_time, duration_minutes,
-		status, appointment_id, patient_id, room_id, notes, created_at, updated_at
-		FROM bookings WHERE id = ?`, id)
-	result, err := scanBookingRow(row)
-	if err != nil {
-		return err
-	}
-	*b = result
-	return nil
+	row := DB.QueryRow(`SELECT `+bookingColumns+` FROM bookings WHERE id = ?`, id)
+	return b.ScanRow(row)
 }
 
 func (b *Booking) Create() error {
@@ -92,8 +160,8 @@ func (b *Booking) Create() error {
 		return fmt.Errorf("booking limit reached: you already have %d active bookings (maximum 3)", activeCount)
 	}
 
-	b.ID = uuid.New().String()
-	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+	b.ID = uuid.Must(uuid.NewV7()).String()
+	now := DateNow()
 	b.CreatedAt = now
 	b.UpdatedAt = now
 	if b.Status == "" {
@@ -110,18 +178,6 @@ func (b *Booking) Create() error {
 		b.ID, b.ClientName, b.ClientPhone, b.ClientEmail, BoolToInt(b.IsNewClient), b.ReferralSource,
 		b.ServiceCategory, b.ServiceName, b.PreferredDate, b.PreferredTime, b.DurationMinutes,
 		b.Status, b.AppointmentID, b.PatientID, b.RoomID, b.Notes, b.CreatedAt, b.UpdatedAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	notifID := uuid.New().String()
-	_, err = tx.Exec(`INSERT INTO notifications (id, type, title, message, booking_id, is_read, created_at)
-		VALUES (?,?,?,?,?,?,?)`,
-		notifID, "new_booking",
-		"New Booking Request",
-		fmt.Sprintf("%s booked %s on %s at %s", b.ClientName, b.ServiceName, b.PreferredDate, b.PreferredTime),
-		b.ID, 0, now,
 	)
 	if err != nil {
 		return err
@@ -158,16 +214,11 @@ func (b *Booking) Confirm(roomID string) error {
 	var patientID string
 	err = tx.QueryRow(`SELECT id FROM patients WHERE contact = ? LIMIT 1`, b.ClientPhone).Scan(&patientID)
 	if err == sql.ErrNoRows {
-		var nextNum int
-		err = tx.QueryRow(`UPDATE counters SET value = value + 1 WHERE name = 'patient' RETURNING value`).Scan(&nextNum)
-		if err != nil {
-			return fmt.Errorf("counter: %w", err)
-		}
-		patientID = fmt.Sprintf("PAT-%03d", nextNum)
-		now := time.Now().UTC().Format(time.RFC3339)
-		_, err = tx.Exec(`INSERT INTO patients (id, patient_number, first_name, last_name, gender, date_of_birth, contact, email, created_at)
-			VALUES (?,?,?,?,?,?,?,?,?)`,
-			patientID, nextNum, b.ClientName, "", "Female", "2000-01-01", b.ClientPhone, b.ClientEmail, now,
+		patientID = uuid.Must(uuid.NewV7()).String()
+		now := DateNow()
+		_, err = tx.Exec(`INSERT INTO patients (id, first_name, last_name, gender, date_of_birth, contact, email, created_at)
+			VALUES (?,?,?,?,?,?,?,?)`,
+			patientID, b.ClientName, "", "Female", "2000-01-01", b.ClientPhone, b.ClientEmail, now,
 		)
 		if err != nil {
 			return fmt.Errorf("create patient: %w", err)
@@ -176,7 +227,7 @@ func (b *Booking) Confirm(roomID string) error {
 		return err
 	}
 
-	aptID := uuid.New().String()
+	aptID := uuid.Must(uuid.NewV7()).String()
 	startTime := fmt.Sprintf("%sT%s:00", b.PreferredDate, b.PreferredTime)
 	t, err := time.Parse("2006-01-02T15:04:05", startTime)
 	if err != nil {
@@ -184,12 +235,12 @@ func (b *Booking) Confirm(roomID string) error {
 	}
 	endTime := t.Add(time.Duration(b.DurationMinutes) * time.Minute).Format("2006-01-02T15:04:05")
 
-	now := time.Now().UTC().Format("2006-01-02 15:04:05")
-	_, err = tx.Exec(`INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, treatment_type, status, notes, approval_status, created_at, updated_at)
+	now := DateNow()
+	_, err = tx.Exec(`INSERT INTO appointments (id, patient_id, room_id, employee_id, patient_procedure_session_id, start_time, end_time, status, notes, created_at, updated_at)
 		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		aptID, patientID, roomID, startTime, endTime, "Procedure", "Scheduled",
+		aptID, patientID, roomID, "", nil, startTime, endTime, "Scheduled",
 		fmt.Sprintf("Online booking by %s (%s) — %s", b.ClientName, b.ClientPhone, b.ServiceName),
-		"pending", now, now,
+		now, now,
 	)
 	if err != nil {
 		return fmt.Errorf("create appointment: %w", err)
@@ -211,29 +262,9 @@ func (b *Booking) Confirm(roomID string) error {
 }
 
 func (b *Booking) Cancel() error {
-	tx, err := DB.Begin()
+	now := DateNow()
+	_, err := DB.Exec(`UPDATE bookings SET status = 'cancelled', updated_at = ? WHERE id = ?`, now, b.ID)
 	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	now := time.Now().UTC().Format("2006-01-02 15:04:05")
-	_, err = tx.Exec(`UPDATE bookings SET status = 'cancelled', updated_at = ? WHERE id = ?`, now, b.ID)
-	if err != nil {
-		return err
-	}
-
-	if err := b.GetByID(b.ID); err == nil {
-		notifID := uuid.New().String()
-		tx.Exec(`INSERT INTO notifications (id, type, title, message, booking_id, is_read, created_at)
-			VALUES (?,?,?,?,?,?,?)`,
-			notifID, "booking_cancelled", "Booking Cancelled",
-			fmt.Sprintf("Booking by %s for %s has been cancelled", b.ClientName, b.ServiceName),
-			b.ID, 0, now,
-		)
-	}
-
-	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return b.GetByID(b.ID)
@@ -267,33 +298,4 @@ func (b *Booking) PatientCheckByPhone(phone string) (bool, string, error) {
 		return false, "", err
 	}
 	return true, firstName, nil
-}
-
-// scan helpers
-
-type bookingScannable interface {
-	Scan(dest ...interface{}) error
-}
-
-func scanBookingFields(s bookingScannable) (Booking, error) {
-	var b Booking
-	var isNew int
-	err := s.Scan(
-		&b.ID, &b.ClientName, &b.ClientPhone, &b.ClientEmail, &isNew, &b.ReferralSource,
-		&b.ServiceCategory, &b.ServiceName, &b.PreferredDate, &b.PreferredTime, &b.DurationMinutes,
-		&b.Status, &b.AppointmentID, &b.PatientID, &b.RoomID, &b.Notes, &b.CreatedAt, &b.UpdatedAt,
-	)
-	if err != nil {
-		return b, err
-	}
-	b.IsNewClient = isNew == 1
-	return b, nil
-}
-
-func scanBooking(rows *sql.Rows) (Booking, error) {
-	return scanBookingFields(rows)
-}
-
-func scanBookingRow(row *sql.Row) (Booking, error) {
-	return scanBookingFields(row)
 }

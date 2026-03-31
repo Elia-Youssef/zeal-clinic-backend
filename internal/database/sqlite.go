@@ -1,47 +1,58 @@
 package database
 
 import (
+	"clinic-api/internal/database/models"
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
 
-func Open(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
+func Open(rawPath string) (*sql.DB, error) {
+	dbPath := resolveSQLitePath(rawPath)
+
+	db, err := sql.Open("sqlite", dbPath+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
 	db.SetMaxOpenConns(1) // SQLite doesn't support concurrent writes
 
-	if err := runMigrations(db); err != nil {
-		return nil, fmt.Errorf("migrations: %w", err)
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("ping db: %w", err)
 	}
+
+	if _, err := db.Exec(schema); err != nil {
+		return nil, fmt.Errorf("schema: %w", err)
+	}
+
+	models.DB = db
 
 	log.Println("Database initialized at", dbPath)
 	return db, nil
 }
 
-func runMigrations(db *sql.DB) error {
-	if _, err := db.Exec(schema); err != nil {
-		return err
+func resolveSQLitePath(rawPath string) string {
+	trimmed := strings.TrimSpace(rawPath)
+	lower := strings.ToLower(trimmed)
+
+	if trimmed == ":memory:" || strings.HasPrefix(lower, "file:") {
+		return trimmed
 	}
 
-	// Incremental migrations, safe to re-run (ignore "duplicate column" errors)
-	alterStatements := []string{
-		`ALTER TABLE appointments ADD COLUMN reminder_sent INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE appointments ADD COLUMN reminder_sent_at TEXT NOT NULL DEFAULT ''`,
-		// Multi-currency and payment methods
-		`ALTER TABLE transactions ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'`,
-		`ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE transactions ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 1.0`,
-		`ALTER TABLE transactions ADD COLUMN notes TEXT NOT NULL DEFAULT ''`,
-	}
-	for _, stmt := range alterStatements {
-		_, _ = db.Exec(stmt) // ignore errors (column already exists)
+	absPath, err := filepath.Abs(trimmed)
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 
-	return nil
+	parentDir := filepath.Dir(absPath)
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+		log.Fatal(err.Error())
+	}
+
+	return absPath
 }

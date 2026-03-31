@@ -29,16 +29,9 @@ func CreatePrescription(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
 	}
 
-	v := NewValidator()
-	v.Required("patientId", p.PatientID, "Patient ID")
-	v.Required("prescriptionDate", p.PrescriptionDate, "Prescription date")
-	v.Date("prescriptionDate", p.PrescriptionDate)
-	if len(p.Items) == 0 {
-		v.Fields["items"] = "at least one prescription item is required"
-	}
-	if v.HasErrors() {
-		log.Println("Error: [CreatePrescription] validation failed:", v.Fields)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: v.Fields})
+	if err := p.IsValid(); err != nil {
+		log.Println("Error: [CreatePrescription] validation failed:", err)
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
 	}
 
 	if err := p.Create(); err != nil {

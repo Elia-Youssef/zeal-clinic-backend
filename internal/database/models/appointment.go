@@ -1,38 +1,93 @@
 package models
 
 import (
+	"clinic-api/internal/validation"
 	"database/sql"
+	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 )
 
 type Appointment struct {
-	ID                        string `json:"id"`
-	PatientID                 string `json:"patientId"`
-	RoomID                    string `json:"roomId"`
-	EmployeeID                string `json:"employeeId"`
-	PatientProcedureSessionID string `json:"patientProcedureSessionId"`
-	StartTime                 string `json:"startTime"`
-	EndTime                   string `json:"endTime"`
-	TreatmentType             string `json:"treatmentType"`
-	Status                    string `json:"status"`
-	ApprovalStatus            string `json:"approvalStatus"`
-	ApprovedBy                string `json:"approvedBy"`
-	ApprovedAt                string `json:"approvedAt"`
-	Notes                     string `json:"notes"`
-	ReminderSent              bool   `json:"reminderSent"`
-	ReminderSentAt            string `json:"reminderSentAt"`
-	CreatedAt                 string `json:"createdAt"`
-	UpdatedAt                 string `json:"updatedAt"`
+	ID                        string  `json:"id"`
+	PatientID                 string  `json:"patientId"`
+	RoomID                    string  `json:"roomId"`
+	EmployeeID                string  `json:"employeeId"`
+	PatientProcedureSessionID *string `json:"patientProcedureSessionId"`
+	StartTime                 Date    `json:"startTime"`
+	EndTime                   Date    `json:"endTime"`
+	Status                    string  `json:"status"`
+	Notes                     string  `json:"notes"`
+	CreatedAt                 Date    `json:"createdAt"`
+	UpdatedAt                 Date    `json:"updatedAt"`
 }
 
-const appointmentColumns = `id, patient_id, room_id, employee_id, patient_procedure_session_id,
-	start_time, end_time, treatment_type, status, approval_status, approved_by, approved_at,
-	notes, reminder_sent, reminder_sent_at, created_at, updated_at`
+func (a *Appointment) IsValid() error {
+	e := make(validation.Errors)
+	if msg := validation.Required(a.PatientID, "Patient ID"); msg != "" {
+		e["patientId"] = msg
+	}
+	if msg := validation.Required(a.RoomID, "Room ID"); msg != "" {
+		e["roomId"] = msg
+	}
+	if msg := validation.Required(string(a.StartTime), "Start time"); msg != "" {
+		e["startTime"] = msg
+	} else if msg := validation.DateTime(string(a.StartTime)); msg != "" {
+		e["startTime"] = msg
+	}
+	if msg := validation.Required(string(a.EndTime), "End time"); msg != "" {
+		e["endTime"] = msg
+	} else if msg := validation.DateTime(string(a.EndTime)); msg != "" {
+		e["endTime"] = msg
+	}
+	if msg := validation.OneOf(a.Status, []string{"Scheduled", "In-Progress", "Completed", "Cancelled"}, "Status"); msg != "" {
+		e["status"] = msg
+	}
+	if len(e) > 0 {
+		return e
+	}
+	return nil
+}
 
-func checkAppointmentConflict(roomID, startTime, endTime, excludeID string) error {
+const appointmentColumnsNoId = `patient_id, room_id, employee_id, patient_procedure_session_id,
+	start_time, end_time, status, notes, created_at, updated_at`
+const appointmentColumns = `id, ` + appointmentColumnsNoId
+
+type AppointmentList []Appointment
+
+func (a *Appointment) ScanRow(row *sql.Row) error {
+	if row == nil {
+		return errors.New("nil appointment row")
+	}
+	err := row.Scan(&a.ID, &a.PatientID, &a.RoomID, &a.EmployeeID, &a.PatientProcedureSessionID,
+		&a.StartTime, &a.EndTime, &a.Status,
+		&a.Notes, &a.CreatedAt, &a.UpdatedAt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (l *AppointmentList) ScanRows(rows *sql.Rows) error {
+	if rows == nil {
+		return errors.New("nil appointment rows")
+	}
+	*l = AppointmentList{}
+	for rows.Next() {
+		var item Appointment
+		err := rows.Scan(&item.ID, &item.PatientID, &item.RoomID, &item.EmployeeID, &item.PatientProcedureSessionID,
+			&item.StartTime, &item.EndTime, &item.Status,
+			&item.Notes, &item.CreatedAt, &item.UpdatedAt)
+		if err != nil {
+			continue
+		}
+		*l = append(*l, item)
+	}
+	return nil
+}
+
+func checkAppointmentConflict(roomID string, startTime, endTime Date, excludeID string) error {
 	query := `SELECT COUNT(*) FROM appointments
 		WHERE room_id = ?
 		AND status != 'Cancelled'
@@ -60,25 +115,16 @@ func (a *Appointment) GetAll() ([]Appointment, error) {
 	}
 	defer rows.Close()
 
-	var apts []Appointment
-	for rows.Next() {
-		apt, err := scanAppointment(rows)
-		if err != nil {
-			return nil, err
-		}
-		apts = append(apts, apt)
+	var list AppointmentList
+	if err := list.ScanRows(rows); err != nil {
+		return nil, err
 	}
-	return apts, rows.Err()
+	return list, rows.Err()
 }
 
 func (a *Appointment) GetByID(id string) error {
 	row := DB.QueryRow(`SELECT `+appointmentColumns+` FROM appointments WHERE id = ?`, id)
-	result, err := scanAppointmentRow(row)
-	if err != nil {
-		return err
-	}
-	*a = result
-	return nil
+	return a.ScanRow(row)
 }
 
 func (a *Appointment) Create() error {
@@ -86,19 +132,16 @@ func (a *Appointment) Create() error {
 		return err
 	}
 
-	a.ID = uuid.New().String()
-	now := time.Now().Format(time.RFC3339)
+	a.ID = uuid.Must(uuid.NewV7()).String()
+	now := DateNow()
 	a.CreatedAt = now
 	a.UpdatedAt = now
-	if a.ApprovalStatus == "" {
-		a.ApprovalStatus = "not_required"
-	}
 
 	_, err := DB.Exec(`INSERT INTO appointments (`+appointmentColumns+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		a.ID, a.PatientID, a.RoomID, a.EmployeeID, a.PatientProcedureSessionID,
-		a.StartTime, a.EndTime, a.TreatmentType, a.Status, a.ApprovalStatus, a.ApprovedBy, a.ApprovedAt,
-		a.Notes, BoolToInt(a.ReminderSent), a.ReminderSentAt, a.CreatedAt, a.UpdatedAt)
+		a.StartTime, a.EndTime, a.Status,
+		a.Notes, a.CreatedAt, a.UpdatedAt)
 	return err
 }
 
@@ -107,20 +150,13 @@ func (a *Appointment) Update(updates map[string]interface{}) error {
 		"patientId": "patient_id", "roomId": "room_id", "employeeId": "employee_id",
 		"patientProcedureSessionId": "patient_procedure_session_id",
 		"startTime": "start_time", "endTime": "end_time",
-		"treatmentType": "treatment_type", "status": "status",
-		"approvalStatus": "approval_status", "approvedBy": "approved_by", "approvedAt": "approved_at",
-		"notes": "notes", "reminderSent": "reminder_sent", "reminderSentAt": "reminder_sent_at",
+		"status": "status", "notes": "notes",
 	}
 
 	setClauses := ""
 	var args []interface{}
 	for jsonKey, dbCol := range cols {
 		if val, ok := updates[jsonKey]; ok {
-			if dbCol == "reminder_sent" {
-				if b, ok := val.(bool); ok {
-					val = BoolToInt(b)
-				}
-			}
 			if setClauses != "" {
 				setClauses += ", "
 			}
@@ -147,10 +183,10 @@ func (a *Appointment) Update(updates map[string]interface{}) error {
 			roomID = v
 		}
 		if v, ok := updates["startTime"].(string); ok {
-			startTime = v
+			startTime = Date(v)
 		}
 		if v, ok := updates["endTime"].(string); ok {
-			endTime = v
+			endTime = Date(v)
 		}
 		if err := checkAppointmentConflict(roomID, startTime, endTime, a.ID); err != nil {
 			return err
@@ -158,7 +194,7 @@ func (a *Appointment) Update(updates map[string]interface{}) error {
 	}
 
 	setClauses += ", updated_at = ?"
-	args = append(args, time.Now().Format(time.RFC3339))
+	args = append(args, DateNow())
 	args = append(args, a.ID)
 	_, err := DB.Exec("UPDATE appointments SET "+setClauses+" WHERE id = ?", args...)
 	if err != nil {
@@ -177,61 +213,4 @@ func (a *Appointment) Delete() error {
 		return sql.ErrNoRows
 	}
 	return nil
-}
-
-func (a *Appointment) MarkReminded(sent bool) error {
-	sentVal := 0
-	sentAt := ""
-	if sent {
-		sentVal = 1
-		sentAt = time.Now().UTC().Format("2006-01-02 15:04:05")
-	}
-	res, err := DB.Exec(`UPDATE appointments SET reminder_sent = ?, reminder_sent_at = ?, updated_at = ? WHERE id = ?`,
-		sentVal, sentAt, time.Now().Format(time.RFC3339), a.ID)
-	if err != nil {
-		return err
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return sql.ErrNoRows
-	}
-	return nil
-}
-
-func (a *Appointment) Approve(approvedBy string) error {
-	now := time.Now().Format(time.RFC3339)
-	_, err := DB.Exec(`UPDATE appointments SET approval_status = 'approved', approved_by = ?, approved_at = ?, updated_at = ? WHERE id = ?`,
-		approvedBy, now, now, a.ID)
-	if err != nil {
-		return err
-	}
-	return a.GetByID(a.ID)
-}
-
-func (a *Appointment) Reject(approvedBy string) error {
-	now := time.Now().Format(time.RFC3339)
-	_, err := DB.Exec(`UPDATE appointments SET approval_status = 'rejected', approved_by = ?, approved_at = ?, updated_at = ? WHERE id = ?`,
-		approvedBy, now, now, a.ID)
-	if err != nil {
-		return err
-	}
-	return a.GetByID(a.ID)
-}
-
-func scanAppointmentFields(s scannable) (Appointment, error) {
-	var a Appointment
-	var reminderSent int
-	err := s.Scan(&a.ID, &a.PatientID, &a.RoomID, &a.EmployeeID, &a.PatientProcedureSessionID,
-		&a.StartTime, &a.EndTime, &a.TreatmentType, &a.Status, &a.ApprovalStatus, &a.ApprovedBy, &a.ApprovedAt,
-		&a.Notes, &reminderSent, &a.ReminderSentAt, &a.CreatedAt, &a.UpdatedAt)
-	a.ReminderSent = reminderSent == 1
-	return a, err
-}
-
-func scanAppointment(rows *sql.Rows) (Appointment, error) {
-	return scanAppointmentFields(rows)
-}
-
-func scanAppointmentRow(row *sql.Row) (Appointment, error) {
-	return scanAppointmentFields(row)
 }

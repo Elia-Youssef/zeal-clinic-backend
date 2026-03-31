@@ -1,19 +1,20 @@
 package models
 
 import (
+	"clinic-api/internal/validation"
 	"database/sql"
-	"fmt"
-	"time"
+	"errors"
+
+	"github.com/google/uuid"
 )
 
 type Patient struct {
 	ID                    string  `json:"id"`
-	PatientNumber         int     `json:"patientNumber"`
 	FirstName             string  `json:"firstName"`
 	MiddleName            string  `json:"middleName"`
 	LastName              string  `json:"lastName"`
 	Gender                string  `json:"gender"`
-	DateOfBirth           string  `json:"dateOfBirth"`
+	DateOfBirth           Date    `json:"dateOfBirth"`
 	Contact               string  `json:"contact"`
 	Email                 string  `json:"email"`
 	EmergencyContactName  string  `json:"emergencyContactName"`
@@ -22,95 +23,133 @@ type Patient struct {
 	Height                float64 `json:"height"`
 	BP                    string  `json:"bp"`
 	BloodType             string  `json:"bloodType"`
-	PhysicalActivity      string  `json:"physicalActivity"`
-	IsSmoker              bool    `json:"isSmoker"`
-	PacksPerDay           float64 `json:"packsPerDay"`
-	OnHerbalSupplements   bool    `json:"onHerbalSupplements"`
 	OnMedication          bool    `json:"onMedication"`
 	MedicationDetails     string  `json:"medicationDetails"`
-	OnBloodThinners       bool    `json:"onBloodThinners"`
-	OnHRT                 bool    `json:"onHRT"`
-	HRTDetails            string  `json:"hrtDetails"`
 	Notes                 string  `json:"notes"`
-	CreatedAt             string  `json:"createdAt"`
-	UpdatedAt             string  `json:"updatedAt"`
+	CreatedAt             Date    `json:"createdAt"`
+	UpdatedAt             Date    `json:"updatedAt"`
 }
 
-const patientColumns = `id, patient_number, first_name, middle_name, last_name, gender, date_of_birth,
+func (p *Patient) IsValid() error {
+	e := make(validation.Errors)
+	if msg := validation.Required(p.FirstName, "First name"); msg != "" {
+		e["firstName"] = msg
+	}
+	if msg := validation.Required(p.LastName, "Last name"); msg != "" {
+		e["lastName"] = msg
+	}
+	if msg := validation.Required(p.Gender, "Gender"); msg != "" {
+		e["gender"] = msg
+	} else if msg := validation.OneOf(p.Gender, []string{"Male", "Female"}, "Gender"); msg != "" {
+		e["gender"] = msg
+	}
+	if msg := validation.Required(string(p.DateOfBirth), "Date of birth"); msg != "" {
+		e["dateOfBirth"] = msg
+	} else if msg := validation.Date(string(p.DateOfBirth)); msg != "" {
+		e["dateOfBirth"] = msg
+	}
+	if msg := validation.Required(p.Contact, "Contact phone"); msg != "" {
+		e["contact"] = msg
+	} else if msg := validation.Phone(p.Contact); msg != "" {
+		e["contact"] = msg
+	}
+	if msg := validation.Email(p.Email); msg != "" {
+		e["email"] = msg
+	}
+	if len(e) > 0 {
+		return e
+	}
+	return nil
+}
+
+const patientColumnsNoId = `first_name, middle_name, last_name, gender, date_of_birth,
 	contact, email, emergency_contact_name, emergency_contact_phone,
-	weight, height, bp, blood_type, physical_activity,
-	is_smoker, packs_per_day, on_herbal_supplements, on_medication, medication_details,
-	on_blood_thinners, on_hrt, hrt_details, notes, created_at, updated_at`
+	weight, height, bp, blood_type, on_medication, medication_details, notes, created_at, updated_at`
+const patientColumns = `id, ` + patientColumnsNoId
+
+type PatientList []Patient
+
+func (p *Patient) ScanRow(row *sql.Row) error {
+	if row == nil {
+		return errors.New("nil patient row")
+	}
+	var onMed int
+	err := row.Scan(
+		&p.ID, &p.FirstName, &p.MiddleName, &p.LastName, &p.Gender, &p.DateOfBirth,
+		&p.Contact, &p.Email, &p.EmergencyContactName, &p.EmergencyContactPhone,
+		&p.Weight, &p.Height, &p.BP, &p.BloodType,
+		&onMed, &p.MedicationDetails, &p.Notes, &p.CreatedAt, &p.UpdatedAt,
+	)
+	if err != nil {
+		return err
+	}
+	p.OnMedication = onMed == 1
+	return nil
+}
+
+func (l *PatientList) ScanRows(rows *sql.Rows) error {
+	if rows == nil {
+		return errors.New("nil patient rows")
+	}
+	*l = PatientList{}
+	for rows.Next() {
+		var item Patient
+		var onMed int
+		err := rows.Scan(
+			&item.ID, &item.FirstName, &item.MiddleName, &item.LastName, &item.Gender, &item.DateOfBirth,
+			&item.Contact, &item.Email, &item.EmergencyContactName, &item.EmergencyContactPhone,
+			&item.Weight, &item.Height, &item.BP, &item.BloodType,
+			&onMed, &item.MedicationDetails, &item.Notes, &item.CreatedAt, &item.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+		item.OnMedication = onMed == 1
+		*l = append(*l, item)
+	}
+	return nil
+}
 
 func (p *Patient) GetAll() ([]Patient, error) {
-	rows, err := DB.Query(`SELECT ` + patientColumns + ` FROM patients ORDER BY patient_number`)
+	rows, err := DB.Query(`SELECT ` + patientColumns + ` FROM patients ORDER BY first_name, last_name`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var patients []Patient
-	for rows.Next() {
-		pt, err := scanPatient(rows)
-		if err != nil {
-			return nil, err
-		}
-		patients = append(patients, pt)
+	var list PatientList
+	if err := list.ScanRows(rows); err != nil {
+		return nil, err
 	}
-	return patients, rows.Err()
+	return list, rows.Err()
 }
 
 func (p *Patient) GetByID(id string) error {
 	row := DB.QueryRow(`SELECT `+patientColumns+` FROM patients WHERE id = ?`, id)
-	scanned, err := scanPatientRow(row)
-	if err != nil {
-		return err
-	}
-	*p = scanned
-	return nil
+	return p.ScanRow(row)
 }
 
 func (p *Patient) Create() error {
-	tx, err := DB.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	var nextNum int
-	err = tx.QueryRow(`UPDATE counters SET value = value + 1 WHERE name = 'patient' RETURNING value`).Scan(&nextNum)
-	if err != nil {
-		return fmt.Errorf("counter: %w", err)
-	}
-
-	p.ID = fmt.Sprintf("PAT-%03d", nextNum)
-	p.PatientNumber = nextNum
-	now := time.Now().Format(time.RFC3339)
-	if p.CreatedAt == "" {
+	p.ID = uuid.Must(uuid.NewV7()).String()
+	now := DateNow()
+	if p.CreatedAt.IsZero() {
 		p.CreatedAt = now
 	}
 	p.UpdatedAt = now
 
-	_, err = tx.Exec(`INSERT INTO patients (
-		id, patient_number, first_name, middle_name, last_name, gender, date_of_birth,
+	_, err := DB.Exec(`INSERT INTO patients (
+		id, first_name, middle_name, last_name, gender, date_of_birth,
 		contact, email, emergency_contact_name, emergency_contact_phone,
-		weight, height, bp, blood_type, physical_activity,
-		is_smoker, packs_per_day, on_herbal_supplements, on_medication, medication_details,
-		on_blood_thinners, on_hrt, hrt_details, notes, created_at, updated_at
-	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		p.ID, p.PatientNumber, p.FirstName, p.MiddleName, p.LastName, p.Gender, p.DateOfBirth,
+		weight, height, bp, blood_type, on_medication, medication_details,
+		notes, created_at, updated_at
+	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		p.ID, p.FirstName, p.MiddleName, p.LastName, p.Gender, p.DateOfBirth,
 		p.Contact, p.Email, p.EmergencyContactName, p.EmergencyContactPhone,
-		p.Weight, p.Height, p.BP, p.BloodType, p.PhysicalActivity,
-		BoolToInt(p.IsSmoker), p.PacksPerDay, BoolToInt(p.OnHerbalSupplements),
+		p.Weight, p.Height, p.BP, p.BloodType,
 		BoolToInt(p.OnMedication), p.MedicationDetails,
-		BoolToInt(p.OnBloodThinners), BoolToInt(p.OnHRT), p.HRTDetails,
 		p.Notes, p.CreatedAt, p.UpdatedAt,
 	)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return err
 }
 
 func (p *Patient) Update(updates map[string]interface{}) error {
@@ -119,11 +158,7 @@ func (p *Patient) Update(updates map[string]interface{}) error {
 		"gender": "gender", "dateOfBirth": "date_of_birth", "contact": "contact", "email": "email",
 		"emergencyContactName": "emergency_contact_name", "emergencyContactPhone": "emergency_contact_phone",
 		"weight": "weight", "height": "height", "bp": "bp", "bloodType": "blood_type",
-		"physicalActivity": "physical_activity",
-		"isSmoker": "is_smoker", "packsPerDay": "packs_per_day",
-		"onHerbalSupplements": "on_herbal_supplements", "onMedication": "on_medication",
-		"medicationDetails": "medication_details", "onBloodThinners": "on_blood_thinners",
-		"onHRT": "on_hrt", "hrtDetails": "hrt_details", "notes": "notes",
+		"onMedication": "on_medication", "medicationDetails": "medication_details", "notes": "notes",
 	}
 
 	setClauses := ""
@@ -134,7 +169,7 @@ func (p *Patient) Update(updates map[string]interface{}) error {
 				setClauses += ", "
 			}
 			switch dbCol {
-			case "is_smoker", "on_herbal_supplements", "on_medication", "on_blood_thinners", "on_hrt":
+			case "on_medication":
 				if b, ok := val.(bool); ok {
 					val = BoolToInt(b)
 				}
@@ -149,7 +184,7 @@ func (p *Patient) Update(updates map[string]interface{}) error {
 	}
 
 	setClauses += ", updated_at = ?"
-	args = append(args, time.Now().Format(time.RFC3339))
+	args = append(args, DateNow())
 	args = append(args, p.ID)
 	if _, err := DB.Exec("UPDATE patients SET "+setClauses+" WHERE id = ?", args...); err != nil {
 		return err
@@ -172,45 +207,5 @@ func (p *Patient) Delete() error {
 
 func (p *Patient) GetByPhone(phone string) error {
 	row := DB.QueryRow(`SELECT `+patientColumns+` FROM patients WHERE contact = ?`, phone)
-	scanned, err := scanPatientRow(row)
-	if err != nil {
-		return err
-	}
-	*p = scanned
-	return nil
-}
-
-// scan helpers
-
-type scannable interface {
-	Scan(dest ...interface{}) error
-}
-
-func scanPatientFields(s scannable) (Patient, error) {
-	var p Patient
-	var isSmoker, onHerbal, onMed, onBT, onHRT int
-	err := s.Scan(
-		&p.ID, &p.PatientNumber, &p.FirstName, &p.MiddleName, &p.LastName, &p.Gender, &p.DateOfBirth,
-		&p.Contact, &p.Email, &p.EmergencyContactName, &p.EmergencyContactPhone,
-		&p.Weight, &p.Height, &p.BP, &p.BloodType, &p.PhysicalActivity,
-		&isSmoker, &p.PacksPerDay, &onHerbal, &onMed, &p.MedicationDetails,
-		&onBT, &onHRT, &p.HRTDetails, &p.Notes, &p.CreatedAt, &p.UpdatedAt,
-	)
-	if err != nil {
-		return p, err
-	}
-	p.IsSmoker = isSmoker == 1
-	p.OnHerbalSupplements = onHerbal == 1
-	p.OnMedication = onMed == 1
-	p.OnBloodThinners = onBT == 1
-	p.OnHRT = onHRT == 1
-	return p, nil
-}
-
-func scanPatient(rows *sql.Rows) (Patient, error) {
-	return scanPatientFields(rows)
-}
-
-func scanPatientRow(row *sql.Row) (Patient, error) {
-	return scanPatientFields(row)
+	return p.ScanRow(row)
 }

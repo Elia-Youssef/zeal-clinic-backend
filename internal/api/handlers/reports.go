@@ -10,17 +10,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// GetReportForecast returns projected revenue from upcoming appointments.
 func GetReportForecast(c echo.Context) error {
 	result, err := (&models.Report{}).GetForecast()
 	if err != nil {
-		log.Println("Error: GetReportForecast failed to generate forecast")
+		log.Println("Error: GetReportForecast failed to generate forecast:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to generate forecast"})
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: result})
 }
 
-// GetReportProfitLoss returns revenue - expenses for a date range.
 func GetReportProfitLoss(c echo.Context) error {
 	from := c.QueryParam("from")
 	to := c.QueryParam("to")
@@ -36,7 +34,7 @@ func GetReportProfitLoss(c echo.Context) error {
 
 	result, err := (&models.Report{}).GetProfitLoss(from, to)
 	if err != nil {
-		log.Println("Error: GetReportProfitLoss failed to generate P&L")
+		log.Println("Error: GetReportProfitLoss failed to generate P&L:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to generate P&L"})
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: result})

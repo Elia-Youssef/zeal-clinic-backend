@@ -95,7 +95,7 @@ func generatePrescriptionPDF(rx models.Prescription, patient models.Patient) *fp
 
 	pdf.SetFont("Helvetica", "", 9)
 	for _, item := range rx.Items {
-		vals := []string{item.Name, item.Dosage, item.Frequency, item.Duration, item.Notes}
+		vals := []string{item.MedicineID, item.Dosage, item.Frequency, item.Duration, item.Notes}
 		for i, v := range vals {
 			pdf.CellFormat(colWidths[i], 7, v, "1", 0, "L", false, 0, "")
 		}

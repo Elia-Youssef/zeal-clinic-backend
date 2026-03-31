@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -39,24 +38,14 @@ func GetPatientByID(c echo.Context) error {
 func CreatePatient(c echo.Context) error {
 	var p models.Patient
 	if err := c.Bind(&p); err != nil {
-		log.Println("Error: [CreatePatient] invalid request body")
+		log.Println("Error: [CreatePatient] invalid request body:", err.Error())
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
 	}
-	v := NewValidator()
-	v.Required("firstName", p.FirstName, "First name")
-	v.Required("lastName", p.LastName, "Last name")
-	v.Required("gender", p.Gender, "Gender")
-	v.OneOf("gender", p.Gender, []string{"Male", "Female"}, "Gender")
-	v.Required("dateOfBirth", p.DateOfBirth, "Date of birth")
-	v.Date("dateOfBirth", p.DateOfBirth)
-	v.Required("contact", p.Contact, "Contact phone")
-	v.Phone("contact", p.Contact)
-	v.Email("email", p.Email)
-	if v.HasErrors() {
-		log.Println("Error: [CreatePatient] validation failed")
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: v.Fields})
+	if err := p.IsValid(); err != nil {
+		log.Println("Error: [CreatePatient] validation failed:", err.Error())
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
 	}
-	p.CreatedAt = time.Now().Format(time.RFC3339)
+	p.CreatedAt = models.DateNow()
 
 	if err := p.Create(); err != nil {
 		log.Println("Error: [CreatePatient] failed to create patient:", err)
@@ -68,11 +57,10 @@ func CreatePatient(c echo.Context) error {
 func UpdatePatient(c echo.Context) error {
 	var updates map[string]interface{}
 	if err := c.Bind(&updates); err != nil {
-		log.Println("Error: [UpdatePatient] invalid request body")
+		log.Println("Error: [UpdatePatient] invalid request body:", err.Error())
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
 	}
 	delete(updates, "id")
-	delete(updates, "patientNumber")
 	delete(updates, "createdAt")
 
 	p := models.Patient{ID: c.Param("id")}
@@ -88,10 +76,15 @@ func UpdatePatient(c echo.Context) error {
 }
 
 func DeletePatient(c echo.Context) error {
-	p := models.Patient{ID: c.Param("id")}
+	id := c.Param("id")
+	if models.HasDependencies(id, map[string]string{"patient_procedures": "patient_id", "appointments": "patient_id", "prescriptions": "patient_id"}) {
+		return c.JSON(http.StatusConflict, utils.Response{Error: "cannot delete patient: has related records"})
+	}
+
+	p := models.Patient{ID: id}
 	if err := p.Delete(); err != nil {
 		if err == sql.ErrNoRows {
-			log.Println("Error: [DeletePatient] patient not found:", c.Param("id"))
+			log.Println("Error: [DeletePatient] patient not found:", id)
 			return c.JSON(http.StatusNotFound, utils.Response{Error: "patient not found"})
 		}
 		log.Println("Error: [DeletePatient] failed to delete patient:", err)

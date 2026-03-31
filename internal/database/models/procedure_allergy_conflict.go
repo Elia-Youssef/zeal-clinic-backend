@@ -1,0 +1,90 @@
+package models
+
+import (
+	"clinic-api/internal/validation"
+	"database/sql"
+	"errors"
+
+	"github.com/google/uuid"
+)
+
+// Procedure Allergy Conflict
+
+const procedureAllergyConflictColumnsNoId = `procedure_id, allergy_id, notes, created_at`
+const procedureAllergyConflictColumns = `id, ` + procedureAllergyConflictColumnsNoId
+
+type ProcedureAllergyConflict struct {
+	ID          string `json:"id"`
+	ProcedureID string `json:"procedureId"`
+	AllergyID   string `json:"allergyId"`
+	Notes       string `json:"notes"`
+	CreatedAt   Date   `json:"createdAt"`
+	// Joined fields
+	AllergyName string `json:"allergyName,omitempty"`
+}
+
+func (c *ProcedureAllergyConflict) IsValid() error {
+	if msg := validation.Required(c.AllergyID, "Allergy ID"); msg != "" {
+		return validation.Errors{"allergyId": msg}
+	}
+	return nil
+}
+
+type ProcedureAllergyConflictList []ProcedureAllergyConflict
+
+func (m *ProcedureAllergyConflict) ScanRow(row *sql.Row) error {
+	if row == nil {
+		return errors.New("nil ProcedureAllergyConflict row")
+	}
+	return row.Scan(&m.ID, &m.ProcedureID, &m.AllergyID, &m.Notes, &m.CreatedAt, &m.AllergyName)
+}
+
+func (l *ProcedureAllergyConflictList) ScanRows(rows *sql.Rows) error {
+	if rows == nil {
+		return errors.New("nil ProcedureAllergyConflict rows")
+	}
+	*l = ProcedureAllergyConflictList{}
+	for rows.Next() {
+		var item ProcedureAllergyConflict
+		err := rows.Scan(&item.ID, &item.ProcedureID, &item.AllergyID, &item.Notes, &item.CreatedAt, &item.AllergyName)
+		if err != nil {
+			continue
+		}
+		*l = append(*l, item)
+	}
+	return nil
+}
+
+func (c *ProcedureAllergyConflict) GetByProcedure(procedureID string) ([]ProcedureAllergyConflict, error) {
+	rows, err := DB.Query(`SELECT pac.id, pac.procedure_id, pac.allergy_id, pac.notes, pac.created_at, a.name
+		FROM procedure_allergy_conflicts pac JOIN allergies a ON a.id = pac.allergy_id
+		WHERE pac.procedure_id = ? ORDER BY a.name`, procedureID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list ProcedureAllergyConflictList
+	list.ScanRows(rows)
+	return list, rows.Err()
+}
+
+func (c *ProcedureAllergyConflict) Create() error {
+	c.ID = uuid.Must(uuid.NewV7()).String()
+	c.CreatedAt = DateNow()
+	_, err := DB.Exec(`INSERT INTO procedure_allergy_conflicts (id, procedure_id, allergy_id, notes, created_at) VALUES (?,?,?,?,?)`,
+		c.ID, c.ProcedureID, c.AllergyID, c.Notes, c.CreatedAt)
+	return err
+}
+
+func (c *ProcedureAllergyConflict) Delete() error {
+	res, err := DB.Exec("DELETE FROM procedure_allergy_conflicts WHERE id = ?", c.ID)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
