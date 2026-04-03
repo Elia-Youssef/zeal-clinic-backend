@@ -8,19 +8,20 @@ import (
 	"github.com/google/uuid"
 )
 
-const patientProcedureColumnsNoId = `patient_id, procedure_id, status, notes, created_at, updated_at`
+const patientProcedureColumnsNoId = `patient_id, procedure_id, appointment_id, status, notes, created_at, updated_at`
 const patientProcedureColumns = `id, ` + patientProcedureColumnsNoId
 
 type PatientProcedure struct {
-	ID          string `json:"id"`
-	PatientID   string `json:"patientId"`
-	ProcedureID string `json:"procedureId"`
-	Status      string `json:"status"`
-	Notes       string `json:"notes"`
-	CreatedAt   Date   `json:"createdAt"`
-	UpdatedAt   Date   `json:"updatedAt"`
+	ID            string  `json:"id"`
+	PatientID     string  `json:"patientId"`
+	ProcedureID   string  `json:"procedureId"`
+	AppointmentID *string `json:"appointmentId"`
+	Status        string  `json:"status"`
+	Notes         string  `json:"notes"`
+	CreatedAt     Date    `json:"createdAt"`
+	UpdatedAt     Date    `json:"updatedAt"`
 	// Nested
-	Sessions []PatientProcedureSession `json:"sessions,omitempty"`
+	Sessions PatientProcedureSessionList `json:"sessions,omitempty"`
 	// Joined fields
 	ProcedureName string `json:"procedureName,omitempty"`
 	PatientName   string `json:"patientName,omitempty"`
@@ -46,7 +47,7 @@ func (m *PatientProcedure) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil PatientProcedure row")
 	}
-	err := row.Scan(&m.ID, &m.PatientID, &m.ProcedureID, &m.Status, &m.Notes,
+	err := row.Scan(&m.ID, &m.PatientID, &m.ProcedureID, &m.AppointmentID, &m.Status, &m.Notes,
 		&m.CreatedAt, &m.UpdatedAt, &m.ProcedureName)
 	if err != nil {
 		return err
@@ -61,7 +62,7 @@ func (l *PatientProcedureList) ScanRows(rows *sql.Rows) error {
 	*l = PatientProcedureList{}
 	for rows.Next() {
 		var item PatientProcedure
-		err := rows.Scan(&item.ID, &item.PatientID, &item.ProcedureID, &item.Status, &item.Notes,
+		err := rows.Scan(&item.ID, &item.PatientID, &item.ProcedureID, &item.AppointmentID, &item.Status, &item.Notes,
 			&item.CreatedAt, &item.UpdatedAt, &item.ProcedureName)
 		if err != nil {
 			continue
@@ -71,50 +72,50 @@ func (l *PatientProcedureList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (pp *PatientProcedure) GetByProcedure(procedureID string) ([]PatientProcedure, error) {
-	rows, err := DB.Query(`SELECT pp.id, pp.patient_id, pp.procedure_id, pp.status, pp.notes,
+func (pp *PatientProcedureList) GetByProcedure(procedureID string) error {
+	rows, err := RDB.Query(`SELECT pp.id, pp.patient_id, pp.procedure_id, pp.appointment_id, pp.status, pp.notes,
 		pp.created_at, pp.updated_at, pr.name
 		FROM patient_procedures pp
 		JOIN procedures pr ON pr.id = pp.procedure_id
 		WHERE pp.procedure_id = ? ORDER BY pp.created_at DESC`, procedureID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var items PatientProcedureList
-	if err := items.ScanRows(rows); err != nil {
-		return nil, err
+	if err := pp.ScanRows(rows); err != nil {
+		return err
 	}
-	for i := range items {
-		items[i].Sessions, _ = (&PatientProcedureSession{}).GetByPatientProcedure(items[i].ID)
+	for i := range *pp {
+		(*pp)[i].Sessions.GetByPatientProcedure((*pp)[i].ID)
 	}
-	return items, rows.Err()
+	return nil
 }
 
-func (pp *PatientProcedure) GetByPatient(patientID string) ([]PatientProcedure, error) {
-	rows, err := DB.Query(`SELECT pp.id, pp.patient_id, pp.procedure_id, pp.status, pp.notes,
+func (pp *PatientProcedureList) GetByPatient(patientID string) error {
+	rows, err := RDB.Query(`SELECT pp.id, pp.patient_id, pp.procedure_id, pp.appointment_id, pp.status, pp.notes,
 		pp.created_at, pp.updated_at, pr.name
 		FROM patient_procedures pp
 		JOIN procedures pr ON pr.id = pp.procedure_id
 		WHERE pp.patient_id = ? ORDER BY pp.created_at DESC`, patientID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var items PatientProcedureList
-	if err := items.ScanRows(rows); err != nil {
-		return nil, err
+	if err := pp.ScanRows(rows); err != nil {
+		return err
 	}
-	for i := range items {
-		items[i].Sessions, _ = (&PatientProcedureSession{}).GetByPatientProcedure(items[i].ID)
+
+	for i := range *pp {
+		(*pp)[i].Sessions.GetByPatientProcedure((*pp)[i].ID)
 	}
-	return items, rows.Err()
+
+	return nil
 }
 
 func (pp *PatientProcedure) GetByID(id string) error {
-	row := DB.QueryRow(`SELECT pp.id, pp.patient_id, pp.procedure_id, pp.status, pp.notes,
+	row := RDB.QueryRow(`SELECT pp.id, pp.patient_id, pp.procedure_id, pp.appointment_id, pp.status, pp.notes,
 		pp.created_at, pp.updated_at, pr.name
 		FROM patient_procedures pp
 		JOIN procedures pr ON pr.id = pp.procedure_id
@@ -122,11 +123,21 @@ func (pp *PatientProcedure) GetByID(id string) error {
 	if err := pp.ScanRow(row); err != nil {
 		return err
 	}
-	pp.Sessions, _ = (&PatientProcedureSession{}).GetByPatientProcedure(pp.ID)
+	pp.Sessions.GetByPatientProcedure(pp.ID)
 	return nil
 }
 
 func (pp *PatientProcedure) Create() error {
+	if err := pp.create(DB); err != nil {
+		return err
+	}
+	return pp.GetByID(pp.ID)
+}
+
+// create inserts the patient_procedure and auto-creates sessions. It accepts
+// a DBTX so it can run inside an existing transaction (e.g. from
+// Appointment.Create) without deadlocking on the single SQLite connection.
+func (pp *PatientProcedure) create(db DBTX) error {
 	pp.ID = uuid.Must(uuid.NewV7()).String()
 	now := DateNow()
 	pp.CreatedAt = now
@@ -134,27 +145,37 @@ func (pp *PatientProcedure) Create() error {
 	if pp.Status == "" {
 		pp.Status = "planned"
 	}
-	_, err := DB.Exec(`INSERT INTO patient_procedures (`+patientProcedureColumns+`)
-		VALUES (?,?,?,?,?,?,?)`,
-		pp.ID, pp.PatientID, pp.ProcedureID, pp.Status, pp.Notes, pp.CreatedAt, pp.UpdatedAt)
+	_, err := db.Exec(`INSERT INTO patient_procedures (`+patientProcedureColumns+`)
+		VALUES (?,?,?,?,?,?,?,?)`,
+		pp.ID, pp.PatientID, pp.ProcedureID, pp.AppointmentID, pp.Status, pp.Notes, pp.CreatedAt, pp.UpdatedAt)
 	if err != nil {
 		return err
 	}
-	// Auto-create sessions based on procedure_sessions template
-	procSessions, _ := DB.Query(`SELECT id FROM procedure_sessions WHERE procedure_id = ? ORDER BY session_number`, pp.ProcedureID)
-	if procSessions != nil {
-		defer procSessions.Close()
-		for procSessions.Next() {
-			var psID string
-			if err := procSessions.Scan(&psID); err != nil {
-				continue
-			}
-			sessID := uuid.Must(uuid.NewV7()).String()
-			DB.Exec(`INSERT INTO patient_procedure_sessions (id, patient_procedure_id, procedure_session_id, status, created_at, updated_at)
-				VALUES (?,?,?,?,?,?)`, sessID, pp.ID, psID, "pending", now, now)
+
+	// Collect session IDs first so the rows are closed before we insert.
+	// Holding rows open while calling Exec deadlocks with MaxOpenConns(1).
+	rows, err := db.Query(`SELECT id FROM procedure_sessions WHERE procedure_id = ? ORDER BY session_number`, pp.ProcedureID)
+	if err != nil {
+		return nil
+	}
+	var sessionIDs []string
+	for rows.Next() {
+		var psID string
+		if err := rows.Scan(&psID); err != nil {
+			continue
+		}
+		sessionIDs = append(sessionIDs, psID)
+	}
+	rows.Close()
+
+	for _, psID := range sessionIDs {
+		sessID := uuid.Must(uuid.NewV7()).String()
+		if _, err := db.Exec(`INSERT INTO patient_procedure_sessions (id, patient_procedure_id, procedure_session_id, appointment_id, status, created_at, updated_at)
+			VALUES (?,?,?,?,?,?,?)`, sessID, pp.ID, psID, nil, "pending", now, now); err != nil {
+			return err
 		}
 	}
-	return pp.GetByID(pp.ID)
+	return nil
 }
 
 func (pp *PatientProcedure) Update(updates map[string]interface{}) error {

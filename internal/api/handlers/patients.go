@@ -11,7 +11,8 @@ import (
 )
 
 func GetAllPatients(c echo.Context) error {
-	patients, err := (&models.Patient{}).GetAll()
+	params := parseListParams(c)
+	patients, total, err := (&models.Patient{}).GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllPatients] failed to fetch patients:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patients"})
@@ -19,7 +20,17 @@ func GetAllPatients(c echo.Context) error {
 	if patients == nil {
 		patients = []models.Patient{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: patients})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: patients, Total: total}})
+}
+
+func GetPatientDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetPatientDropdown(params)
+	if err != nil {
+		log.Println("Error: [GetPatientDropdown] failed to fetch patient dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patient dropdown"})
+	}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
 
 func GetPatientByID(c echo.Context) error {

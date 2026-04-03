@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 
 	"clinic-api/internal/api/server"
@@ -9,6 +10,9 @@ import (
 )
 
 func main() {
+	seed := flag.Bool("seed", false, "Seed the database with default data")
+	flag.Parse()
+
 	config.Load()
 
 	db, err := database.Open(config.DBPath)
@@ -17,7 +21,9 @@ func main() {
 	}
 	defer db.Close()
 
-	database.SeedIfEmpty(db)
+	if *seed {
+		database.SeedIfEmpty(db)
+	}
 
 	e := server.CreateServer()
 	server.Start(e)

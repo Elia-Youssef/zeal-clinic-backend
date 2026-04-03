@@ -11,13 +11,24 @@ import (
 )
 
 func GetAllProducts(c echo.Context) error {
-	items, err := (&models.Product{}).GetAll()
+	params := parseListParams(c)
+	items, total, err := (&models.Product{}).GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllProducts] failed to fetch products:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch products"})
 	}
 	if items == nil {
 		items = []models.Product{}
+	}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: items, Total: total}})
+}
+
+func GetProductDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetProductDropdown(params)
+	if err != nil {
+		log.Println("Error: [GetProductDropdown] failed to fetch product dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch product dropdown"})
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }

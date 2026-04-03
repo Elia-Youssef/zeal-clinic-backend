@@ -67,7 +67,6 @@ func generatePrescriptionPDF(rx models.Prescription, patient models.Patient) *fp
 	infoRight := []string{
 		fmt.Sprintf("Date: %s", rx.PrescriptionDate),
 		fmt.Sprintf("Prescribed by: %s", rx.PrescribedBy),
-		fmt.Sprintf("Status: %s", rx.Status),
 	}
 
 	for i, line := range infoLeft {
@@ -85,8 +84,8 @@ func generatePrescriptionPDF(rx models.Prescription, patient models.Patient) *fp
 	pdf.SetFillColor(245, 245, 245)
 	pdf.SetTextColor(30, 30, 30)
 
-	colWidths := []float64{60, 30, 35, 25, 30}
-	headers := []string{"Medication", "Dosage", "Frequency", "Duration", "Notes"}
+	colWidths := []float64{60, 70, 50}
+	headers := []string{"Medication", "Instructions", "Status"}
 
 	for i, h := range headers {
 		pdf.CellFormat(colWidths[i], 8, h, "1", 0, "C", true, 0, "")
@@ -94,21 +93,12 @@ func generatePrescriptionPDF(rx models.Prescription, patient models.Patient) *fp
 	pdf.Ln(-1)
 
 	pdf.SetFont("Helvetica", "", 9)
-	for _, item := range rx.Items {
-		vals := []string{item.MedicineID, item.Dosage, item.Frequency, item.Duration, item.Notes}
+	for _, med := range rx.Medicines {
+		vals := []string{med.MedicineName, med.Instructions, med.Status}
 		for i, v := range vals {
 			pdf.CellFormat(colWidths[i], 7, v, "1", 0, "L", false, 0, "")
 		}
 		pdf.Ln(-1)
-	}
-
-	// Instructions
-	if rx.Instructions != "" {
-		pdf.SetY(pdf.GetY() + 8)
-		pdf.SetFont("Helvetica", "B", 10)
-		pdf.CellFormat(0, 6, "Instructions:", "", 1, "L", false, 0, "")
-		pdf.SetFont("Helvetica", "", 9)
-		pdf.MultiCell(180, 5, rx.Instructions, "", "L", false)
 	}
 
 	// Signature Line

@@ -12,15 +12,31 @@ import (
 )
 
 func GetAllAppointments(c echo.Context) error {
-	apts, err := (&models.Appointment{}).GetAll()
+	date := c.QueryParam("date")
+	if date == "" {
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "date query parameter is required"})
+	}
+	params := parseListParams(c)
+	apts := models.AppointmentList{}
+	total, err := apts.GetAll(date, params)
 	if err != nil {
 		log.Println("Error: GetAllAppointments failed to fetch appointments:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch appointments"})
 	}
-	if apts == nil {
-		apts = []models.Appointment{}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: apts, Total: total}})
+}
+
+func GetAppointmentCountPerRoom(c echo.Context) error {
+	date := c.QueryParam("date")
+	if date == "" {
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "date query parameter is required"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: apts})
+	items, err := models.GetAppointmentCountPerRoom(date)
+	if err != nil {
+		log.Println("Error: [GetAppointmentCountPerRoom] failed to fetch counts:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch appointment counts"})
+	}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
 
 func CreateAppointment(c echo.Context) error {
@@ -34,14 +50,10 @@ func CreateAppointment(c echo.Context) error {
 	}
 	if err := a.IsValid(); err != nil {
 		log.Println("Error: CreateAppointment validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	if err := a.Create(); err != nil {
-		if strings.Contains(err.Error(), "room conflict") {
-			log.Println("Error: CreateAppointment room conflict:", err)
-			return c.JSON(http.StatusConflict, utils.Response{Error: err.Error()})
-		}
 		log.Println("Error: CreateAppointment failed to create appointment:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create appointment"})
 	}

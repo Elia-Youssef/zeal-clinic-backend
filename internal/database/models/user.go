@@ -54,7 +54,7 @@ func (l *UserList) ScanRows(rows *sql.Rows) error {
 }
 
 func (u *User) GetByID(id string) error {
-	err := u.ScanRow(DB.QueryRow(`SELECT `+userColumns+` FROM users WHERE id = ?`, id))
+	err := u.ScanRow(RDB.QueryRow(`SELECT `+userColumns+` FROM users WHERE id = ?`, id))
 	if err != nil {
 		return fmt.Errorf("get user by id: %w", err)
 	}
@@ -62,7 +62,7 @@ func (u *User) GetByID(id string) error {
 }
 
 func (u *User) GetByUsername(username string) error {
-	err := u.ScanRow(DB.QueryRow(`SELECT `+userColumns+` FROM users WHERE username = ?`, username))
+	err := u.ScanRow(RDB.QueryRow(`SELECT `+userColumns+` FROM users WHERE username = ?`, username))
 	if err != nil {
 		return fmt.Errorf("get user by username: %w", err)
 	}

@@ -56,7 +56,7 @@ func (l *ProcedureAllergyConflictList) ScanRows(rows *sql.Rows) error {
 }
 
 func (c *ProcedureAllergyConflict) GetByProcedure(procedureID string) ([]ProcedureAllergyConflict, error) {
-	rows, err := DB.Query(`SELECT pac.id, pac.procedure_id, pac.allergy_id, pac.notes, pac.created_at, a.name
+	rows, err := RDB.Query(`SELECT pac.id, pac.procedure_id, pac.allergy_id, pac.notes, pac.created_at, a.name
 		FROM procedure_allergy_conflicts pac JOIN allergies a ON a.id = pac.allergy_id
 		WHERE pac.procedure_id = ? ORDER BY a.name`, procedureID)
 	if err != nil {

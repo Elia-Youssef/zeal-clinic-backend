@@ -72,7 +72,7 @@ func (l *ScheduleAvailabilityList) ScanRows(rows *sql.Rows) error {
 }
 
 func (sa *ScheduleAvailability) GetByEmployee(employeeID string) ([]ScheduleAvailability, error) {
-	rows, err := DB.Query(`SELECT sa.id, sa.employee_id, sa.day_of_week, sa.start_time, sa.end_time,
+	rows, err := RDB.Query(`SELECT sa.id, sa.employee_id, sa.day_of_week, sa.start_time, sa.end_time,
 		sa.effective_date, sa.created_at,
 		e.first_name || ' ' || e.last_name
 		FROM schedule_availability sa
@@ -90,23 +90,35 @@ func (sa *ScheduleAvailability) GetByEmployee(employeeID string) ([]ScheduleAvai
 	return items, rows.Err()
 }
 
-func (sa *ScheduleAvailability) GetAll() ([]ScheduleAvailability, error) {
-	rows, err := DB.Query(`SELECT sa.id, sa.employee_id, sa.day_of_week, sa.start_time, sa.end_time,
+func (sa *ScheduleAvailability) GetAll(params ListParams) ([]ScheduleAvailability, int, error) {
+	baseFrom := ` FROM schedule_availability sa
+		JOIN employees e ON e.id = sa.employee_id`
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("e.first_name", "e.last_name"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*)"+baseFrom+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT sa.id, sa.employee_id, sa.day_of_week, sa.start_time, sa.end_time,
 		sa.effective_date, sa.created_at,
-		e.first_name || ' ' || e.last_name
-		FROM schedule_availability sa
-		JOIN employees e ON e.id = sa.employee_id
-		ORDER BY e.first_name, sa.day_of_week, sa.start_time`)
+		e.first_name || ' ' || e.last_name` + baseFrom + where + ` ORDER BY e.first_name, sa.day_of_week, sa.start_time` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var items ScheduleAvailabilityList
 	if err := items.ScanRows(rows); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return items, rows.Err()
+	return items, total, rows.Err()
 }
 
 func (sa *ScheduleAvailability) Create() error {

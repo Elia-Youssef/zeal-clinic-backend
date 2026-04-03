@@ -1,34 +1,48 @@
 package models
 
 import (
+	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
 
 	"github.com/google/uuid"
 )
 
-const prescriptionMedicineColumnsNoId = `name, generic_name, form, created_at`
+const prescriptionMedicineColumnsNoId = `medicine_id, prescription_id, instructions, status, created_at`
 const prescriptionMedicineColumns = `id, ` + prescriptionMedicineColumnsNoId
 
 type PrescriptionMedicine struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	GenericName string `json:"genericName"`
-	Form        string `json:"form"`
-	CreatedAt   Date   `json:"createdAt"`
+	ID             string `json:"id"`
+	MedicineID     string `json:"medicineId"`
+	PrescriptionID string `json:"prescriptionId"`
+	Instructions   string `json:"instructions"`
+	Status         string `json:"status"`
+	CreatedAt      Date   `json:"createdAt"`
+	// Joined fields
+	MedicineName string `json:"medicineName,omitempty"`
 }
 
 type PrescriptionMedicineList []PrescriptionMedicine
+
+func (pm *PrescriptionMedicine) IsValid() error {
+	e := make(validation.Errors)
+	if msg := validation.Required(pm.MedicineID, "Medicine ID"); msg != "" {
+		e["medicineId"] = msg
+	}
+	if msg := validation.Required(pm.PrescriptionID, "Prescription ID"); msg != "" {
+		e["prescriptionId"] = msg
+	}
+	if len(e) > 0 {
+		return e
+	}
+	return nil
+}
 
 func (m *PrescriptionMedicine) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil PrescriptionMedicine row")
 	}
-	err := row.Scan(&m.ID, &m.Name, &m.GenericName, &m.Form, &m.CreatedAt)
-	if err != nil {
-		return err
-	}
-	return nil
+	return row.Scan(&m.ID, &m.MedicineID, &m.PrescriptionID, &m.Instructions, &m.Status, &m.CreatedAt)
 }
 
 func (l *PrescriptionMedicineList) ScanRows(rows *sql.Rows) error {
@@ -38,7 +52,7 @@ func (l *PrescriptionMedicineList) ScanRows(rows *sql.Rows) error {
 	*l = PrescriptionMedicineList{}
 	for rows.Next() {
 		var item PrescriptionMedicine
-		err := rows.Scan(&item.ID, &item.Name, &item.GenericName, &item.Form, &item.CreatedAt)
+		err := rows.Scan(&item.ID, &item.MedicineID, &item.PrescriptionID, &item.Instructions, &item.Status, &item.CreatedAt, &item.MedicineName)
 		if err != nil {
 			continue
 		}
@@ -47,8 +61,12 @@ func (l *PrescriptionMedicineList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (pm *PrescriptionMedicine) GetAll() ([]PrescriptionMedicine, error) {
-	rows, err := DB.Query(`SELECT ` + prescriptionMedicineColumns + ` FROM prescription_medicines ORDER BY name`)
+func (pm *PrescriptionMedicine) GetByPrescription(prescriptionID string) (PrescriptionMedicineList, error) {
+	rows, err := RDB.Query(`SELECT pm.id, pm.medicine_id, pm.prescription_id, pm.instructions, pm.status, pm.created_at,
+		m.name
+		FROM prescription_medicines pm
+		JOIN medicines m ON m.id = pm.medicine_id
+		WHERE pm.prescription_id = ? ORDER BY pm.created_at`, prescriptionID)
 	if err != nil {
 		return nil, err
 	}
@@ -62,21 +80,24 @@ func (pm *PrescriptionMedicine) GetAll() ([]PrescriptionMedicine, error) {
 }
 
 func (pm *PrescriptionMedicine) GetByID(id string) error {
-	row := DB.QueryRow(`SELECT `+prescriptionMedicineColumns+` FROM prescription_medicines WHERE id = ?`, id)
+	row := RDB.QueryRow(`SELECT `+prescriptionMedicineColumns+` FROM prescription_medicines WHERE id = ?`, id)
 	return pm.ScanRow(row)
 }
 
 func (pm *PrescriptionMedicine) Create() error {
 	pm.ID = uuid.Must(uuid.NewV7()).String()
 	pm.CreatedAt = DateNow()
-	_, err := DB.Exec(`INSERT INTO prescription_medicines (`+prescriptionMedicineColumns+`) VALUES (?,?,?,?,?)`,
-		pm.ID, pm.Name, pm.GenericName, pm.Form, pm.CreatedAt)
+	if pm.Status == "" {
+		pm.Status = "active"
+	}
+	_, err := DB.Exec(`INSERT INTO prescription_medicines (`+prescriptionMedicineColumns+`) VALUES (?,?,?,?,?,?)`,
+		pm.ID, pm.MedicineID, pm.PrescriptionID, pm.Instructions, pm.Status, pm.CreatedAt)
 	return err
 }
 
 func (pm *PrescriptionMedicine) Update(updates map[string]interface{}) error {
 	cols := map[string]string{
-		"name": "name", "genericName": "generic_name", "form": "form",
+		"instructions": "instructions", "status": "status",
 	}
 	setClauses := ""
 	var args []interface{}

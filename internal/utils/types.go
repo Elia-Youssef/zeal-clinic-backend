@@ -5,3 +5,8 @@ type Response struct {
 	Success bool
 	Data    any
 }
+
+type PaginatedList struct {
+	Items any `json:"items"`
+	Total int `json:"total"`
+}

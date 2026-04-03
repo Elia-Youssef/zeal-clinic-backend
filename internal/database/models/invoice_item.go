@@ -45,7 +45,7 @@ func (l *InvoiceItemList) ScanRows(rows *sql.Rows) error {
 }
 
 func (ii *InvoiceItem) GetByInvoice(invoiceID string) ([]InvoiceItem, error) {
-	rows, err := DB.Query(`SELECT `+invoiceItemColumns+` FROM invoice_items WHERE invoice_id = ? ORDER BY created_at`, invoiceID)
+	rows, err := RDB.Query(`SELECT `+invoiceItemColumns+` FROM invoice_items WHERE invoice_id = ? ORDER BY created_at`, invoiceID)
 	if err != nil {
 		return nil, err
 	}

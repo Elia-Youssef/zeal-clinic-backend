@@ -11,13 +11,10 @@ import (
 )
 
 func GetPatientProceduresByPatient(c echo.Context) error {
-	items, err := (&models.PatientProcedure{}).GetByPatient(c.Param("patientId"))
-	if err != nil {
+	items := models.PatientProcedureList{}
+	if err := items.GetByPatient(c.Param("patientId")); err != nil {
 		log.Println("Error: [GetPatientProceduresByPatient] failed to fetch patient procedures:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patient procedures"})
-	}
-	if items == nil {
-		items = []models.PatientProcedure{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
@@ -87,4 +84,3 @@ func DeletePatientProcedure(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true})
 }
-

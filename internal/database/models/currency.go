@@ -60,24 +60,60 @@ func (l *CurrencyList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (cur *Currency) GetAll() (CurrencyList, error) {
-	rows, err := DB.Query(`SELECT ` + currencyColumns + ` FROM currencies ORDER BY code`)
+func (cur *CurrencyList) GetAll(params ListParams) (int, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("code", "name", "symbol"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM currencies"+where, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT ` + currencyColumns + ` FROM currencies` + where + ` ORDER BY code` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	err = cur.ScanRows(rows)
+	return total, err
+}
+
+func GetCurrencyDropdown(params ListParams) ([]DropdownItem, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+	query := `SELECT id, name FROM currencies` + where + ` ORDER BY name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
-	var list CurrencyList
-	list.ScanRows(rows)
-	return list, nil
+	var items []DropdownItem
+	for rows.Next() {
+		var item DropdownItem
+		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (cur *Currency) GetByID(id string) error {
-	return cur.ScanRow(DB.QueryRow(`SELECT `+currencyColumns+` FROM currencies WHERE id = ?`, id))
+	return cur.ScanRow(RDB.QueryRow(`SELECT `+currencyColumns+` FROM currencies WHERE id = ?`, id))
 }
 
 func (cur *Currency) GetByCode(code string) error {
-	return cur.ScanRow(DB.QueryRow(`SELECT `+currencyColumns+` FROM currencies WHERE code = ?`, code))
+	return cur.ScanRow(RDB.QueryRow(`SELECT `+currencyColumns+` FROM currencies WHERE code = ?`, code))
 }
 
 func (cur *Currency) Create() error {

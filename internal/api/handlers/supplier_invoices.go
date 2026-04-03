@@ -8,14 +8,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 // GetSupplierInvoices returns invoices where from_balance is a supplier balance.
-// Optional ?supplierBalanceId= filter.
 func GetSupplierInvoices(c echo.Context) error {
-	items, err := (&models.Invoice{}).GetSupplierInvoices(c.QueryParam("supplierBalanceId"))
+	items, err := (&models.Invoice{}).GetSupplierInvoices(c.Param("id"))
 	if err != nil {
 		log.Println("Error: GetSupplierInvoices:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch supplier invoices"})
@@ -41,10 +39,10 @@ func GetSupplierInvoiceByID(c echo.Context) error {
 // Direction: Supplier Balance (FROM) to Self Balance (TO).
 func CreateSupplierInvoice(c echo.Context) error {
 	var req struct {
-		SupplierBalanceID string              `json:"supplierBalanceId"`
-		SupplierName      string              `json:"supplierName"`
-		CurrencyID        string              `json:"currencyId"`
-		Notes             string              `json:"notes"`
+		SupplierBalanceID string               `json:"supplierBalanceId"`
+		SupplierID        string               `json:"supplierId"`
+		CurrencyID        string               `json:"currencyId"`
+		Notes             string               `json:"notes"`
 		Items             []models.InvoiceItem `json:"items"`
 	}
 	if err := c.Bind(&req); err != nil {
@@ -52,8 +50,8 @@ func CreateSupplierInvoice(c echo.Context) error {
 	}
 
 	errs := make(validation.Errors)
-	if req.SupplierBalanceID == "" && req.SupplierName == "" {
-		errs["supplierName"] = "Supplier name is required for new suppliers"
+	if req.SupplierBalanceID == "" && req.SupplierID == "" {
+		errs["supplierId"] = "Supplier ID is required"
 	}
 	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
 		errs["currencyId"] = msg
@@ -75,11 +73,15 @@ func CreateSupplierInvoice(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, utils.Response{Error: "balance is not a supplier balance"})
 		}
 	} else {
-		entityID := uuid.Must(uuid.NewV7()).String()
+		// Look up the supplier to get the name
+		var supplier models.Supplier
+		if err := supplier.GetByID(req.SupplierID); err != nil {
+			return c.JSON(http.StatusBadRequest, utils.Response{Error: "supplier not found"})
+		}
 		supplierBalance = models.Balance{
 			EntityType: "supplier",
-			EntityID:   &entityID,
-			EntityName: req.SupplierName,
+			EntityID:   &req.SupplierID,
+			EntityName: supplier.Name,
 			CurrencyID: req.CurrencyID,
 		}
 		if err := supplierBalance.GetOrCreate(); err != nil {

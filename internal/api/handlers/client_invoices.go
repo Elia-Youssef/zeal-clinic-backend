@@ -12,9 +12,8 @@ import (
 )
 
 // GetClientInvoices returns invoices where to_balance is a patient balance.
-// Optional ?patientId= filter.
 func GetClientInvoices(c echo.Context) error {
-	items, err := (&models.Invoice{}).GetClientInvoices(c.QueryParam("patientId"))
+	items, err := (&models.Invoice{}).GetClientInvoices(c.Param("id"))
 	if err != nil {
 		log.Println("Error: GetClientInvoices:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch client invoices"})

@@ -11,15 +11,14 @@ import (
 )
 
 func GetAllProcedures(c echo.Context) error {
-	items, err := (&models.Procedure{}).GetAll()
+	params := parseListParams(c)
+	items := models.ProcedureList{}
+	total, err := items.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllProcedures] failed to fetch procedures:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch procedures"})
 	}
-	if items == nil {
-		items = []models.Procedure{}
-	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: items, Total: total}})
 }
 
 func GetProcedureByID(c echo.Context) error {
@@ -34,6 +33,16 @@ func GetProcedureByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: proc})
 }
 
+func GetProcedureDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetProcedureDropdown(params)
+	if err != nil {
+		log.Println("Error: [GetProcedureDropdown] failed to fetch procedure dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch procedure dropdown"})
+	}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+}
+
 func CreateProcedure(c echo.Context) error {
 	var p models.Procedure
 	if err := c.Bind(&p); err != nil {
@@ -43,9 +52,6 @@ func CreateProcedure(c echo.Context) error {
 	if err := p.IsValid(); err != nil {
 		log.Println("Error: [CreateProcedure] validation failed:", err)
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
-	}
-	if p.ProcedureType == "" {
-		p.ProcedureType = "Clinic Procedure"
 	}
 	p.IsActive = true
 	if err := p.Create(); err != nil {
@@ -89,4 +95,3 @@ func DeleteProcedure(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true})
 }
-

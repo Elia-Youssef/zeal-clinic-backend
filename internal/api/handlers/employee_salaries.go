@@ -11,13 +11,10 @@ import (
 )
 
 func GetEmployeeSalaries(c echo.Context) error {
-	items, err := (&models.EmployeeSalary{}).GetByEmployee(c.Param("id"))
-	if err != nil {
+	items := models.EmployeeSalaryList{}
+	if err := items.GetByEmployee(c.Param("id")); err != nil {
 		log.Println("Error: [GetEmployeeSalaries] failed to fetch salaries:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch salaries"})
-	}
-	if items == nil {
-		items = []models.EmployeeSalary{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }

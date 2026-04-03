@@ -1,0 +1,351 @@
+
+Table users {
+  id string [pk]
+  username string
+  password_hash string
+  display_name string
+  role string
+  is_active bool
+  created_at datetime
+  updated_at datetime
+}
+
+Table tokens {
+  id string [pk]
+  token string
+  user_id string [ref: > users.id]
+  expires_at datetime
+  created_at datetime
+}
+
+Table roles {
+  name string [pk]
+  label string
+  scopes string
+}
+
+Table employees {
+  id string [pk]
+  user_id string [ref: > users.id]
+  first_name string
+  last_name string
+  role string
+  contact string
+  email string
+  date_of_birth date
+  employment_type string [note: 'Full-time | Part-time']
+  created_at datetime
+  updated_at datetime
+}
+
+Table employee_salaries {
+  id string [pk]
+  employee_id string [ref: > employees.id]
+  amount float
+  currency_id string [ref: > currencies.id]
+  is_active bool
+  effective_date date
+  notes string
+  created_at datetime
+  updated_at datetime
+}
+
+Table schedule_availabilities {
+  id string [pk]
+  employee_id string [ref: > employees.id]
+  day_of_week int
+  start_time string
+  end_time string
+  effective_date date
+  created_at datetime
+}
+
+Table patients {
+  id string [pk]
+  first_name string
+  middle_name string
+  last_name string
+  gender string [note: 'Male | Female']
+  date_of_birth date
+  contact string
+  email string
+  emergency_contact_name string
+  emergency_contact_phone string
+  weight float
+  height float
+  blood_type string
+  address string
+  notes string
+  created_at datetime
+  updated_at datetime
+}
+
+Table allergies {
+  id string [pk]
+  name string
+  description string
+  created_at datetime
+}
+
+Table patient_allergies {
+  id string [pk]
+  patient_id string [ref: > patients.id]
+  allergy_id string [ref: > allergies.id]
+  notes string
+  created_at datetime
+}
+
+Table medicines {
+  id string [pk]
+  name string
+  description string
+  created_at datetime
+}
+
+Table patient_medicines {
+  id string [pk]
+  patient_id string [ref: > patients.id]
+  medicine_id string [ref: > medicines.id]
+  is_active bool
+  notes string
+  created_at datetime
+}
+
+Table procedure_types {
+  id string [pk]
+  name string
+  description string
+  created_at datetime
+}
+
+Table procedure_categories {
+  id string [pk]
+  name string
+  description string
+  parent_id string [ref: > procedure_categories.id]
+  created_at datetime
+}
+
+Table procedures {
+  id string [pk]
+  name string
+  type_id string [ref: > procedure_types.id]
+  category_id string [ref: > procedure_categories.id]
+  price float
+  price_note string
+  is_active bool
+  remarks string
+  includes string
+  created_at datetime
+  updated_at datetime
+}
+
+Table procedure_sessions {
+  id string [pk]
+  procedure_id string [ref: > procedures.id]
+  session_number int
+  name string
+  description string
+  price float
+  created_at datetime
+}
+
+Table procedure_allergy_conflicts {
+  id string [pk]
+  procedure_id string [ref: > procedures.id]
+  allergy_id string [ref: > allergies.id]
+  notes string
+  created_at datetime
+}
+
+Table patient_procedures {
+  id string [pk]
+  patient_id string [ref: > patients.id]
+  procedure_id string [ref: > procedures.id]
+  appointment_id string [ref: > appointments.id]
+  status string [note: 'planned | in-progress | completed']
+  notes string
+  created_at datetime
+  updated_at datetime
+}
+
+Table patient_procedure_sessions {
+  id string [pk]
+  patient_procedure_id string [ref: > patient_procedures.id]
+  procedure_session_id string [ref: > procedure_sessions.id]
+  appointment_id string [ref: > appointments.id]
+  status string
+  notes string
+  created_at datetime
+  updated_at datetime
+}
+
+Table prescriptions {
+  id string [pk]
+  patient_id string [ref: > patients.id]
+  patient_procedure_id string [ref: > patient_procedures.id]
+  prescribed_by string [ref: > employees.id]
+  prescription_date date
+  created_at datetime
+  updated_at datetime
+}
+
+Table prescription_medicines {
+  id string [pk]
+  medicine_id string [ref: > medicines.id]
+  prescription_id string [ref: > prescriptions.id]
+  instructions string
+  status string [note: 'active | completed | cancelled']
+  created_at datetime
+}
+
+Table rooms {
+  id string [pk]
+  name string
+  type string [note: 'Consultation | Procedure | General | Hospital']
+  is_available bool
+  created_at datetime
+}
+
+Table appointments {
+  id string [pk]
+  patient_id string [ref: > patients.id]
+  room_id string [ref: > rooms.id]
+  start_time datetime
+  end_time datetime
+  status string [note: 'Scheduled | In-Progress | Completed | Cancelled']
+  notes string
+  created_at datetime
+  updated_at datetime
+}
+
+Table bookings {
+  id string [pk]
+  client_name string
+  client_phone string
+  client_email string
+  is_new_client bool
+  referral_source string
+  service_category string
+  service_name string
+  preferred_date date
+  preferred_time string
+  duration_minutes int
+  status string [note: 'pending | confirmed | cancelled']
+  appointment_id string [ref: > appointments.id]
+  patient_id string [ref: > patients.id]
+  room_id string [ref: > rooms.id]
+  notes string
+  created_at datetime
+  updated_at datetime
+}
+
+Table product_categories {
+  id string [pk]
+  name string
+  description string
+  parent_id string [ref: > product_categories.id]
+  created_at datetime
+}
+
+Table products {
+  id string [pk]
+  name string
+  category_id string [ref: > product_categories.id]
+  quantity int
+  min_threshold int
+  unit_price float
+  created_at datetime
+}
+
+Table product_allergy_conflicts {
+  id string [pk]
+  product_id string [ref: > products.id]
+  allergy_id string [ref: > allergies.id]
+  notes string
+  created_at datetime
+}
+
+Table suppliers {
+  id string [pk]
+  name string
+  contact string
+  email string
+  address string
+  notes string
+  created_at datetime
+  updated_at datetime
+}
+
+Table currencies {
+  id string [pk]
+  code string
+  name string
+  symbol string
+  exchange_rate float
+  created_at datetime
+  updated_at datetime
+}
+
+Table balances {
+  id string [pk]
+  entity_type string [note: 'patient | employee | self | supplier']
+  entity_id string [note: 'Polymorphic FK to patients/employees/suppliers']
+  entity_name string
+  currency_id string [ref: > currencies.id]
+  amount float
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (entity_type, entity_id, currency_id) [unique]
+  }
+}
+
+Table balance_transactions {
+  id string [pk]
+  from_balance_id string [ref: > balances.id]
+  to_balance_id string [ref: > balances.id]
+  amount float
+  currency_id string [ref: > currencies.id]
+  transaction_type string [note: 'cash | card | transfer | other']
+  description string
+  created_by string
+  created_at datetime
+}
+
+Table invoices {
+  id string [pk]
+  invoice_number int [increment]
+  from_balance_id string [ref: > balances.id]
+  to_balance_id string [ref: > balances.id]
+  amount float
+  currency_id string [ref: > currencies.id]
+  notes string
+  created_by string
+  created_at datetime
+  updated_at datetime
+}
+
+Table invoice_items {
+  id string [pk]
+  invoice_id string [ref: > invoices.id]
+  item_type string
+  item_id string
+  quantity int
+  amount float
+  notes string
+  created_at datetime
+}
+
+Table audit_log {
+  id string [pk]
+  user_name string
+  user_role string
+  action string
+  entity_type string
+  entity_id string
+  details string
+  ip_address string
+  created_at datetime
+}

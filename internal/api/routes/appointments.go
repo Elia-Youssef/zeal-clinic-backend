@@ -8,6 +8,7 @@ import (
 
 func SetupAppointmentRoutes(api *echo.Group) {
 	api.GET("/appointments", handlers.GetAllAppointments, scope("appointments:read"))
+	api.GET("/appointments/count-per-room", handlers.GetAppointmentCountPerRoom, scope("appointments:read"))
 	api.POST("/appointments", handlers.CreateAppointment, scope("appointments:write"))
 	api.PUT("/appointments/:id", handlers.UpdateAppointment, scope("appointments:write"))
 	api.DELETE("/appointments/:id", handlers.DeleteAppointment, scope("appointments:delete"))

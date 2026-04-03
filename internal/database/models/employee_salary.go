@@ -72,32 +72,46 @@ func (l *EmployeeSalaryList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (s *EmployeeSalary) GetByEmployee(employeeID string) ([]EmployeeSalary, error) {
-	rows, err := DB.Query(`SELECT `+employeeSalaryColumns+` FROM employee_salaries WHERE employee_id = ? ORDER BY is_active DESC, effective_date DESC`, employeeID)
+func (s *EmployeeSalaryList) GetByEmployee(employeeID string) error {
+	rows, err := RDB.Query(`SELECT `+employeeSalaryColumns+` FROM employee_salaries WHERE employee_id = ? ORDER BY is_active DESC, effective_date DESC`, employeeID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var list EmployeeSalaryList
-	if err := list.ScanRows(rows); err != nil {
-		return nil, err
-	}
-	return list, nil
+	err = s.ScanRows(rows)
+	return err
 }
 
 func (s *EmployeeSalary) GetByID(id string) error {
-	return s.ScanRow(DB.QueryRow(`SELECT `+employeeSalaryColumns+` FROM employee_salaries WHERE id = ?`, id))
+	return s.ScanRow(RDB.QueryRow(`SELECT `+employeeSalaryColumns+` FROM employee_salaries WHERE id = ?`, id))
 }
 
 func (s *EmployeeSalary) Create() error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	s.ID = uuid.Must(uuid.NewV7()).String()
 	now := DateNow()
 	s.CreatedAt = now
 	s.UpdatedAt = now
-	_, err := DB.Exec(`INSERT INTO employee_salaries (`+employeeSalaryColumns+`) VALUES (?,?,?,?,?,?,?,?,?)`,
-		s.ID, s.EmployeeID, s.Amount, s.CurrencyID, BoolToInt(s.IsActive), s.EffectiveDate, s.Notes, s.CreatedAt, s.UpdatedAt)
-	return err
+	s.IsActive = true
+
+	// Deactivate existing salaries for this employee
+	if _, err := tx.Exec(`UPDATE employee_salaries SET is_active = 0, updated_at = ? WHERE employee_id = ? AND is_active = 1`,
+		now, s.EmployeeID); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`INSERT INTO employee_salaries (`+employeeSalaryColumns+`) VALUES (?,?,?,?,?,?,?,?,?)`,
+		s.ID, s.EmployeeID, s.Amount, s.CurrencyID, BoolToInt(s.IsActive), s.EffectiveDate, s.Notes, s.CreatedAt, s.UpdatedAt); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (s *EmployeeSalary) Update(updates map[string]interface{}) error {

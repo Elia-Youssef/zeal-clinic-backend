@@ -13,6 +13,12 @@ import (
 const allergyColumnsNoId = `name, description, created_at`
 const allergyColumns = `id, ` + allergyColumnsNoId
 
+var AllergyDeps = map[string]string{
+	"patient_allergies":           "allergy_id",
+	"procedure_allergy_conflicts": "allergy_id",
+	"product_allergy_conflicts":   "allergy_id",
+}
+
 type Allergy struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -52,20 +58,56 @@ func (l *AllergyList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (a *Allergy) GetAll() ([]Allergy, error) {
-	rows, err := DB.Query(`SELECT id, name, description, created_at FROM allergies ORDER BY name`)
+func (a *AllergyList) GetAll(params ListParams) (int, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name", "description"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM allergies"+where, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT id, name, description, created_at FROM allergies` + where + ` ORDER BY name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	a.ScanRows(rows)
+
+	return total, rows.Err()
+}
+
+func GetAllergyDropdown(params ListParams) ([]DropdownItem, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+	query := `SELECT id, name FROM allergies` + where + ` ORDER BY name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
-	var list AllergyList
-	list.ScanRows(rows)
-	return list, rows.Err()
+	var items []DropdownItem
+	for rows.Next() {
+		var item DropdownItem
+		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (a *Allergy) GetByID(id string) error {
-	return a.ScanRow(DB.QueryRow(`SELECT id, name, description, created_at FROM allergies WHERE id = ?`, id))
+	return a.ScanRow(RDB.QueryRow(`SELECT id, name, description, created_at FROM allergies WHERE id = ?`, id))
 }
 
 func (a *Allergy) Create() error {

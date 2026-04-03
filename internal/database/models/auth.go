@@ -54,7 +54,7 @@ func (t *Token) Create() error {
 }
 
 func (t *Token) GetByValue(tokenStr string) error {
-	err := t.ScanRow(DB.QueryRow(
+	err := t.ScanRow(RDB.QueryRow(
 		`SELECT `+tokenColumns+` FROM tokens WHERE token = ?`, tokenStr,
 	))
 	if err != nil {

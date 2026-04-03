@@ -63,7 +63,7 @@ func (e *AuditLogEntry) GetByUserName(userName string, limit int) (AuditLogEntry
 	if limit <= 0 {
 		limit = 10
 	}
-	rows, err := DB.Query(`SELECT `+auditLogEntryColumns+` FROM audit_log WHERE user_name = ? ORDER BY created_at DESC LIMIT ?`, userName, limit)
+	rows, err := RDB.Query(`SELECT `+auditLogEntryColumns+` FROM audit_log WHERE user_name = ? ORDER BY created_at DESC LIMIT ?`, userName, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -74,39 +74,40 @@ func (e *AuditLogEntry) GetByUserName(userName string, limit int) (AuditLogEntry
 	return list, nil
 }
 
-func (e *AuditLogEntry) GetAll(entityType, entityID, action string, limit int) (AuditLogEntryList, error) {
-	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log WHERE 1=1`
+func (e *AuditLogEntry) GetAll(entityType, entityID, action string, params ListParams) (AuditLogEntryList, int, error) {
+	where := " WHERE 1=1"
 	var args []interface{}
 
 	if entityType != "" {
-		query += " AND entity_type = ?"
+		where += " AND entity_type = ?"
 		args = append(args, entityType)
 	}
 	if entityID != "" {
-		query += " AND entity_id = ?"
+		where += " AND entity_id = ?"
 		args = append(args, entityID)
 	}
 	if action != "" {
-		query += " AND action = ?"
+		where += " AND action = ?"
 		args = append(args, action)
 	}
-
-	query += " ORDER BY created_at DESC"
-
-	if limit > 0 {
-		query += " LIMIT ?"
-		args = append(args, limit)
-	} else {
-		query += " LIMIT 200"
+	if fc, fa := params.FilterClause("user_name", "details"); fc != "" {
+		where += " AND " + fc
+		args = append(args, fa...)
 	}
 
-	rows, err := DB.Query(query, args...)
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM audit_log"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + ` ORDER BY created_at DESC` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var list AuditLogEntryList
 	list.ScanRows(rows)
-	return list, nil
+	return list, total, nil
 }

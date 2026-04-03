@@ -11,9 +11,8 @@ import (
 )
 
 // GetSupplierPayments returns transactions FROM self balances TO supplier balances.
-// Optional ?supplierBalanceId= filter.
 func GetSupplierPayments(c echo.Context) error {
-	items, err := (&models.BalanceTransaction{}).GetSupplierPayments(c.QueryParam("supplierBalanceId"))
+	items, err := (&models.BalanceTransaction{}).GetSupplierPayments(c.Param("id"))
 	if err != nil {
 		log.Println("Error: GetSupplierPayments:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch supplier payments"})
@@ -31,7 +30,7 @@ func CreateSupplierPayment(c echo.Context) error {
 		SupplierBalanceID string  `json:"supplierBalanceId"`
 		Amount            float64 `json:"amount"`
 		CurrencyID        string  `json:"currencyId"`
-		ExchangeRate      float64 `json:"exchangeRate"`
+		TransactionType   string  `json:"transactionType"`
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
@@ -77,13 +76,13 @@ func CreateSupplierPayment(c echo.Context) error {
 	user := c.Get("user").(models.User)
 
 	bt := models.BalanceTransaction{
-		FromBalanceID: selfBalance.ID,
-		ToBalanceID:   supplierBalance.ID,
-		Amount:        req.Amount,
-		CurrencyID:    req.CurrencyID,
-		ExchangeRate:  req.ExchangeRate,
-		Description:   req.Description,
-		CreatedBy:     user.DisplayName,
+		FromBalanceID:   selfBalance.ID,
+		ToBalanceID:     supplierBalance.ID,
+		Amount:          req.Amount,
+		CurrencyID:      req.CurrencyID,
+		TransactionType: req.TransactionType,
+		Description:     req.Description,
+		CreatedBy:       user.DisplayName,
 	}
 	if err := bt.Create(); err != nil {
 		log.Println("Error: CreateSupplierPayment:", err)

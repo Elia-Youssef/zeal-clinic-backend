@@ -60,18 +60,38 @@ func (l *ProcedureSessionList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (s *ProcedureSession) GetByProcedure(procedureID string) ([]ProcedureSession, error) {
-	rows, err := DB.Query(`SELECT `+procedureSessionColumns+` FROM procedure_sessions WHERE procedure_id = ? ORDER BY session_number`, procedureID)
+func (s *ProcedureSessionList) GetByProcedure(procedureID string) error {
+	rows, err := RDB.Query(`SELECT `+procedureSessionColumns+` FROM procedure_sessions WHERE procedure_id = ? ORDER BY session_number`, procedureID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	return s.ScanRows(rows)
+}
+
+func GetProcedureSessionDropdown(procedureID string, params ListParams) ([]DropdownItem, error) {
+	where := " WHERE procedure_id = ?"
+	args := []interface{}{procedureID}
+	if fc, fa := params.FilterClause("name"); fc != "" {
+		where += " AND " + fc
+		args = append(args, fa...)
+	}
+	query := `SELECT id, name FROM procedure_sessions` + where + ` ORDER BY session_number` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
-	var list ProcedureSessionList
-	if err := list.ScanRows(rows); err != nil {
-		return nil, err
+	var items []DropdownItem
+	for rows.Next() {
+		var item DropdownItem
+		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+			continue
+		}
+		items = append(items, item)
 	}
-	return list, nil
+	return items, rows.Err()
 }
 
 func (s *ProcedureSession) Create() error {

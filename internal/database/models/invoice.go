@@ -73,7 +73,7 @@ func (inv *Invoice) GetAll(filterBalanceID string) ([]Invoice, error) {
 	}
 	query += " ORDER BY created_at DESC"
 
-	rows, err := DB.Query(query, args...)
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,26 +91,26 @@ func (inv *Invoice) GetAll(filterBalanceID string) ([]Invoice, error) {
 	for i := range list {
 		list[i].Items, _ = (&InvoiceItem{}).GetByInvoice(list[i].ID)
 		if list[i].FromBalanceID != "" {
-			DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].FromBalanceID).Scan(&list[i].FromEntityName)
+			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].FromBalanceID).Scan(&list[i].FromEntityName)
 		}
 		if list[i].ToBalanceID != "" {
-			DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].ToBalanceID).Scan(&list[i].ToEntityName)
+			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].ToBalanceID).Scan(&list[i].ToEntityName)
 		}
 	}
 	return list, nil
 }
 
 func (inv *Invoice) GetByID(id string) error {
-	err := inv.ScanRow(DB.QueryRow(`SELECT `+invoiceColumns+` FROM invoices WHERE id = ?`, id))
+	err := inv.ScanRow(RDB.QueryRow(`SELECT `+invoiceColumns+` FROM invoices WHERE id = ?`, id))
 	if err != nil {
 		return err
 	}
 	inv.Items, _ = (&InvoiceItem{}).GetByInvoice(inv.ID)
 	if inv.FromBalanceID != "" {
-		DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, inv.FromBalanceID).Scan(&inv.FromEntityName)
+		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, inv.FromBalanceID).Scan(&inv.FromEntityName)
 	}
 	if inv.ToBalanceID != "" {
-		DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, inv.ToBalanceID).Scan(&inv.ToEntityName)
+		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, inv.ToBalanceID).Scan(&inv.ToEntityName)
 	}
 	return nil
 }
@@ -232,7 +232,7 @@ func (inv *Invoice) GetClientInvoices(patientID string) ([]Invoice, error) {
 	}
 	query += ` ORDER BY i.created_at DESC`
 
-	rows, err := DB.Query(query, args...)
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -244,26 +244,26 @@ func (inv *Invoice) GetClientInvoices(patientID string) ([]Invoice, error) {
 	}
 	for i := range list {
 		list[i].Items, _ = (&InvoiceItem{}).GetByInvoice(list[i].ID)
-		DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].FromBalanceID).Scan(&list[i].FromEntityName)
-		DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].ToBalanceID).Scan(&list[i].ToEntityName)
+		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].FromBalanceID).Scan(&list[i].FromEntityName)
+		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].ToBalanceID).Scan(&list[i].ToEntityName)
 	}
 	return list, nil
 }
 
-func (inv *Invoice) GetSupplierInvoices(supplierBalanceID string) ([]Invoice, error) {
+func (inv *Invoice) GetSupplierInvoices(supplierID string) ([]Invoice, error) {
 	query := `SELECT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
 		i.amount, i.currency_id, i.notes, i.created_by, i.created_at, i.updated_at
 		FROM invoices i
 		JOIN balances fb ON fb.id = i.from_balance_id
 		WHERE fb.entity_type = 'supplier'`
 	var args []interface{}
-	if supplierBalanceID != "" {
-		query += ` AND fb.id = ?`
-		args = append(args, supplierBalanceID)
+	if supplierID != "" {
+		query += ` AND fb.entity_id = ?`
+		args = append(args, supplierID)
 	}
 	query += ` ORDER BY i.created_at DESC`
 
-	rows, err := DB.Query(query, args...)
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -275,8 +275,8 @@ func (inv *Invoice) GetSupplierInvoices(supplierBalanceID string) ([]Invoice, er
 	}
 	for i := range list {
 		list[i].Items, _ = (&InvoiceItem{}).GetByInvoice(list[i].ID)
-		DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].FromBalanceID).Scan(&list[i].FromEntityName)
-		DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].ToBalanceID).Scan(&list[i].ToEntityName)
+		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].FromBalanceID).Scan(&list[i].FromEntityName)
+		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].ToBalanceID).Scan(&list[i].ToEntityName)
 	}
 	return list, nil
 }
@@ -289,7 +289,7 @@ func (inv *Invoice) GetByItem(itemID, itemType string) ([]Invoice, error) {
 		WHERE ii.item_id = ? AND ii.item_type = ?
 		ORDER BY i.created_at DESC`
 
-	rows, err := DB.Query(query, itemID, itemType)
+	rows, err := RDB.Query(query, itemID, itemType)
 	if err != nil {
 		return nil, err
 	}
@@ -302,10 +302,10 @@ func (inv *Invoice) GetByItem(itemID, itemType string) ([]Invoice, error) {
 	for i := range list {
 		list[i].Items, _ = (&InvoiceItem{}).GetByInvoice(list[i].ID)
 		if list[i].FromBalanceID != "" {
-			DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].FromBalanceID).Scan(&list[i].FromEntityName)
+			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].FromBalanceID).Scan(&list[i].FromEntityName)
 		}
 		if list[i].ToBalanceID != "" {
-			DB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].ToBalanceID).Scan(&list[i].ToEntityName)
+			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, list[i].ToBalanceID).Scan(&list[i].ToEntityName)
 		}
 	}
 	return list, nil

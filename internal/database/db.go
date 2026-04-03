@@ -9,18 +9,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func Open(rawPath string) (*sql.DB, error) {
 	dbPath := resolveSQLitePath(rawPath)
+	dsn := dbPath + "?_foreign_keys=1&_journal_mode=WAL&_busy_timeout=5000"
 
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
+	// Write connection: single conn, serialises all writes.
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("open db: %w", err)
+		return nil, fmt.Errorf("open write db: %w", err)
 	}
-
-	db.SetMaxOpenConns(1) // SQLite doesn't support concurrent writes
+	db.SetMaxOpenConns(1)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping db: %w", err)
@@ -30,7 +31,19 @@ func Open(rawPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("schema: %w", err)
 	}
 
+	// Read connection: multiple conns, concurrent reads via WAL.
+	rdb, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open read db: %w", err)
+	}
+	rdb.SetMaxOpenConns(4)
+
+	if err := rdb.Ping(); err != nil {
+		return nil, fmt.Errorf("ping read db: %w", err)
+	}
+
 	models.DB = db
+	models.RDB = rdb
 
 	log.Println("Database initialized at", dbPath)
 	return db, nil

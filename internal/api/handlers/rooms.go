@@ -11,7 +11,8 @@ import (
 )
 
 func GetAllRooms(c echo.Context) error {
-	rooms, err := (&models.Room{}).GetAll()
+	params := parseListParams(c)
+	rooms, total, err := (&models.Room{}).GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllRooms] failed to fetch rooms:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch rooms"})
@@ -19,7 +20,17 @@ func GetAllRooms(c echo.Context) error {
 	if rooms == nil {
 		rooms = []models.Room{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: rooms})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: rooms, Total: total}})
+}
+
+func GetRoomDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetRoomDropdown(params)
+	if err != nil {
+		log.Println("Error: [GetRoomDropdown] failed to fetch room dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch room dropdown"})
+	}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
 
 func CreateRoom(c echo.Context) error {

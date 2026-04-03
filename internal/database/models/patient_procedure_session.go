@@ -5,17 +5,18 @@ import (
 	"errors"
 )
 
-const patientProcedureSessionColumnsNoId = `patient_procedure_id, procedure_session_id, status, notes, created_at, updated_at`
+const patientProcedureSessionColumnsNoId = `patient_procedure_id, procedure_session_id, appointment_id, status, notes, created_at, updated_at`
 const patientProcedureSessionColumns = `id, ` + patientProcedureSessionColumnsNoId
 
 type PatientProcedureSession struct {
-	ID                 string `json:"id"`
-	PatientProcedureID string `json:"patientProcedureId"`
-	ProcedureSessionID string `json:"procedureSessionId"`
-	Status             string `json:"status"`
-	Notes              string `json:"notes"`
-	CreatedAt          Date   `json:"createdAt"`
-	UpdatedAt          Date   `json:"updatedAt"`
+	ID                 string  `json:"id"`
+	PatientProcedureID string  `json:"patientProcedureId"`
+	ProcedureSessionID string  `json:"procedureSessionId"`
+	AppointmentID      *string `json:"appointmentId"`
+	Status             string  `json:"status"`
+	Notes              string  `json:"notes"`
+	CreatedAt          Date    `json:"createdAt"`
+	UpdatedAt          Date    `json:"updatedAt"`
 }
 
 type PatientProcedureSessionList []PatientProcedureSession
@@ -25,7 +26,7 @@ func (m *PatientProcedureSession) ScanRow(row *sql.Row) error {
 		return errors.New("nil PatientProcedureSession row")
 	}
 	err := row.Scan(&m.ID, &m.PatientProcedureID, &m.ProcedureSessionID,
-		&m.Status, &m.Notes, &m.CreatedAt, &m.UpdatedAt)
+		&m.AppointmentID, &m.Status, &m.Notes, &m.CreatedAt, &m.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -40,7 +41,7 @@ func (l *PatientProcedureSessionList) ScanRows(rows *sql.Rows) error {
 	for rows.Next() {
 		var item PatientProcedureSession
 		err := rows.Scan(&item.ID, &item.PatientProcedureID, &item.ProcedureSessionID,
-			&item.Status, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
+			&item.AppointmentID, &item.Status, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
 		if err != nil {
 			continue
 		}
@@ -49,23 +50,19 @@ func (l *PatientProcedureSessionList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (s *PatientProcedureSession) GetByPatientProcedure(patientProcedureID string) ([]PatientProcedureSession, error) {
-	rows, err := DB.Query(`SELECT `+patientProcedureSessionColumns+`
+func (s *PatientProcedureSessionList) GetByPatientProcedure(patientProcedureID string) error {
+	rows, err := RDB.Query(`SELECT `+patientProcedureSessionColumns+`
 		FROM patient_procedure_sessions WHERE patient_procedure_id = ? ORDER BY created_at`, patientProcedureID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var items PatientProcedureSessionList
-	if err := items.ScanRows(rows); err != nil {
-		return nil, err
-	}
-	return items, rows.Err()
+	return s.ScanRows(rows)
 }
 
 func (s *PatientProcedureSession) GetByID(id string) error {
-	row := DB.QueryRow(`SELECT `+patientProcedureSessionColumns+`
+	row := RDB.QueryRow(`SELECT `+patientProcedureSessionColumns+`
 		FROM patient_procedure_sessions WHERE id = ?`, id)
 	return s.ScanRow(row)
 }

@@ -5,18 +5,20 @@ import (
 	"clinic-api/internal/utils"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 )
 
 func GetAllAuditLogs(c echo.Context) error {
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	entries, err := (&models.AuditLogEntry{}).GetAll(
+	params := parseListParams(c)
+	if params.Limit == 0 {
+		params.Limit = 200
+	}
+	entries, total, err := (&models.AuditLogEntry{}).GetAll(
 		c.QueryParam("entityType"),
 		c.QueryParam("entityId"),
 		c.QueryParam("action"),
-		limit,
+		params,
 	)
 	if err != nil {
 		log.Println("Error: [GetAllAuditLogs] failed to fetch audit log:", err)
@@ -25,5 +27,5 @@ func GetAllAuditLogs(c echo.Context) error {
 	if entries == nil {
 		entries = []models.AuditLogEntry{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: entries})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: entries, Total: total}})
 }

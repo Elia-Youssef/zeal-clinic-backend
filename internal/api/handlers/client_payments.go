@@ -11,9 +11,8 @@ import (
 )
 
 // GetClientPayments returns transactions FROM patient balances TO self balances.
-// Optional ?patientId= filter.
 func GetClientPayments(c echo.Context) error {
-	items, err := (&models.BalanceTransaction{}).GetClientPayments(c.QueryParam("patientId"))
+	items, err := (&models.BalanceTransaction{}).GetClientPayments(c.Param("id"))
 	if err != nil {
 		log.Println("Error: GetClientPayments:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch client payments"})
@@ -28,11 +27,11 @@ func GetClientPayments(c echo.Context) error {
 // Direction: Patient Balance (FROM) to Self Balance (TO).
 func CreateClientPayment(c echo.Context) error {
 	var req struct {
-		PatientID    string  `json:"patientId"`
-		Amount       float64 `json:"amount"`
-		CurrencyID   string  `json:"currencyId"`
-		ExchangeRate float64 `json:"exchangeRate"`
-		Description  string  `json:"description"`
+		PatientID       string  `json:"patientId"`
+		Amount          float64 `json:"amount"`
+		CurrencyID      string  `json:"currencyId"`
+		TransactionType string  `json:"transactionType"`
+		Description     string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
@@ -50,6 +49,12 @@ func CreateClientPayment(c echo.Context) error {
 	}
 	if len(errs) > 0 {
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: errs})
+	}
+
+	// Verify currency exists
+	var currency models.Currency
+	if err := currency.GetByID(req.CurrencyID); err != nil {
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "currency not found"})
 	}
 
 	// Verify patient exists
@@ -87,13 +92,13 @@ func CreateClientPayment(c echo.Context) error {
 	user := c.Get("user").(models.User)
 
 	bt := models.BalanceTransaction{
-		FromBalanceID: patientBalance.ID,
-		ToBalanceID:   selfBalance.ID,
-		Amount:        req.Amount,
-		CurrencyID:    req.CurrencyID,
-		ExchangeRate:  req.ExchangeRate,
-		Description:   req.Description,
-		CreatedBy:     user.DisplayName,
+		FromBalanceID:   patientBalance.ID,
+		ToBalanceID:     selfBalance.ID,
+		Amount:          req.Amount,
+		CurrencyID:      req.CurrencyID,
+		TransactionType: req.TransactionType,
+		Description:     req.Description,
+		CreatedBy:       user.DisplayName,
 	}
 	if err := bt.Create(); err != nil {
 		log.Println("Error: CreateClientPayment:", err)

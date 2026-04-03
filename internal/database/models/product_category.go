@@ -51,20 +51,57 @@ func (l *ProductCategoryList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (c *ProductCategory) GetAll() (ProductCategoryList, error) {
-	rows, err := DB.Query(`SELECT ` + productCategoryColumns + ` FROM product_categories ORDER BY name`)
+func (c *ProductCategory) GetAll(params ListParams) (ProductCategoryList, int, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name", "description"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM product_categories"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT ` + productCategoryColumns + ` FROM product_categories` + where + ` ORDER BY name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var list ProductCategoryList
 	list.ScanRows(rows)
-	return list, nil
+	return list, total, nil
+}
+
+func GetProductCategoryDropdown(params ListParams) ([]DropdownItem, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+	query := `SELECT id, name FROM product_categories` + where + ` ORDER BY name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DropdownItem
+	for rows.Next() {
+		var item DropdownItem
+		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (c *ProductCategory) GetByID(id string) error {
-	return c.ScanRow(DB.QueryRow(`SELECT `+productCategoryColumns+` FROM product_categories WHERE id = ?`, id))
+	return c.ScanRow(RDB.QueryRow(`SELECT `+productCategoryColumns+` FROM product_categories WHERE id = ?`, id))
 }
 
 func (c *ProductCategory) Create() error {

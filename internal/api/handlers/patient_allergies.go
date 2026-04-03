@@ -11,13 +11,10 @@ import (
 )
 
 func GetPatientAllergies(c echo.Context) error {
-	items, err := (&models.PatientAllergy{}).GetByPatient(c.Param("patientId"))
-	if err != nil {
+	items := models.PatientAllergyList{}
+	if err := items.GetByPatient(c.Param("patientId")); err != nil {
 		log.Println("Error: [GetPatientAllergies] failed to fetch:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patient allergies"})
-	}
-	if items == nil {
-		items = []models.PatientAllergy{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }

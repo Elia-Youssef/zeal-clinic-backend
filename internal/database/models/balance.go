@@ -79,12 +79,12 @@ func (b *Balance) GetOrCreate() error {
 	if err != nil {
 		return err
 	}
-	return b.ScanRow(DB.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = ? AND entity_id = ? AND currency_id = ?`,
+	return b.ScanRow(RDB.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = ? AND entity_id = ? AND currency_id = ?`,
 		b.EntityType, b.EntityID, b.CurrencyID))
 }
 
 func (b *Balance) GetByID(id string) error {
-	err := b.ScanRow(DB.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE id = ?`, id))
+	err := b.ScanRow(RDB.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE id = ?`, id))
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (b *Balance) GetByID(id string) error {
 }
 
 func (b *Balance) GetByEntityID(entityType, entityID string) ([]Balance, error) {
-	rows, err := DB.Query(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = ? AND entity_id = ? ORDER BY currency_id`, entityType, entityID)
+	rows, err := RDB.Query(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = ? AND entity_id = ? ORDER BY currency_id`, entityType, entityID)
 	if err != nil {
 		return nil, err
 	}
@@ -106,24 +106,30 @@ func (b *Balance) GetByEntityID(entityType, entityID string) ([]Balance, error) 
 	return list, nil
 }
 
-func (b *Balance) GetAll(entityType string) ([]Balance, error) {
-	query := `SELECT ` + balanceColumns + ` FROM balances`
+func (b *BalanceList) GetAll(entityType string, params ListParams) (int, error) {
+	where := " WHERE 1=1"
 	var args []interface{}
 	if entityType != "" {
-		query += " WHERE entity_type = ?"
+		where += " AND entity_type = ?"
 		args = append(args, entityType)
 	}
-	query += " ORDER BY entity_type, entity_name"
+	if fc, fa := params.FilterClause("entity_name"); fc != "" {
+		where += " AND " + fc
+		args = append(args, fa...)
+	}
 
-	rows, err := DB.Query(query, args...)
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM balances"+where, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT ` + balanceColumns + ` FROM balances` + where + ` ORDER BY entity_type, entity_name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list BalanceList
-	if err := list.ScanRows(rows); err != nil {
-		return nil, err
-	}
-	return list, nil
+	err = b.ScanRows(rows)
+	return total, err
 }

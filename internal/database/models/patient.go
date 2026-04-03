@@ -21,10 +21,8 @@ type Patient struct {
 	EmergencyContactPhone string  `json:"emergencyContactPhone"`
 	Weight                float64 `json:"weight"`
 	Height                float64 `json:"height"`
-	BP                    string  `json:"bp"`
 	BloodType             string  `json:"bloodType"`
-	OnMedication          bool    `json:"onMedication"`
-	MedicationDetails     string  `json:"medicationDetails"`
+	Address               string  `json:"address"`
 	Notes                 string  `json:"notes"`
 	CreatedAt             Date    `json:"createdAt"`
 	UpdatedAt             Date    `json:"updatedAt"`
@@ -64,7 +62,7 @@ func (p *Patient) IsValid() error {
 
 const patientColumnsNoId = `first_name, middle_name, last_name, gender, date_of_birth,
 	contact, email, emergency_contact_name, emergency_contact_phone,
-	weight, height, bp, blood_type, on_medication, medication_details, notes, created_at, updated_at`
+	weight, height, blood_type, address, notes, created_at, updated_at`
 const patientColumns = `id, ` + patientColumnsNoId
 
 type PatientList []Patient
@@ -73,18 +71,12 @@ func (p *Patient) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil patient row")
 	}
-	var onMed int
-	err := row.Scan(
+	return row.Scan(
 		&p.ID, &p.FirstName, &p.MiddleName, &p.LastName, &p.Gender, &p.DateOfBirth,
 		&p.Contact, &p.Email, &p.EmergencyContactName, &p.EmergencyContactPhone,
-		&p.Weight, &p.Height, &p.BP, &p.BloodType,
-		&onMed, &p.MedicationDetails, &p.Notes, &p.CreatedAt, &p.UpdatedAt,
+		&p.Weight, &p.Height, &p.BloodType,
+		&p.Address, &p.Notes, &p.CreatedAt, &p.UpdatedAt,
 	)
-	if err != nil {
-		return err
-	}
-	p.OnMedication = onMed == 1
-	return nil
 }
 
 func (l *PatientList) ScanRows(rows *sql.Rows) error {
@@ -94,38 +86,73 @@ func (l *PatientList) ScanRows(rows *sql.Rows) error {
 	*l = PatientList{}
 	for rows.Next() {
 		var item Patient
-		var onMed int
 		err := rows.Scan(
 			&item.ID, &item.FirstName, &item.MiddleName, &item.LastName, &item.Gender, &item.DateOfBirth,
 			&item.Contact, &item.Email, &item.EmergencyContactName, &item.EmergencyContactPhone,
-			&item.Weight, &item.Height, &item.BP, &item.BloodType,
-			&onMed, &item.MedicationDetails, &item.Notes, &item.CreatedAt, &item.UpdatedAt,
+			&item.Weight, &item.Height, &item.BloodType,
+			&item.Address, &item.Notes, &item.CreatedAt, &item.UpdatedAt,
 		)
 		if err != nil {
 			continue
 		}
-		item.OnMedication = onMed == 1
 		*l = append(*l, item)
 	}
 	return nil
 }
 
-func (p *Patient) GetAll() ([]Patient, error) {
-	rows, err := DB.Query(`SELECT ` + patientColumns + ` FROM patients ORDER BY first_name, last_name`)
+func (p *Patient) GetAll(params ListParams) ([]Patient, int, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("first_name", "middle_name", "last_name", "contact", "email"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM patients"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT ` + patientColumns + ` FROM patients` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var list PatientList
 	if err := list.ScanRows(rows); err != nil {
+		return nil, 0, err
+	}
+	return list, total, rows.Err()
+}
+
+func GetPatientDropdown(params ListParams) ([]DropdownItem, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("first_name", "last_name", "contact"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+	query := `SELECT id, first_name || ' ' || last_name as name FROM patients` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
 		return nil, err
 	}
-	return list, rows.Err()
+	defer rows.Close()
+	var items []DropdownItem
+	for rows.Next() {
+		var item DropdownItem
+		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (p *Patient) GetByID(id string) error {
-	row := DB.QueryRow(`SELECT `+patientColumns+` FROM patients WHERE id = ?`, id)
+	row := RDB.QueryRow(`SELECT `+patientColumns+` FROM patients WHERE id = ?`, id)
 	return p.ScanRow(row)
 }
 
@@ -140,16 +167,33 @@ func (p *Patient) Create() error {
 	_, err := DB.Exec(`INSERT INTO patients (
 		id, first_name, middle_name, last_name, gender, date_of_birth,
 		contact, email, emergency_contact_name, emergency_contact_phone,
-		weight, height, bp, blood_type, on_medication, medication_details,
-		notes, created_at, updated_at
-	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		weight, height, blood_type, address, notes, created_at, updated_at
+	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		p.ID, p.FirstName, p.MiddleName, p.LastName, p.Gender, p.DateOfBirth,
 		p.Contact, p.Email, p.EmergencyContactName, p.EmergencyContactPhone,
-		p.Weight, p.Height, p.BP, p.BloodType,
-		BoolToInt(p.OnMedication), p.MedicationDetails,
-		p.Notes, p.CreatedAt, p.UpdatedAt,
+		p.Weight, p.Height, p.BloodType,
+		p.Address, p.Notes, p.CreatedAt, p.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Create a balance for the patient in each currency
+	var currencies CurrencyList
+	if _, err := currencies.GetAll(ListParams{}); err == nil {
+		entityName := p.FirstName + " " + p.LastName
+		for _, cur := range currencies {
+			bal := Balance{
+				EntityType: "patient",
+				EntityID:   &p.ID,
+				EntityName: entityName,
+				CurrencyID: cur.ID,
+			}
+			bal.GetOrCreate()
+		}
+	}
+
+	return nil
 }
 
 func (p *Patient) Update(updates map[string]interface{}) error {
@@ -157,8 +201,8 @@ func (p *Patient) Update(updates map[string]interface{}) error {
 		"firstName": "first_name", "middleName": "middle_name", "lastName": "last_name",
 		"gender": "gender", "dateOfBirth": "date_of_birth", "contact": "contact", "email": "email",
 		"emergencyContactName": "emergency_contact_name", "emergencyContactPhone": "emergency_contact_phone",
-		"weight": "weight", "height": "height", "bp": "bp", "bloodType": "blood_type",
-		"onMedication": "on_medication", "medicationDetails": "medication_details", "notes": "notes",
+		"weight": "weight", "height": "height", "bloodType": "blood_type",
+		"address": "address", "notes": "notes",
 	}
 
 	setClauses := ""
@@ -167,12 +211,6 @@ func (p *Patient) Update(updates map[string]interface{}) error {
 		if val, ok := updates[jsonKey]; ok {
 			if setClauses != "" {
 				setClauses += ", "
-			}
-			switch dbCol {
-			case "on_medication":
-				if b, ok := val.(bool); ok {
-					val = BoolToInt(b)
-				}
 			}
 			setClauses += dbCol + " = ?"
 			args = append(args, val)
@@ -206,6 +244,6 @@ func (p *Patient) Delete() error {
 }
 
 func (p *Patient) GetByPhone(phone string) error {
-	row := DB.QueryRow(`SELECT `+patientColumns+` FROM patients WHERE contact = ?`, phone)
+	row := RDB.QueryRow(`SELECT `+patientColumns+` FROM patients WHERE contact = ?`, phone)
 	return p.ScanRow(row)
 }

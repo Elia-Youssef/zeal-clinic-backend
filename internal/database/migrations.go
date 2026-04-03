@@ -66,15 +66,37 @@ CREATE TABLE IF NOT EXISTS allergies (
 );
 
 -- ============================================================
+-- PROCEDURE TYPES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS procedure_types (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
+-- PROCEDURE CATEGORIES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS procedure_categories (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    parent_id   TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
 -- PROCEDURES
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS procedures (
     id              TEXT PRIMARY KEY,
     name            TEXT NOT NULL,
-    procedure_type  TEXT NOT NULL DEFAULT 'Clinic Procedure' CHECK(procedure_type IN ('Clinic Procedure','Hospital Surgery','Minor Surgery')),
-    category        TEXT NOT NULL DEFAULT '',
-    subcategory     TEXT NOT NULL DEFAULT 'General',
+    type_id         TEXT NOT NULL DEFAULT '',
+    category_id     TEXT NOT NULL DEFAULT '',
     price           REAL NOT NULL DEFAULT 0,
     price_note      TEXT NOT NULL DEFAULT '',
     is_active       INTEGER NOT NULL DEFAULT 1,
@@ -104,6 +126,17 @@ CREATE TABLE IF NOT EXISTS procedure_allergy_conflicts (
 );
 
 -- ============================================================
+-- MEDICINES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS medicines (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
 -- PATIENTS
 -- ============================================================
 
@@ -120,10 +153,8 @@ CREATE TABLE IF NOT EXISTS patients (
     emergency_contact_phone TEXT NOT NULL DEFAULT '',
     weight                  REAL NOT NULL DEFAULT 0,
     height                  REAL NOT NULL DEFAULT 0,
-    bp                      TEXT NOT NULL DEFAULT '',
     blood_type              TEXT NOT NULL DEFAULT '',
-    on_medication           INTEGER NOT NULL DEFAULT 0,
-    medication_details      TEXT NOT NULL DEFAULT '',
+    address                 TEXT NOT NULL DEFAULT '',
     notes                   TEXT NOT NULL DEFAULT '',
     created_at              TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
@@ -138,6 +169,16 @@ CREATE TABLE IF NOT EXISTS patient_allergies (
     UNIQUE(patient_id, allergy_id)
 );
 
+CREATE TABLE IF NOT EXISTS patient_medicines (
+    id          TEXT PRIMARY KEY,
+    patient_id  TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    medicine_id TEXT NOT NULL REFERENCES medicines(id) ON DELETE CASCADE,
+    is_active   INTEGER NOT NULL DEFAULT 1,
+    notes       TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(patient_id, medicine_id)
+);
+
 -- ============================================================
 -- PATIENT PROCEDURES
 -- ============================================================
@@ -146,7 +187,8 @@ CREATE TABLE IF NOT EXISTS patient_procedures (
     id                      TEXT PRIMARY KEY,
     patient_id              TEXT NOT NULL REFERENCES patients(id),
     procedure_id            TEXT NOT NULL REFERENCES procedures(id),
-    status                  TEXT NOT NULL DEFAULT 'planned' CHECK(status IN ('planned','in_progress','completed','cancelled')),
+    appointment_id          TEXT DEFAULT NULL,
+    status                  TEXT NOT NULL DEFAULT 'planned' CHECK(status IN ('planned','in-progress','completed')),
     notes                   TEXT NOT NULL DEFAULT '',
     created_at              TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
@@ -156,6 +198,7 @@ CREATE TABLE IF NOT EXISTS patient_procedure_sessions (
     id                    TEXT PRIMARY KEY,
     patient_procedure_id  TEXT NOT NULL REFERENCES patient_procedures(id) ON DELETE CASCADE,
     procedure_session_id  TEXT NOT NULL DEFAULT '' REFERENCES procedure_sessions(id),
+    appointment_id        TEXT DEFAULT NULL,
     status                TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','scheduled','completed','skipped','cancelled')),
     notes                 TEXT NOT NULL DEFAULT '',
     created_at            TEXT NOT NULL DEFAULT (datetime('now')),
@@ -168,7 +211,7 @@ CREATE TABLE IF NOT EXISTS patient_procedure_sessions (
 
 CREATE TABLE IF NOT EXISTS employees (
     id              TEXT PRIMARY KEY,
-    user_id         TEXT NOT NULL DEFAULT '',
+    user_id         TEXT DEFAULT '',
     first_name      TEXT NOT NULL,
     last_name       TEXT NOT NULL,
     role            TEXT NOT NULL,
@@ -197,25 +240,15 @@ CREATE TABLE IF NOT EXISTS employee_salaries (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS appointments (
-    id                          TEXT PRIMARY KEY,
-    patient_id                  TEXT NOT NULL REFERENCES patients(id),
-    room_id                     TEXT NOT NULL REFERENCES rooms(id),
-    employee_id                 TEXT NOT NULL DEFAULT '',
-    patient_procedure_session_id TEXT DEFAULT NULL,
-    start_time                  TEXT NOT NULL,
-    end_time                    TEXT NOT NULL,
-    status                      TEXT NOT NULL CHECK(status IN ('Scheduled','In-Progress','Completed','Cancelled')),
-    notes                       TEXT NOT NULL DEFAULT '',
-    created_at                  TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at                  TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS appointment_photos (
-    id             TEXT PRIMARY KEY,
-    appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
-    file_path      TEXT NOT NULL,
-    caption        TEXT NOT NULL DEFAULT '',
-    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    id                           TEXT PRIMARY KEY,
+    patient_id                   TEXT NOT NULL REFERENCES patients(id),
+    room_id                      TEXT NOT NULL REFERENCES rooms(id),
+    start_time                   TEXT NOT NULL,
+    end_time                     TEXT NOT NULL,
+    status                       TEXT NOT NULL CHECK(status IN ('Scheduled','In-Progress','Completed','Cancelled')),
+    notes                        TEXT NOT NULL DEFAULT '',
+    created_at                   TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at                   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- ============================================================
@@ -261,26 +294,23 @@ CREATE TABLE IF NOT EXISTS schedule_availability (
 -- PRESCRIPTIONS
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS prescription_medicines (
-    id          TEXT PRIMARY KEY,
-    name        TEXT NOT NULL,
-    generic_name TEXT NOT NULL DEFAULT '',
-    form        TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE TABLE IF NOT EXISTS prescriptions (
     id                    TEXT PRIMARY KEY,
     patient_id            TEXT NOT NULL REFERENCES patients(id),
     patient_procedure_id  TEXT NOT NULL DEFAULT '',
-    visit_id              TEXT NOT NULL DEFAULT '',
-    prescribed_by         TEXT NOT NULL DEFAULT '',
+    prescribed_by         TEXT NOT NULL DEFAULT '' REFERENCES employees(id),
     prescription_date     TEXT NOT NULL,
-    items                 TEXT NOT NULL DEFAULT '[]',
-    instructions          TEXT NOT NULL DEFAULT '',
-    status                TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','completed','cancelled')),
     created_at            TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS prescription_medicines (
+    id              TEXT PRIMARY KEY,
+    medicine_id     TEXT NOT NULL REFERENCES medicines(id),
+    prescription_id TEXT NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
+    instructions    TEXT NOT NULL DEFAULT '',
+    status          TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','completed','cancelled')),
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- ============================================================
@@ -315,6 +345,21 @@ CREATE TABLE IF NOT EXISTS product_allergy_conflicts (
 );
 
 -- ============================================================
+-- SUPPLIERS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS suppliers (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL,
+    contact    TEXT NOT NULL DEFAULT '',
+    email      TEXT NOT NULL DEFAULT '',
+    address    TEXT NOT NULL DEFAULT '',
+    notes      TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
 -- FINANCIAL: BALANCES & DOUBLE-ENTRY TRANSACTIONS
 -- ============================================================
 
@@ -331,15 +376,15 @@ CREATE TABLE IF NOT EXISTS balances (
 );
 
 CREATE TABLE IF NOT EXISTS balance_transactions (
-    id              TEXT PRIMARY KEY,
-    from_balance_id TEXT NOT NULL REFERENCES balances(id),
-    to_balance_id   TEXT NOT NULL REFERENCES balances(id),
-    amount          REAL NOT NULL,
-    currency_id     TEXT NOT NULL DEFAULT '',
-    exchange_rate   REAL NOT NULL DEFAULT 1.0,
-    description     TEXT NOT NULL DEFAULT '',
-    created_by      TEXT NOT NULL DEFAULT '',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    id                TEXT PRIMARY KEY,
+    from_balance_id   TEXT NOT NULL REFERENCES balances(id),
+    to_balance_id     TEXT NOT NULL REFERENCES balances(id),
+    amount            REAL NOT NULL,
+    currency_id       TEXT NOT NULL DEFAULT '',
+    transaction_type  TEXT NOT NULL DEFAULT 'cash' CHECK(transaction_type IN ('cash','card','transfer','other')),
+    description       TEXT NOT NULL DEFAULT '',
+    created_by        TEXT NOT NULL DEFAULT '',
+    created_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS invoices (

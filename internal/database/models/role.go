@@ -55,20 +55,57 @@ func (l *RoleList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (r *Role) GetAll() (RoleList, error) {
-	rows, err := DB.Query(`SELECT ` + roleColumns + ` FROM roles ORDER BY name`)
+func (r *Role) GetAll(params ListParams) (RoleList, int, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name", "label"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM roles"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT ` + roleColumns + ` FROM roles` + where + ` ORDER BY name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var list RoleList
 	list.ScanRows(rows)
-	return list, nil
+	return list, total, nil
+}
+
+func GetRoleDropdown(params ListParams) ([]DropdownItem, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name", "label"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+	query := `SELECT name, label FROM roles` + where + ` ORDER BY name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DropdownItem
+	for rows.Next() {
+		var item DropdownItem
+		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (r *Role) GetByName(name string) error {
-	return r.ScanRow(DB.QueryRow(`SELECT `+roleColumns+` FROM roles WHERE name = ?`, name))
+	return r.ScanRow(RDB.QueryRow(`SELECT `+roleColumns+` FROM roles WHERE name = ?`, name))
 }
 
 func (r *Role) Update(updates map[string]interface{}) error {

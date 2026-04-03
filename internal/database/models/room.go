@@ -68,20 +68,57 @@ func (r *Room) IsValid() error {
 	return nil
 }
 
-func (r *Room) GetAll() (RoomList, error) {
-	rows, err := DB.Query(`SELECT ` + roomColumns + ` FROM rooms ORDER BY id`)
+func (r *Room) GetAll(params ListParams) (RoomList, int, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name", "type"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM rooms"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT ` + roomColumns + ` FROM rooms` + where + ` ORDER BY id` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var list RoomList
 	list.ScanRows(rows)
-	return list, nil
+	return list, total, nil
+}
+
+func GetRoomDropdown(params ListParams) ([]DropdownItem, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("name"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+	query := `SELECT id, name FROM rooms` + where + ` ORDER BY name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DropdownItem
+	for rows.Next() {
+		var item DropdownItem
+		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (r *Room) GetByID(id string) error {
-	return r.ScanRow(DB.QueryRow(`SELECT `+roomColumns+` FROM rooms WHERE id = ?`, id))
+	return r.ScanRow(RDB.QueryRow(`SELECT `+roomColumns+` FROM rooms WHERE id = ?`, id))
 }
 
 func (r *Room) Create() error {

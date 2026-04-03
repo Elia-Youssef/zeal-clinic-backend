@@ -30,7 +30,7 @@ type ExpenseCategoryBreakdown struct {
 func (r *Report) GetForecast() (ForecastResult, error) {
 	var result ForecastResult
 
-	rows, err := DB.Query(`
+	rows, err := RDB.Query(`
 		SELECT COALESCE(r.type, 'General'), COUNT(*) as cnt
 		FROM appointments a
 		LEFT JOIN rooms r ON r.id = a.room_id
@@ -49,13 +49,13 @@ func (r *Report) GetForecast() (ForecastResult, error) {
 		}
 	}
 
-	_ = DB.QueryRow(`
+	_ = RDB.QueryRow(`
 		SELECT COUNT(*) FROM appointments
 		WHERE status = 'Scheduled'
 		AND strftime('%Y-%m', start_time) = strftime('%Y-%m', 'now')
 	`).Scan(&result.ThisMonth)
 
-	_ = DB.QueryRow(`
+	_ = RDB.QueryRow(`
 		SELECT COUNT(*) FROM appointments
 		WHERE status = 'Scheduled'
 		AND strftime('%Y-%m', start_time) = strftime('%Y-%m', 'now', '+1 month')
@@ -71,7 +71,7 @@ func (r *Report) GetForecast() (ForecastResult, error) {
 func (r *Report) GetProfitLoss(from, to string) (ProfitLossResult, error) {
 	var result ProfitLossResult
 
-	_ = DB.QueryRow(`
+	_ = RDB.QueryRow(`
 		SELECT COALESCE(SUM(amount), 0) FROM invoices
 		WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
 	`, from, to).Scan(&result.TotalRevenue)

@@ -14,11 +14,14 @@ func GetAllScheduleAvailability(c echo.Context) error {
 	employeeID := c.QueryParam("employeeId")
 	sa := &models.ScheduleAvailability{}
 	var items []models.ScheduleAvailability
+	var total int
 	var err error
 	if employeeID != "" {
 		items, err = sa.GetByEmployee(employeeID)
+		total = len(items)
 	} else {
-		items, err = sa.GetAll()
+		params := parseListParams(c)
+		items, total, err = sa.GetAll(params)
 	}
 	if err != nil {
 		log.Println("Error: GetAllScheduleAvailability failed to fetch schedule availability:", err)
@@ -27,7 +30,7 @@ func GetAllScheduleAvailability(c echo.Context) error {
 	if items == nil {
 		items = []models.ScheduleAvailability{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: items, Total: total}})
 }
 
 func CreateScheduleAvailability(c echo.Context) error {

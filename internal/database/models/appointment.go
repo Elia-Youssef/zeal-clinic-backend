@@ -5,22 +5,24 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 type Appointment struct {
-	ID                        string  `json:"id"`
-	PatientID                 string  `json:"patientId"`
-	RoomID                    string  `json:"roomId"`
-	EmployeeID                string  `json:"employeeId"`
-	PatientProcedureSessionID *string `json:"patientProcedureSessionId"`
-	StartTime                 Date    `json:"startTime"`
-	EndTime                   Date    `json:"endTime"`
-	Status                    string  `json:"status"`
-	Notes                     string  `json:"notes"`
-	CreatedAt                 Date    `json:"createdAt"`
-	UpdatedAt                 Date    `json:"updatedAt"`
+	ID        string `json:"id"`
+	PatientID string `json:"patientId"`
+	RoomID    string `json:"roomId"`
+	StartTime Date   `json:"startTime"`
+	EndTime   Date   `json:"endTime"`
+	Status    string `json:"status"`
+	Notes     string `json:"notes"`
+	CreatedAt Date   `json:"createdAt"`
+	UpdatedAt Date   `json:"updatedAt"`
+	// Transient fields (not stored in appointments table)
+	ProcedureID        *string `json:"procedureId,omitempty"`
+	ProcedureSessionID *string `json:"procedureSessionId,omitempty"`
 }
 
 func (a *Appointment) IsValid() error {
@@ -50,8 +52,7 @@ func (a *Appointment) IsValid() error {
 	return nil
 }
 
-const appointmentColumnsNoId = `patient_id, room_id, employee_id, patient_procedure_session_id,
-	start_time, end_time, status, notes, created_at, updated_at`
+const appointmentColumnsNoId = `patient_id, room_id, start_time, end_time, status, notes, created_at, updated_at`
 const appointmentColumns = `id, ` + appointmentColumnsNoId
 
 type AppointmentList []Appointment
@@ -60,7 +61,7 @@ func (a *Appointment) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil appointment row")
 	}
-	err := row.Scan(&a.ID, &a.PatientID, &a.RoomID, &a.EmployeeID, &a.PatientProcedureSessionID,
+	err := row.Scan(&a.ID, &a.PatientID, &a.RoomID,
 		&a.StartTime, &a.EndTime, &a.Status,
 		&a.Notes, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
@@ -76,7 +77,7 @@ func (l *AppointmentList) ScanRows(rows *sql.Rows) error {
 	*l = AppointmentList{}
 	for rows.Next() {
 		var item Appointment
-		err := rows.Scan(&item.ID, &item.PatientID, &item.RoomID, &item.EmployeeID, &item.PatientProcedureSessionID,
+		err := rows.Scan(&item.ID, &item.PatientID, &item.RoomID,
 			&item.StartTime, &item.EndTime, &item.Status,
 			&item.Notes, &item.CreatedAt, &item.UpdatedAt)
 		if err != nil {
@@ -87,7 +88,7 @@ func (l *AppointmentList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func checkAppointmentConflict(roomID string, startTime, endTime Date, excludeID string) error {
+func checkAppointmentConflict(db DBTX, roomID string, startTime, endTime Date, excludeID string) error {
 	query := `SELECT COUNT(*) FROM appointments
 		WHERE room_id = ?
 		AND status != 'Cancelled'
@@ -99,7 +100,7 @@ func checkAppointmentConflict(roomID string, startTime, endTime Date, excludeID 
 		args = append(args, excludeID)
 	}
 	var count int
-	if err := DB.QueryRow(query, args...).Scan(&count); err != nil {
+	if err := db.QueryRow(query, args...).Scan(&count); err != nil {
 		return fmt.Errorf("check conflict: %w", err)
 	}
 	if count > 0 {
@@ -108,27 +109,103 @@ func checkAppointmentConflict(roomID string, startTime, endTime Date, excludeID 
 	return nil
 }
 
-func (a *Appointment) GetAll() ([]Appointment, error) {
-	rows, err := DB.Query(`SELECT ` + appointmentColumns + ` FROM appointments ORDER BY start_time`)
+func (a *AppointmentList) GetAll(date string, params ListParams) (int, error) {
+	where := " WHERE DATE(start_time) = ?"
+	args := []interface{}{date}
+	if fc, fa := params.FilterClause("status", "notes"); fc != "" {
+		where += " AND " + fc
+		args = append(args, fa...)
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM appointments"+where, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT ` + appointmentColumns + ` FROM appointments` + where + ` ORDER BY start_time` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	if err := a.ScanRows(rows); err != nil {
+		return 0, err
+	}
+	return total, rows.Err()
+}
+
+type RoomDayCount struct {
+	RoomID   string         `json:"roomId"`
+	RoomName string         `json:"roomName"`
+	Days     map[string]int `json:"days"`
+}
+
+func GetAppointmentCountPerRoom(date string) ([]RoomDayCount, error) {
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return nil, fmt.Errorf("invalid date format: %w", err)
+	}
+
+	weekday := t.Weekday()
+	offset := int(weekday - time.Monday)
+	if offset < 0 {
+		offset = 6
+	}
+	weekStart := t.AddDate(0, 0, -offset)
+	weekEnd := weekStart.AddDate(0, 0, 6)
+
+	query := `SELECT r.id, r.name, DATE(a.start_time) as day, COUNT(a.id) as count
+		FROM rooms r
+		LEFT JOIN appointments a ON a.room_id = r.id
+			AND DATE(a.start_time) BETWEEN ? AND ?
+			AND a.status != 'Cancelled'
+		GROUP BY r.id, r.name, DATE(a.start_time)
+		ORDER BY r.name, day`
+	rows, err := RDB.Query(query, weekStart.Format("2006-01-02"), weekEnd.Format("2006-01-02"))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var list AppointmentList
-	if err := list.ScanRows(rows); err != nil {
-		return nil, err
+	roomMap := make(map[string]*RoomDayCount)
+	var order []string
+	for rows.Next() {
+		var roomID, roomName string
+		var day sql.NullString
+		var count int
+		if err := rows.Scan(&roomID, &roomName, &day, &count); err != nil {
+			continue
+		}
+		if _, exists := roomMap[roomID]; !exists {
+			roomMap[roomID] = &RoomDayCount{RoomID: roomID, RoomName: roomName, Days: make(map[string]int)}
+			order = append(order, roomID)
+		}
+		if day.Valid {
+			roomMap[roomID].Days[day.String] = count
+		}
 	}
-	return list, rows.Err()
+
+	var items []RoomDayCount
+	for _, id := range order {
+		items = append(items, *roomMap[id])
+	}
+	return items, rows.Err()
 }
 
 func (a *Appointment) GetByID(id string) error {
-	row := DB.QueryRow(`SELECT `+appointmentColumns+` FROM appointments WHERE id = ?`, id)
+	row := RDB.QueryRow(`SELECT `+appointmentColumns+` FROM appointments WHERE id = ?`, id)
 	return a.ScanRow(row)
 }
 
 func (a *Appointment) Create() error {
-	if err := checkAppointmentConflict(a.RoomID, a.StartTime, a.EndTime, ""); err != nil {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if err := checkAppointmentConflict(tx, a.RoomID, a.StartTime, a.EndTime, ""); err != nil {
 		return err
 	}
 
@@ -137,18 +214,43 @@ func (a *Appointment) Create() error {
 	a.CreatedAt = now
 	a.UpdatedAt = now
 
-	_, err := DB.Exec(`INSERT INTO appointments (`+appointmentColumns+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		a.ID, a.PatientID, a.RoomID, a.EmployeeID, a.PatientProcedureSessionID,
+	_, err = tx.Exec(`INSERT INTO appointments (`+appointmentColumns+`)
+		VALUES (?,?,?,?,?,?,?,?,?)`,
+		a.ID, a.PatientID, a.RoomID,
 		a.StartTime, a.EndTime, a.Status,
 		a.Notes, a.CreatedAt, a.UpdatedAt)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// If a procedure is specified, create the patient_procedure and link the appointment
+	if a.ProcedureID != nil && *a.ProcedureID != "" {
+		hasSessions := a.ProcedureSessionID != nil && *a.ProcedureSessionID != ""
+		pp := PatientProcedure{
+			PatientID:   a.PatientID,
+			ProcedureID: *a.ProcedureID,
+		}
+		if !hasSessions {
+			pp.AppointmentID = &a.ID
+		}
+		if err := pp.create(tx); err != nil {
+			return err
+		}
+		if hasSessions {
+			if _, err := tx.Exec(`UPDATE patient_procedure_sessions SET appointment_id = ?
+				WHERE patient_procedure_id = ? AND procedure_session_id = ?`,
+				a.ID, pp.ID, *a.ProcedureSessionID); err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (a *Appointment) Update(updates map[string]interface{}) error {
 	cols := map[string]string{
-		"patientId": "patient_id", "roomId": "room_id", "employeeId": "employee_id",
-		"patientProcedureSessionId": "patient_procedure_session_id",
+		"patientId": "patient_id", "roomId": "room_id",
 		"startTime": "start_time", "endTime": "end_time",
 		"status": "status", "notes": "notes",
 	}
@@ -188,7 +290,7 @@ func (a *Appointment) Update(updates map[string]interface{}) error {
 		if v, ok := updates["endTime"].(string); ok {
 			endTime = Date(v)
 		}
-		if err := checkAppointmentConflict(roomID, startTime, endTime, a.ID); err != nil {
+		if err := checkAppointmentConflict(DB, roomID, startTime, endTime, a.ID); err != nil {
 			return err
 		}
 	}

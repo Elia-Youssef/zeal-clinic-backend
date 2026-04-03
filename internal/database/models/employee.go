@@ -9,10 +9,10 @@ import (
 )
 
 type Employee struct {
-	ID             string `json:"id"`
-	UserID         string `json:"userId"`
-	FirstName      string `json:"firstName"`
-	LastName       string `json:"lastName"`
+	ID             string  `json:"id"`
+	UserID         *string `json:"userId"`
+	FirstName      string  `json:"firstName"`
+	LastName       string  `json:"lastName"`
 	Role           string `json:"role"`
 	Contact        string `json:"contact"`
 	Email          string `json:"email"`
@@ -21,10 +21,10 @@ type Employee struct {
 	CreatedAt      Date   `json:"createdAt"`
 	UpdatedAt      Date   `json:"updatedAt"`
 	// Nested
-	Salaries      []EmployeeSalary `json:"salaries,omitempty"`
-	User          *User            `json:"user,omitempty"`
-	Balance       []Balance        `json:"balance,omitempty"`
-	LatestActions []AuditLogEntry  `json:"latestActions,omitempty"`
+	Salaries      EmployeeSalaryList `json:"salaries,omitempty"`
+	User          *User              `json:"user,omitempty"`
+	Balance       []Balance          `json:"balance,omitempty"`
+	LatestActions []AuditLogEntry    `json:"latestActions,omitempty"`
 }
 
 func (m *Employee) IsValid() error {
@@ -87,38 +87,74 @@ func (l *EmployeeList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (m *Employee) GetAll() ([]Employee, error) {
-	rows, err := DB.Query(`SELECT ` + employeeColumns + ` FROM employees ORDER BY id`)
-	if err != nil {
-		return nil, err
+func (m *EmployeeList) GetAll(params ListParams) (int, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("first_name", "last_name", "role", "contact", "email"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
 	}
 
-	var list EmployeeList
-	if err := list.ScanRows(rows); err != nil {
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM employees"+where, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT ` + employeeColumns + ` FROM employees` + where + ` ORDER BY id` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := m.ScanRows(rows); err != nil {
 		rows.Close()
-		return nil, err
+		return 0, err
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	for i := range list {
-		list[i].Salaries, _ = (&EmployeeSalary{}).GetByEmployee(list[i].ID)
+	for i := range *m {
+		(*m)[i].Salaries.GetByEmployee((*m)[i].ID)
 	}
-	return list, nil
+	return total, nil
+}
+
+func GetEmployeeDropdown(params ListParams) ([]DropdownItem, error) {
+	where := ""
+	var args []interface{}
+	if fc, fa := params.FilterClause("first_name", "last_name"); fc != "" {
+		where = " WHERE " + fc
+		args = fa
+	}
+	query := `SELECT id, first_name || ' ' || last_name as name FROM employees` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DropdownItem
+	for rows.Next() {
+		var item DropdownItem
+		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (m *Employee) GetByID(id string) error {
-	err := m.ScanRow(DB.QueryRow(`SELECT `+employeeColumns+` FROM employees WHERE id = ?`, id))
+	err := m.ScanRow(RDB.QueryRow(`SELECT `+employeeColumns+` FROM employees WHERE id = ?`, id))
 	if err != nil {
 		return err
 	}
-	m.Salaries, _ = (&EmployeeSalary{}).GetByEmployee(m.ID)
+	m.Salaries.GetByEmployee(m.ID)
 	// Load user
-	if m.UserID != "" {
+	if m.UserID != nil && *m.UserID != "" {
 		var user User
-		if err := user.GetByID(m.UserID); err == nil {
+		if err := user.GetByID(*m.UserID); err == nil {
 			m.User = &user
 		}
 	}
@@ -140,7 +176,26 @@ func (m *Employee) Create() error {
 	_, err := DB.Exec(`INSERT INTO employees (`+employeeColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		m.ID, m.UserID, m.FirstName, m.LastName, m.Role, m.Contact, m.Email, m.DateOfBirth,
 		m.EmploymentType, m.CreatedAt, m.UpdatedAt)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Create a balance for the employee in each currency
+	var currencies CurrencyList
+	if _, err := currencies.GetAll(ListParams{}); err == nil {
+		entityName := m.FirstName + " " + m.LastName
+		for _, cur := range currencies {
+			bal := Balance{
+				EntityType: "employee",
+				EntityID:   &m.ID,
+				EntityName: entityName,
+				CurrencyID: cur.ID,
+			}
+			bal.GetOrCreate()
+		}
+	}
+
+	return nil
 }
 
 func (m *Employee) Update(updates map[string]interface{}) error {

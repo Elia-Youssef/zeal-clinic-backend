@@ -11,13 +11,22 @@ import (
 )
 
 func GetAllAllergies(c echo.Context) error {
-	items, err := (&models.Allergy{}).GetAll()
+	params := parseListParams(c)
+	items := models.AllergyList{}
+	total, err := items.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllAllergies] failed to fetch allergies:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch allergies"})
 	}
-	if items == nil {
-		items = []models.Allergy{}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: items, Total: total}})
+}
+
+func GetAllergyDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetAllergyDropdown(params)
+	if err != nil {
+		log.Println("Error: [GetAllergyDropdown] failed to fetch allergy dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch allergy dropdown"})
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
@@ -30,9 +39,8 @@ func CreateAllergy(c echo.Context) error {
 	}
 	if err := a.IsValid(); err != nil {
 		log.Println("Error: [CreateAllergy] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
-	a.CreatedAt = models.DateNow()
 	if err := a.Create(); err != nil {
 		log.Println("Error: [CreateAllergy] failed to create allergy:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create allergy"})
@@ -60,7 +68,7 @@ func UpdateAllergy(c echo.Context) error {
 
 func DeleteAllergy(c echo.Context) error {
 	id := c.Param("id")
-	if models.HasDependencies(id, map[string]string{"patient_allergies": "allergy_id", "procedure_allergy_conflicts": "allergy_id", "product_allergy_conflicts": "allergy_id"}) {
+	if models.HasDependencies(id, models.AllergyDeps) {
 		return c.JSON(http.StatusConflict, utils.Response{Error: "cannot delete allergy: has related records"})
 	}
 
@@ -75,4 +83,3 @@ func DeleteAllergy(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true})
 }
-

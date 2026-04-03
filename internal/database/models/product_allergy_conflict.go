@@ -56,7 +56,7 @@ func (l *ProductAllergyConflictList) ScanRows(rows *sql.Rows) error {
 }
 
 func (c *ProductAllergyConflict) GetByProduct(productID string) ([]ProductAllergyConflict, error) {
-	rows, err := DB.Query(`SELECT pac.id, pac.product_id, pac.allergy_id, pac.notes, pac.created_at, a.name
+	rows, err := RDB.Query(`SELECT pac.id, pac.product_id, pac.allergy_id, pac.notes, pac.created_at, a.name
 		FROM product_allergy_conflicts pac JOIN allergies a ON a.id = pac.allergy_id
 		WHERE pac.product_id = ? ORDER BY a.name`, productID)
 	if err != nil {

@@ -112,35 +112,44 @@ func (l *BookingList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (b *Booking) GetAll(status, date string) ([]Booking, error) {
-	query := `SELECT ` + bookingColumns + ` FROM bookings WHERE 1=1`
+func (b *Booking) GetAll(status, date string, params ListParams) ([]Booking, int, error) {
+	where := " WHERE 1=1"
 	var args []interface{}
 
 	if status != "" {
-		query += " AND status = ?"
+		where += " AND status = ?"
 		args = append(args, status)
 	}
 	if date != "" {
-		query += " AND preferred_date = ?"
+		where += " AND preferred_date = ?"
 		args = append(args, date)
 	}
-	query += " ORDER BY created_at DESC"
+	if fc, fa := params.FilterClause("client_name", "client_phone", "service_category", "service_name"); fc != "" {
+		where += " AND " + fc
+		args = append(args, fa...)
+	}
 
-	rows, err := DB.Query(query, args...)
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM bookings"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT ` + bookingColumns + ` FROM bookings` + where + ` ORDER BY created_at DESC` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var list BookingList
 	if err := list.ScanRows(rows); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }
 
 func (b *Booking) GetByID(id string) error {
-	row := DB.QueryRow(`SELECT `+bookingColumns+` FROM bookings WHERE id = ?`, id)
+	row := RDB.QueryRow(`SELECT `+bookingColumns+` FROM bookings WHERE id = ?`, id)
 	return b.ScanRow(row)
 }
 
@@ -271,7 +280,7 @@ func (b *Booking) Cancel() error {
 }
 
 func (b *Booking) GetBookedSlots(date string) ([]string, error) {
-	rows, err := DB.Query(`SELECT preferred_time FROM bookings WHERE preferred_date = ? AND status IN ('pending','confirmed')`, date)
+	rows, err := RDB.Query(`SELECT preferred_time FROM bookings WHERE preferred_date = ? AND status IN ('pending','confirmed')`, date)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +299,7 @@ func (b *Booking) GetBookedSlots(date string) ([]string, error) {
 
 func (b *Booking) PatientCheckByPhone(phone string) (bool, string, error) {
 	var firstName string
-	err := DB.QueryRow(`SELECT first_name FROM patients WHERE contact = ? LIMIT 1`, phone).Scan(&firstName)
+	err := RDB.QueryRow(`SELECT first_name FROM patients WHERE contact = ? LIMIT 1`, phone).Scan(&firstName)
 	if err == sql.ErrNoRows {
 		return false, "", nil
 	}

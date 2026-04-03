@@ -7,6 +7,7 @@ import (
 )
 
 func SetupProcedureSessionRoutes(api *echo.Group) {
+	api.GET("/procedures/:id/sessions/dropdown", handlers.GetProcedureSessionDropdown, scope("services:read"))
 	api.POST("/procedures/:id/sessions", handlers.CreateProcedureSession, scope("services:write"))
 	api.DELETE("/procedures/:id/sessions/:sessionId", handlers.DeleteProcedureSession, scope("services:write"))
 }

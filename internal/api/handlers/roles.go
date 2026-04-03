@@ -11,7 +11,8 @@ import (
 )
 
 func GetAllRoles(c echo.Context) error {
-	roles, err := (&models.Role{}).GetAll()
+	params := parseListParams(c)
+	roles, total, err := (&models.Role{}).GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllRoles] failed to fetch roles:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch roles"})
@@ -19,7 +20,17 @@ func GetAllRoles(c echo.Context) error {
 	if roles == nil {
 		roles = []models.Role{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: roles})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: roles, Total: total}})
+}
+
+func GetRoleDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetRoleDropdown(params)
+	if err != nil {
+		log.Println("Error: [GetRoleDropdown] failed to fetch role dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch role dropdown"})
+	}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
 
 func GetRoleByName(c echo.Context) error {

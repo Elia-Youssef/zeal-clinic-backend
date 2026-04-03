@@ -11,15 +11,24 @@ import (
 )
 
 func GetAllEmployees(c echo.Context) error {
-	members, err := (&models.Employee{}).GetAll()
+	params := parseListParams(c)
+	members := models.EmployeeList{}
+	total, err := members.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllEmployees] failed to fetch employees:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch employees"})
 	}
-	if members == nil {
-		members = []models.Employee{}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: members, Total: total}})
+}
+
+func GetEmployeeDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetEmployeeDropdown(params)
+	if err != nil {
+		log.Println("Error: [GetEmployeeDropdown] failed to fetch employee dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch employee dropdown"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: members})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
 
 func GetEmployeeByID(c echo.Context) error {
@@ -73,7 +82,7 @@ func UpdateEmployee(c echo.Context) error {
 
 func DeleteEmployee(c echo.Context) error {
 	id := c.Param("id")
-	if models.HasDependencies(id, map[string]string{"appointments": "employee_id"}) {
+	if models.HasDependencies(id, map[string]string{"employee_salaries": "employee_id", "schedule_availability": "employee_id"}) {
 		return c.JSON(http.StatusConflict, utils.Response{Error: "cannot delete employee: has related records"})
 	}
 
@@ -87,4 +96,3 @@ func DeleteEmployee(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true})
 }
-

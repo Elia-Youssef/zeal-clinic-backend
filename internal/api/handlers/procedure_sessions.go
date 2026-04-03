@@ -10,6 +10,16 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+func GetProcedureSessionDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetProcedureSessionDropdown(c.Param("id"), params)
+	if err != nil {
+		log.Println("Error: [GetProcedureSessionDropdown] failed to fetch session dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch session dropdown"})
+	}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+}
+
 func CreateProcedureSession(c echo.Context) error {
 	var s models.ProcedureSession
 	if err := c.Bind(&s); err != nil {

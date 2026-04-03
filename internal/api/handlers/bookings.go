@@ -101,8 +101,9 @@ func CreatePublicBooking(c echo.Context) error {
 func GetAllBookings(c echo.Context) error {
 	status := c.QueryParam("status")
 	date := c.QueryParam("date")
+	params := parseListParams(c)
 
-	bookings, err := (&models.Booking{}).GetAll(status, date)
+	bookings, total, err := (&models.Booking{}).GetAll(status, date, params)
 	if err != nil {
 		log.Println("Error: GetAllBookings failed to fetch bookings:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch bookings"})
@@ -110,7 +111,7 @@ func GetAllBookings(c echo.Context) error {
 	if bookings == nil {
 		bookings = []models.Booking{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: bookings})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: bookings, Total: total}})
 }
 
 // Booking confirmation converts a public booking into a real appointment.

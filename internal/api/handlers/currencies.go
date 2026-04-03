@@ -11,15 +11,24 @@ import (
 )
 
 func GetAllCurrencies(c echo.Context) error {
-	currencies, err := (&models.Currency{}).GetAll()
+	params := parseListParams(c)
+	currencies := models.CurrencyList{}
+	total, err := currencies.GetAll(params)
 	if err != nil {
 		log.Println("Error: GetAllCurrencies failed to fetch currencies:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch currencies"})
 	}
-	if currencies == nil {
-		currencies = []models.Currency{}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: currencies, Total: total}})
+}
+
+func GetCurrencyDropdown(c echo.Context) error {
+	params := parseListParams(c)
+	items, err := models.GetCurrencyDropdown(params)
+	if err != nil {
+		log.Println("Error: [GetCurrencyDropdown] failed to fetch currency dropdown:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch currency dropdown"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: currencies})
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
 
 func CreateCurrency(c echo.Context) error {
@@ -31,7 +40,7 @@ func CreateCurrency(c echo.Context) error {
 
 	if err := cur.IsValid(); err != nil {
 		log.Println("Error: CreateCurrency validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	if err := cur.Create(); err != nil {
