@@ -13,7 +13,7 @@ type Room struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
 	IsAvailable bool   `json:"isAvailable"`
-	CreatedAt   Date `json:"createdAt"`
+	CreatedAt   Date   `json:"createdAt"`
 }
 
 const roomColumnsNoId = `name, type, is_available, created_at`
@@ -68,7 +68,7 @@ func (r *Room) IsValid() error {
 	return nil
 }
 
-func (r *Room) GetAll(params ListParams) (RoomList, int, error) {
+func (r *RoomList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []interface{}
 	if fc, fa := params.FilterClause("name", "type"); fc != "" {
@@ -78,19 +78,18 @@ func (r *Room) GetAll(params ListParams) (RoomList, int, error) {
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM rooms"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	query := `SELECT ` + roomColumns + ` FROM rooms` + where + ` ORDER BY id` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list RoomList
-	list.ScanRows(rows)
-	return list, total, nil
+	r.ScanRows(rows)
+	return total, nil
 }
 
 func GetRoomDropdown(params ListParams) ([]DropdownItem, error) {

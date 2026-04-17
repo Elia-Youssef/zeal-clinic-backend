@@ -16,7 +16,7 @@ type AuditLogEntry struct {
 	EntityID   string `json:"entityId"`
 	Details    string `json:"details"`
 	IPAddress  string `json:"ipAddress"`
-	CreatedAt  Date `json:"createdAt"`
+	CreatedAt  Date   `json:"createdAt"`
 }
 
 const auditLogEntryColumnsNoId = `user_name, user_role, action, entity_type, entity_id, details, ip_address, created_at`
@@ -59,22 +59,21 @@ func (e *AuditLogEntry) Log() error {
 	return err
 }
 
-func (e *AuditLogEntry) GetByUserName(userName string, limit int) (AuditLogEntryList, error) {
+func (e *AuditLogEntryList) GetByUserName(userName string, limit int) error {
 	if limit <= 0 {
 		limit = 10
 	}
 	rows, err := RDB.Query(`SELECT `+auditLogEntryColumns+` FROM audit_log WHERE user_name = ? ORDER BY created_at DESC LIMIT ?`, userName, limit)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var list AuditLogEntryList
-	list.ScanRows(rows)
-	return list, nil
+	e.ScanRows(rows)
+	return nil
 }
 
-func (e *AuditLogEntry) GetAll(entityType, entityID, action string, params ListParams) (AuditLogEntryList, int, error) {
+func (e *AuditLogEntryList) GetAll(entityType, entityID, action string, params ListParams) (int, error) {
 	where := " WHERE 1=1"
 	var args []interface{}
 
@@ -97,17 +96,16 @@ func (e *AuditLogEntry) GetAll(entityType, entityID, action string, params ListP
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM audit_log"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + ` ORDER BY created_at DESC` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list AuditLogEntryList
-	list.ScanRows(rows)
-	return list, total, nil
+	e.ScanRows(rows)
+	return total, nil
 }

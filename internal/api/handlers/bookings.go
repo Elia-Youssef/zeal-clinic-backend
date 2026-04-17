@@ -81,7 +81,7 @@ func CreatePublicBooking(c echo.Context) error {
 	}
 	if err := b.IsValid(); err != nil {
 		log.Println("Error: CreatePublicBooking validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	if err := b.Create(); err != nil {

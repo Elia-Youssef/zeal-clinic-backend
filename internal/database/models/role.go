@@ -55,7 +55,7 @@ func (l *RoleList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (r *Role) GetAll(params ListParams) (RoleList, int, error) {
+func (r *RoleList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []interface{}
 	if fc, fa := params.FilterClause("name", "label"); fc != "" {
@@ -65,19 +65,18 @@ func (r *Role) GetAll(params ListParams) (RoleList, int, error) {
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM roles"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	query := `SELECT ` + roleColumns + ` FROM roles` + where + ` ORDER BY name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list RoleList
-	list.ScanRows(rows)
-	return list, total, nil
+	r.ScanRows(rows)
+	return total, nil
 }
 
 func GetRoleDropdown(params ListParams) ([]DropdownItem, error) {

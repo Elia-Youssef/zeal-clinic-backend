@@ -14,7 +14,8 @@ func GetAllAuditLogs(c echo.Context) error {
 	if params.Limit == 0 {
 		params.Limit = 200
 	}
-	entries, total, err := (&models.AuditLogEntry{}).GetAll(
+	entries := models.AuditLogEntryList{}
+	total, err := entries.GetAll(
 		c.QueryParam("entityType"),
 		c.QueryParam("entityId"),
 		c.QueryParam("action"),

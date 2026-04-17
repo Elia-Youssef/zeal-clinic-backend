@@ -12,13 +12,11 @@ import (
 
 func GetAllProcedureTypes(c echo.Context) error {
 	params := parseListParams(c)
-	items, total, err := (&models.ProcedureType{}).GetAll(params)
+	items := models.ProcedureTypeList{}
+	total, err := items.GetAll(params)
 	if err != nil {
 		log.Println("Error: GetAllProcedureTypes failed to fetch types:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch types"})
-	}
-	if items == nil {
-		items = []models.ProcedureType{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: items, Total: total}})
 }
@@ -41,7 +39,7 @@ func CreateProcedureType(c echo.Context) error {
 	}
 	if err := pt.IsValid(); err != nil {
 		log.Println("Error: CreateProcedureType validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	if err := pt.Create(); err != nil {
 		log.Println("Error: CreateProcedureType failed to create type:", err)

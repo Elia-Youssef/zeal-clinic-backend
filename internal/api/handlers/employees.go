@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -44,14 +45,49 @@ func GetEmployeeByID(c echo.Context) error {
 }
 
 func CreateEmployee(c echo.Context) error {
-	var m models.Employee
-	if err := c.Bind(&m); err != nil {
+	var body struct {
+		models.Employee
+		Username string `json:"username"`
+		Password string `json:"password"`
+		UserRole string `json:"userRole"`
+	}
+	if err := c.Bind(&body); err != nil {
 		log.Println("Error: [CreateEmployee] invalid request:", err)
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
 	}
+	m := body.Employee
 	if err := m.IsValid(); err != nil {
 		log.Println("Error: [CreateEmployee] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+	}
+
+	// Optionally create a user account for this employee
+	username := strings.TrimSpace(body.Username)
+	password := strings.TrimSpace(body.Password)
+	if username != "" && password != "" {
+		userRole := strings.TrimSpace(body.UserRole)
+		if userRole == "" {
+			userRole = "user"
+		}
+		hash, err := utils.HashPassword(password)
+		if err != nil {
+			log.Println("Error: [CreateEmployee] failed to hash password:", err)
+			return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create user"})
+		}
+		user := models.User{
+			Username:    username,
+			DisplayName: m.FirstName + " " + m.LastName,
+			Role:        userRole,
+			IsActive:    true,
+		}
+		if err := user.IsValid(); err != nil {
+			return c.JSON(http.StatusBadRequest, utils.Response{Error: "user validation failed"})
+		}
+		if err := user.Create(hash); err != nil {
+			log.Println("Error: [CreateEmployee] failed to create user:", err)
+			return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create user account"})
+		}
+		m.UserID = &user.ID
 	}
 
 	if err := m.Create(); err != nil {

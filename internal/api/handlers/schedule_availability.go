@@ -41,7 +41,7 @@ func CreateScheduleAvailability(c echo.Context) error {
 	}
 	if err := sa.IsValid(); err != nil {
 		log.Println("Error: CreateScheduleAvailability validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	sa.CreatedAt = models.DateNow()
 	if err := sa.Create(); err != nil {

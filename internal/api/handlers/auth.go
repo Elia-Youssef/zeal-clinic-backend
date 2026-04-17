@@ -31,11 +31,6 @@ func (r *LoginRequest) IsValid() error {
 	return nil
 }
 
-type LoginResponse struct {
-	Token string `json:"token"`
-	User  string `json:"user"`
-}
-
 func Login(c echo.Context) error {
 	var req LoginRequest
 	if err := c.Bind(&req); err != nil {
@@ -72,7 +67,13 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, utils.Response{Error: "invalid username or password"})
 	}
 
-	token, err := utils.GenerateToken(user)
+	role := models.Role{}
+	if err := role.GetByName(user.Role); err != nil {
+		log.Println("Error: [Login] role not found:", user.Role)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to resolve user role"})
+	}
+
+	tokenResult, err := utils.GenerateToken(user, role.Scopes)
 	if err != nil {
 		log.Println("Error: [Login] token generation failed:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to generate token"})
@@ -80,10 +81,7 @@ func Login(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, utils.Response{
 		Success: true,
-		Data: LoginResponse{
-			Token: token,
-			User:  user.DisplayName,
-		},
+		Data:    tokenResult,
 	})
 }
 

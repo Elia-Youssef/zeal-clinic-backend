@@ -39,7 +39,7 @@ func CreateMedicine(c echo.Context) error {
 	}
 	if err := m.IsValid(); err != nil {
 		log.Println("Error: [CreateMedicine] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	if err := m.Create(); err != nil {
 		log.Println("Error: [CreateMedicine] failed to create medicine:", err)

@@ -16,13 +16,18 @@ type Appointment struct {
 	RoomID    string `json:"roomId"`
 	StartTime Date   `json:"startTime"`
 	EndTime   Date   `json:"endTime"`
-	Status    string `json:"status"`
-	Notes     string `json:"notes"`
-	CreatedAt Date   `json:"createdAt"`
+	Status          string `json:"status"`
+	Notes           string `json:"notes"`
+	CancelNotes     string `json:"cancelNotes"`
+	CompletionNotes string `json:"completionNotes"`
+	CreatedAt       Date   `json:"createdAt"`
 	UpdatedAt Date   `json:"updatedAt"`
 	// Transient fields (not stored in appointments table)
 	ProcedureID        *string `json:"procedureId,omitempty"`
 	ProcedureSessionID *string `json:"procedureSessionId,omitempty"`
+	// Joined fields
+	PatientProcedure        *PatientProcedure        `json:"patientProcedure,omitempty"`
+	PatientProcedureSession *PatientProcedureSession  `json:"patientProcedureSession,omitempty"`
 }
 
 func (a *Appointment) IsValid() error {
@@ -52,7 +57,7 @@ func (a *Appointment) IsValid() error {
 	return nil
 }
 
-const appointmentColumnsNoId = `patient_id, room_id, start_time, end_time, status, notes, created_at, updated_at`
+const appointmentColumnsNoId = `patient_id, room_id, start_time, end_time, status, notes, cancel_notes, completion_notes, created_at, updated_at`
 const appointmentColumns = `id, ` + appointmentColumnsNoId
 
 type AppointmentList []Appointment
@@ -63,7 +68,8 @@ func (a *Appointment) ScanRow(row *sql.Row) error {
 	}
 	err := row.Scan(&a.ID, &a.PatientID, &a.RoomID,
 		&a.StartTime, &a.EndTime, &a.Status,
-		&a.Notes, &a.CreatedAt, &a.UpdatedAt)
+		&a.Notes, &a.CancelNotes, &a.CompletionNotes,
+		&a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -79,12 +85,85 @@ func (l *AppointmentList) ScanRows(rows *sql.Rows) error {
 		var item Appointment
 		err := rows.Scan(&item.ID, &item.PatientID, &item.RoomID,
 			&item.StartTime, &item.EndTime, &item.Status,
-			&item.Notes, &item.CreatedAt, &item.UpdatedAt)
+			&item.Notes, &item.CancelNotes, &item.CompletionNotes,
+			&item.CreatedAt, &item.UpdatedAt)
 		if err != nil {
 			continue
 		}
 		*l = append(*l, item)
 	}
+	return nil
+}
+
+// LoadProcedures populates PatientProcedure and PatientProcedureSession for each appointment.
+func (l *AppointmentList) LoadProcedures() error {
+	if len(*l) == 0 {
+		return nil
+	}
+
+	ids := make([]interface{}, len(*l))
+	idIdx := make(map[string]int, len(*l))
+	placeholders := ""
+	for i, a := range *l {
+		ids[i] = a.ID
+		idIdx[a.ID] = i
+		if i > 0 {
+			placeholders += ","
+		}
+		placeholders += "?"
+	}
+
+	// Patient procedures linked directly to appointments
+	ppRows, err := RDB.Query(`SELECT pp.id, pp.patient_id, pp.procedure_id, pp.appointment_id, pp.status, pp.notes,
+		pp.created_at, pp.updated_at, pr.name
+		FROM patient_procedures pp
+		JOIN procedures pr ON pr.id = pp.procedure_id
+		WHERE pp.appointment_id IN (`+placeholders+`)`, ids...)
+	if err != nil {
+		return err
+	}
+	defer ppRows.Close()
+	for ppRows.Next() {
+		var pp PatientProcedure
+		if err := ppRows.Scan(&pp.ID, &pp.PatientID, &pp.ProcedureID, &pp.AppointmentID, &pp.Status, &pp.Notes,
+			&pp.CreatedAt, &pp.UpdatedAt, &pp.ProcedureName); err != nil {
+			continue
+		}
+		if idx, ok := idIdx[*pp.AppointmentID]; ok {
+			(*l)[idx].PatientProcedure = &pp
+		}
+	}
+
+	// Patient procedure sessions linked to appointments (with their parent procedure)
+	ppsRows, err := RDB.Query(`SELECT pps.id, pps.patient_procedure_id, pps.procedure_session_id, pps.appointment_id,
+		pps.status, pps.notes, pps.created_at, pps.updated_at,
+		pp.id, pp.patient_id, pp.procedure_id, pp.appointment_id, pp.status, pp.notes,
+		pp.created_at, pp.updated_at, pr.name
+		FROM patient_procedure_sessions pps
+		JOIN patient_procedures pp ON pp.id = pps.patient_procedure_id
+		JOIN procedures pr ON pr.id = pp.procedure_id
+		WHERE pps.appointment_id IN (`+placeholders+`)`, ids...)
+	if err != nil {
+		return err
+	}
+	defer ppsRows.Close()
+	for ppsRows.Next() {
+		var pps PatientProcedureSession
+		var pp PatientProcedure
+		if err := ppsRows.Scan(&pps.ID, &pps.PatientProcedureID, &pps.ProcedureSessionID,
+			&pps.AppointmentID, &pps.Status, &pps.Notes, &pps.CreatedAt, &pps.UpdatedAt,
+			&pp.ID, &pp.PatientID, &pp.ProcedureID, &pp.AppointmentID, &pp.Status, &pp.Notes,
+			&pp.CreatedAt, &pp.UpdatedAt, &pp.ProcedureName); err != nil {
+			continue
+		}
+		if idx, ok := idIdx[*pps.AppointmentID]; ok {
+			(*l)[idx].PatientProcedureSession = &pps
+			if (*l)[idx].PatientProcedure == nil {
+				(*l)[idx].PatientProcedure = &pp
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -132,7 +211,13 @@ func (a *AppointmentList) GetAll(date string, params ListParams) (int, error) {
 	if err := a.ScanRows(rows); err != nil {
 		return 0, err
 	}
-	return total, rows.Err()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if err := a.LoadProcedures(); err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
 type RoomDayCount struct {
@@ -193,6 +278,38 @@ func GetAppointmentCountPerRoom(date string) ([]RoomDayCount, error) {
 	return items, rows.Err()
 }
 
+func (a *AppointmentList) GetByPatientID(patientID string, params ListParams) (int, error) {
+	where := " WHERE patient_id = ?"
+	args := []interface{}{patientID}
+	if fc, fa := params.FilterClause("status", "notes"); fc != "" {
+		where += " AND " + fc
+		args = append(args, fa...)
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM appointments"+where, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT ` + appointmentColumns + ` FROM appointments` + where + ` ORDER BY start_time DESC` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	if err := a.ScanRows(rows); err != nil {
+		return 0, err
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if err := a.LoadProcedures(); err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 func (a *Appointment) GetByID(id string) error {
 	row := RDB.QueryRow(`SELECT `+appointmentColumns+` FROM appointments WHERE id = ?`, id)
 	return a.ScanRow(row)
@@ -215,10 +332,11 @@ func (a *Appointment) Create() error {
 	a.UpdatedAt = now
 
 	_, err = tx.Exec(`INSERT INTO appointments (`+appointmentColumns+`)
-		VALUES (?,?,?,?,?,?,?,?,?)`,
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		a.ID, a.PatientID, a.RoomID,
 		a.StartTime, a.EndTime, a.Status,
-		a.Notes, a.CreatedAt, a.UpdatedAt)
+		a.Notes, a.CancelNotes, a.CompletionNotes,
+		a.CreatedAt, a.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -253,6 +371,7 @@ func (a *Appointment) Update(updates map[string]interface{}) error {
 		"patientId": "patient_id", "roomId": "room_id",
 		"startTime": "start_time", "endTime": "end_time",
 		"status": "status", "notes": "notes",
+		"cancelNotes": "cancel_notes", "completionNotes": "completion_notes",
 	}
 
 	setClauses := ""

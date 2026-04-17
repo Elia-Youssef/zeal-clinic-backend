@@ -51,7 +51,7 @@ func CreateSupplier(c echo.Context) error {
 	}
 	if err := s.IsValid(); err != nil {
 		log.Println("Error: [CreateSupplier] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	if err := s.Create(); err != nil {

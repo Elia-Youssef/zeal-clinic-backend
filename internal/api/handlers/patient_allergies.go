@@ -28,7 +28,7 @@ func AddPatientAllergy(c echo.Context) error {
 	pa.PatientID = c.Param("patientId")
 	if err := pa.IsValid(); err != nil {
 		log.Println("Error: [AddPatientAllergy] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	pa.CreatedAt = models.DateNow()
 	if err := pa.Create(); err != nil {

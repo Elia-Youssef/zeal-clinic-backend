@@ -28,7 +28,7 @@ func AddPatientMedicine(c echo.Context) error {
 	pm.PatientID = c.Param("patientId")
 	if err := pm.IsValid(); err != nil {
 		log.Println("Error: [AddPatientMedicine] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	pm.CreatedAt = models.DateNow()
 	if err := pm.Create(); err != nil {

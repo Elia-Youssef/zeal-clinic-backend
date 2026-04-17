@@ -10,22 +10,31 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func GenerateToken(user models.User) (string, error) {
+type TokenResult struct {
+	Token     string   `json:"token"`
+	ExpiresAt int64    `json:"expiresAt"`
+	User      string   `json:"user"`
+	Role      string   `json:"role"`
+	Scopes    []string `json:"scopes"`
+}
+
+func GenerateToken(user models.User, scopes []string) (TokenResult, error) {
 	now := time.Now().UTC()
 	expiresAt := now.Add(config.JWTLifetime)
 
 	claims := jwt.MapClaims{
-		"sub":  user.ID,
-		"role": user.Role,
-		"exp":  expiresAt.Unix(),
-		"iat":  now.Unix(),
-		"iss":  "clinic-api",
+		"sub":    user.ID,
+		"role":   user.Role,
+		"scopes": scopes,
+		"exp":    expiresAt.Unix(),
+		"iat":    now.Unix(),
+		"iss":    "clinic-api",
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString([]byte(config.JWTSecret))
 	if err != nil {
-		return "", err
+		return TokenResult{}, err
 	}
 
 	t := models.Token{
@@ -34,10 +43,16 @@ func GenerateToken(user models.User) (string, error) {
 		ExpiresAt: models.DateFrom(expiresAt),
 	}
 	if err := t.Create(); err != nil {
-		return "", errors.New("failed to store token")
+		return TokenResult{}, errors.New("failed to store token")
 	}
 
-	return signed, nil
+	return TokenResult{
+		Token:     signed,
+		ExpiresAt: expiresAt.Unix(),
+		User:      user.DisplayName,
+		Role:      user.Role,
+		Scopes:    scopes,
+	}, nil
 }
 
 func ParseToken(tokenStr string) (jwt.MapClaims, error) {

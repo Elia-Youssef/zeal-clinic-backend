@@ -154,7 +154,11 @@ CREATE TABLE IF NOT EXISTS patients (
     weight                  REAL NOT NULL DEFAULT 0,
     height                  REAL NOT NULL DEFAULT 0,
     blood_type              TEXT NOT NULL DEFAULT '',
+    country_id              TEXT NOT NULL DEFAULT '',
+    city_id                 TEXT NOT NULL DEFAULT '',
     address                 TEXT NOT NULL DEFAULT '',
+    referral_id             TEXT DEFAULT NULL,
+    referral_source         TEXT NOT NULL DEFAULT '',
     notes                   TEXT NOT NULL DEFAULT '',
     created_at              TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
@@ -247,6 +251,8 @@ CREATE TABLE IF NOT EXISTS appointments (
     end_time                     TEXT NOT NULL,
     status                       TEXT NOT NULL CHECK(status IN ('Scheduled','In-Progress','Completed','Cancelled')),
     notes                        TEXT NOT NULL DEFAULT '',
+    cancel_notes                 TEXT NOT NULL DEFAULT '',
+    completion_notes             TEXT NOT NULL DEFAULT '',
     created_at                   TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at                   TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -295,13 +301,13 @@ CREATE TABLE IF NOT EXISTS schedule_availability (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS prescriptions (
-    id                    TEXT PRIMARY KEY,
-    patient_id            TEXT NOT NULL REFERENCES patients(id),
-    patient_procedure_id  TEXT NOT NULL DEFAULT '',
-    prescribed_by         TEXT NOT NULL DEFAULT '' REFERENCES employees(id),
-    prescription_date     TEXT NOT NULL,
-    created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+    id                TEXT PRIMARY KEY,
+    patient_id        TEXT NOT NULL REFERENCES patients(id),
+    prescribed_by_id  TEXT NOT NULL DEFAULT '' REFERENCES employees(id),
+    start_date        TEXT NOT NULL,
+    end_date          TEXT NOT NULL DEFAULT '',
+    created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS prescription_medicines (
@@ -376,15 +382,16 @@ CREATE TABLE IF NOT EXISTS balances (
 );
 
 CREATE TABLE IF NOT EXISTS balance_transactions (
-    id                TEXT PRIMARY KEY,
-    from_balance_id   TEXT NOT NULL REFERENCES balances(id),
-    to_balance_id     TEXT NOT NULL REFERENCES balances(id),
-    amount            REAL NOT NULL,
-    currency_id       TEXT NOT NULL DEFAULT '',
-    transaction_type  TEXT NOT NULL DEFAULT 'cash' CHECK(transaction_type IN ('cash','card','transfer','other')),
-    description       TEXT NOT NULL DEFAULT '',
-    created_by        TEXT NOT NULL DEFAULT '',
-    created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    id                  TEXT PRIMARY KEY,
+    from_balance_id     TEXT NOT NULL REFERENCES balances(id),
+    to_balance_id       TEXT NOT NULL REFERENCES balances(id),
+    amount              REAL NOT NULL,
+    currency_id         TEXT NOT NULL DEFAULT '',
+    transaction_type    TEXT NOT NULL DEFAULT 'payment' CHECK(transaction_type IN ('charge','payment','refund','adjustment','write-off')),
+    transaction_method  TEXT NOT NULL DEFAULT 'cash' CHECK(transaction_method IN ('cash','card','transfer','discount','other')),
+    description         TEXT NOT NULL DEFAULT '',
+    created_by          TEXT NOT NULL DEFAULT '',
+    created_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS invoices (
@@ -393,6 +400,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     from_balance_id TEXT NOT NULL DEFAULT '' REFERENCES balances(id),
     to_balance_id   TEXT NOT NULL DEFAULT '' REFERENCES balances(id),
     amount          REAL NOT NULL DEFAULT 0,
+    final_amount    REAL NOT NULL DEFAULT 0,
     currency_id     TEXT NOT NULL DEFAULT '',
     notes           TEXT NOT NULL DEFAULT '',
     created_by      TEXT NOT NULL DEFAULT '',
@@ -401,14 +409,15 @@ CREATE TABLE IF NOT EXISTS invoices (
 );
 
 CREATE TABLE IF NOT EXISTS invoice_items (
-    id         TEXT PRIMARY KEY,
-    invoice_id TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-    item_type  TEXT NOT NULL DEFAULT 'other' CHECK(item_type IN ('product', 'procedure', 'other')),
-    item_id    TEXT NOT NULL DEFAULT '',
-    quantity   INTEGER NOT NULL DEFAULT 1,
-    amount     REAL NOT NULL DEFAULT 0,
-    notes      TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    id           TEXT PRIMARY KEY,
+    invoice_id   TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    item_type    TEXT NOT NULL DEFAULT 'other' CHECK(item_type IN ('product', 'procedure', 'discount', 'other')),
+    item_id      TEXT NOT NULL DEFAULT '',
+    quantity     INTEGER NOT NULL DEFAULT 1,
+    amount       REAL NOT NULL DEFAULT 0,
+    final_amount REAL NOT NULL DEFAULT 0,
+    notes        TEXT NOT NULL DEFAULT '',
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- ============================================================
@@ -423,6 +432,85 @@ CREATE TABLE IF NOT EXISTS currencies (
     exchange_rate REAL NOT NULL DEFAULT 1.0,
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
+-- NOTIFICATIONS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    action      TEXT NOT NULL DEFAULT '',
+    is_read     INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
+-- COUNTRIES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS countries (
+    id   TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
+-- ============================================================
+-- LEBANON CITIES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS lebanon_cities (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    governorate TEXT NOT NULL DEFAULT '',
+    district    TEXT NOT NULL DEFAULT ''
+);
+
+-- ============================================================
+-- DISCOUNTS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS discounts (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    description     TEXT NOT NULL DEFAULT '',
+    discount_type   TEXT NOT NULL CHECK(discount_type IN ('offer','voucher','gift')),
+    value_type      TEXT NOT NULL DEFAULT 'percentage' CHECK(value_type IN ('percentage','fixed')),
+    value           REAL NOT NULL DEFAULT 0,
+    max_usages      INTEGER DEFAULT NULL,
+    current_usages  INTEGER NOT NULL DEFAULT 0,
+    start_date      TEXT DEFAULT NULL,
+    end_date        TEXT DEFAULT NULL,
+    is_active       INTEGER NOT NULL DEFAULT 1,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS discount_items (
+    id          TEXT PRIMARY KEY,
+    discount_id TEXT NOT NULL REFERENCES discounts(id) ON DELETE CASCADE,
+    item_type   TEXT NOT NULL CHECK(item_type IN ('procedure','product')),
+    item_id     TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(discount_id, item_type, item_id)
+);
+
+CREATE TABLE IF NOT EXISTS vouchers (
+    id          TEXT PRIMARY KEY,
+    discount_id TEXT NOT NULL REFERENCES discounts(id) ON DELETE CASCADE,
+    code        TEXT NOT NULL UNIQUE,
+    is_used     INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS invoice_item_discounts (
+    id              TEXT PRIMARY KEY,
+    invoice_item_id TEXT NOT NULL REFERENCES invoice_items(id) ON DELETE CASCADE,
+    discount_id     TEXT NOT NULL REFERENCES discounts(id),
+    discount_value  REAL NOT NULL DEFAULT 0,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Enable foreign keys

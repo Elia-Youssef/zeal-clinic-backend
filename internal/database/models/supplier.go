@@ -18,7 +18,7 @@ type Supplier struct {
 	CreatedAt Date   `json:"createdAt"`
 	UpdatedAt Date   `json:"updatedAt"`
 	// Nested
-	Balance []Balance `json:"balance,omitempty"`
+	Balance Balance `json:"balance,omitempty"`
 }
 
 func (s *Supplier) IsValid() error {
@@ -121,7 +121,7 @@ func (s *Supplier) GetByID(id string) error {
 	if err != nil {
 		return err
 	}
-	s.Balance, _ = (&Balance{}).GetByEntityID("supplier", s.ID)
+	s.Balance.GetByEntityID("supplier", s.ID)
 	return nil
 }
 

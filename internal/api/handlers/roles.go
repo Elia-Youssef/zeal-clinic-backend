@@ -12,13 +12,11 @@ import (
 
 func GetAllRoles(c echo.Context) error {
 	params := parseListParams(c)
-	roles, total, err := (&models.Role{}).GetAll(params)
+	roles := models.RoleList{}
+	total, err := roles.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllRoles] failed to fetch roles:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch roles"})
-	}
-	if roles == nil {
-		roles = []models.Role{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: roles, Total: total}})
 }

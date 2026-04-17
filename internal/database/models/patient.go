@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
+	"log"
 
 	"github.com/google/uuid"
 )
@@ -22,10 +23,18 @@ type Patient struct {
 	Weight                float64 `json:"weight"`
 	Height                float64 `json:"height"`
 	BloodType             string  `json:"bloodType"`
+	CountryID             string  `json:"countryId"`
+	CityID                string  `json:"cityId"`
 	Address               string  `json:"address"`
+	ReferralID            *string `json:"referralId"`
+	ReferralSource        string  `json:"referralSource"`
 	Notes                 string  `json:"notes"`
 	CreatedAt             Date    `json:"createdAt"`
 	UpdatedAt             Date    `json:"updatedAt"`
+	// Nested
+	Balance Balance     `json:"balance,omitempty"`
+	Country Country     `json:"country,omitempty"`
+	City    LebanonCity `json:"city,omitempty"`
 }
 
 func (p *Patient) IsValid() error {
@@ -62,7 +71,7 @@ func (p *Patient) IsValid() error {
 
 const patientColumnsNoId = `first_name, middle_name, last_name, gender, date_of_birth,
 	contact, email, emergency_contact_name, emergency_contact_phone,
-	weight, height, blood_type, address, notes, created_at, updated_at`
+	weight, height, blood_type, country_id, city_id, address, referral_id, referral_source, notes, created_at, updated_at`
 const patientColumns = `id, ` + patientColumnsNoId
 
 type PatientList []Patient
@@ -74,8 +83,8 @@ func (p *Patient) ScanRow(row *sql.Row) error {
 	return row.Scan(
 		&p.ID, &p.FirstName, &p.MiddleName, &p.LastName, &p.Gender, &p.DateOfBirth,
 		&p.Contact, &p.Email, &p.EmergencyContactName, &p.EmergencyContactPhone,
-		&p.Weight, &p.Height, &p.BloodType,
-		&p.Address, &p.Notes, &p.CreatedAt, &p.UpdatedAt,
+		&p.Weight, &p.Height, &p.BloodType, &p.CountryID, &p.CityID,
+		&p.Address, &p.ReferralID, &p.ReferralSource, &p.Notes, &p.CreatedAt, &p.UpdatedAt,
 	)
 }
 
@@ -89,8 +98,8 @@ func (l *PatientList) ScanRows(rows *sql.Rows) error {
 		err := rows.Scan(
 			&item.ID, &item.FirstName, &item.MiddleName, &item.LastName, &item.Gender, &item.DateOfBirth,
 			&item.Contact, &item.Email, &item.EmergencyContactName, &item.EmergencyContactPhone,
-			&item.Weight, &item.Height, &item.BloodType,
-			&item.Address, &item.Notes, &item.CreatedAt, &item.UpdatedAt,
+			&item.Weight, &item.Height, &item.BloodType, &item.CountryID, &item.CityID,
+			&item.Address, &item.ReferralID, &item.ReferralSource, &item.Notes, &item.CreatedAt, &item.UpdatedAt,
 		)
 		if err != nil {
 			continue
@@ -100,7 +109,7 @@ func (l *PatientList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (p *Patient) GetAll(params ListParams) ([]Patient, int, error) {
+func (p *PatientList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []interface{}
 	if fc, fa := params.FilterClause("first_name", "middle_name", "last_name", "contact", "email"); fc != "" {
@@ -110,21 +119,20 @@ func (p *Patient) GetAll(params ListParams) ([]Patient, int, error) {
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM patients"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	query := `SELECT ` + patientColumns + ` FROM patients` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list PatientList
-	if err := list.ScanRows(rows); err != nil {
-		return nil, 0, err
+	if err := p.ScanRows(rows); err != nil {
+		return 0, err
 	}
-	return list, total, rows.Err()
+	return total, rows.Err()
 }
 
 func GetPatientDropdown(params ListParams) ([]DropdownItem, error) {
@@ -153,7 +161,11 @@ func GetPatientDropdown(params ListParams) ([]DropdownItem, error) {
 
 func (p *Patient) GetByID(id string) error {
 	row := RDB.QueryRow(`SELECT `+patientColumns+` FROM patients WHERE id = ?`, id)
-	return p.ScanRow(row)
+	if err := p.ScanRow(row); err != nil {
+		return err
+	}
+	p.Balance.GetByEntityID("patient", p.ID)
+	return nil
 }
 
 func (p *Patient) Create() error {
@@ -167,12 +179,12 @@ func (p *Patient) Create() error {
 	_, err := DB.Exec(`INSERT INTO patients (
 		id, first_name, middle_name, last_name, gender, date_of_birth,
 		contact, email, emergency_contact_name, emergency_contact_phone,
-		weight, height, blood_type, address, notes, created_at, updated_at
-	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		weight, height, blood_type, country_id, city_id, address, referral_id, referral_source, notes, created_at, updated_at
+	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		p.ID, p.FirstName, p.MiddleName, p.LastName, p.Gender, p.DateOfBirth,
 		p.Contact, p.Email, p.EmergencyContactName, p.EmergencyContactPhone,
-		p.Weight, p.Height, p.BloodType,
-		p.Address, p.Notes, p.CreatedAt, p.UpdatedAt,
+		p.Weight, p.Height, p.BloodType, p.CountryID, p.CityID,
+		p.Address, p.ReferralID, p.ReferralSource, p.Notes, p.CreatedAt, p.UpdatedAt,
 	)
 	if err != nil {
 		return err
@@ -202,7 +214,8 @@ func (p *Patient) Update(updates map[string]interface{}) error {
 		"gender": "gender", "dateOfBirth": "date_of_birth", "contact": "contact", "email": "email",
 		"emergencyContactName": "emergency_contact_name", "emergencyContactPhone": "emergency_contact_phone",
 		"weight": "weight", "height": "height", "bloodType": "blood_type",
-		"address": "address", "notes": "notes",
+		"countryId": "country_id", "cityId": "city_id",
+		"address": "address", "referralId": "referral_id", "referralSource": "referral_source", "notes": "notes",
 	}
 
 	setClauses := ""
@@ -224,6 +237,7 @@ func (p *Patient) Update(updates map[string]interface{}) error {
 	setClauses += ", updated_at = ?"
 	args = append(args, DateNow())
 	args = append(args, p.ID)
+	log.Println(updates, args)
 	if _, err := DB.Exec("UPDATE patients SET "+setClauses+" WHERE id = ?", args...); err != nil {
 		return err
 	}

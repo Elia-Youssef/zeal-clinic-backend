@@ -13,13 +13,10 @@ import (
 
 // GetClientInvoices returns invoices where to_balance is a patient balance.
 func GetClientInvoices(c echo.Context) error {
-	items, err := (&models.Invoice{}).GetClientInvoices(c.Param("id"))
-	if err != nil {
+	items := models.InvoiceList{}
+	if err := items.GetClientInvoices(c.Param("id")); err != nil {
 		log.Println("Error: GetClientInvoices:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch client invoices"})
-	}
-	if items == nil {
-		items = []models.Invoice{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
@@ -60,7 +57,7 @@ func CreateClientInvoice(c echo.Context) error {
 		errs["items"] = "At least one item is required"
 	}
 	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: errs})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	// Verify patient exists
@@ -95,25 +92,16 @@ func CreateClientInvoice(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to resolve patient balance"})
 	}
 
-	// Compute total amount from items
-	var total float64
-	for _, item := range req.Items {
-		total += item.Amount
-	}
-
 	user := c.Get("user").(models.User)
 
+	// Invoice.Create computes Amount (original total) and FinalAmount (discounted total) from items.
 	inv := models.Invoice{
 		FromBalanceID: selfBalance.ID,
 		ToBalanceID:   patientBalance.ID,
-		Amount:        total,
 		CurrencyID:    req.CurrencyID,
 		Notes:         req.Notes,
 		CreatedBy:     user.DisplayName,
 		Items:         req.Items,
-	}
-	if err := inv.IsValid(); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
 	}
 	if err := inv.Create(); err != nil {
 		log.Println("Error: CreateClientInvoice:", err)

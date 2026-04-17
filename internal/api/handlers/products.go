@@ -12,13 +12,11 @@ import (
 
 func GetAllProducts(c echo.Context) error {
 	params := parseListParams(c)
-	items, total, err := (&models.Product{}).GetAll(params)
+	items := models.ProductList{}
+	total, err := items.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllProducts] failed to fetch products:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch products"})
-	}
-	if items == nil {
-		items = []models.Product{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: items, Total: total}})
 }
@@ -53,7 +51,7 @@ func CreateProduct(c echo.Context) error {
 	}
 	if err := p.IsValid(); err != nil {
 		log.Println("Error: [CreateProduct] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	if err := p.Create(); err != nil {

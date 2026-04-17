@@ -13,13 +13,11 @@ import (
 
 // GetSupplierInvoices returns invoices where from_balance is a supplier balance.
 func GetSupplierInvoices(c echo.Context) error {
-	items, err := (&models.Invoice{}).GetSupplierInvoices(c.Param("id"))
+	items := models.InvoiceList{}
+	err := items.GetSupplierInvoices(c.Param("id"))
 	if err != nil {
 		log.Println("Error: GetSupplierInvoices:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch supplier invoices"})
-	}
-	if items == nil {
-		items = []models.Invoice{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
@@ -60,7 +58,7 @@ func CreateSupplierInvoice(c echo.Context) error {
 		errs["items"] = "At least one item is required"
 	}
 	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: errs})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	// Resolve supplier balance (FROM)
@@ -121,7 +119,7 @@ func CreateSupplierInvoice(c echo.Context) error {
 		Items:         req.Items,
 	}
 	if err := inv.IsValid(); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	if err := inv.Create(); err != nil {
 		log.Println("Error: CreateSupplierInvoice:", err)

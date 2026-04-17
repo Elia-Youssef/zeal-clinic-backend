@@ -11,5 +11,4 @@ func SetupPrescriptionRoutes(api *echo.Group) {
 	api.POST("/prescriptions", handlers.CreatePrescription, scope("patients:write"))
 	api.PUT("/prescriptions/:id", handlers.UpdatePrescription, scope("patients:write"))
 	api.DELETE("/prescriptions/:id", handlers.DeletePrescription, scope("patients:delete"))
-	api.GET("/prescriptions/:id/pdf", handlers.GeneratePrescriptionPDF, scope("patients:read"))
 }

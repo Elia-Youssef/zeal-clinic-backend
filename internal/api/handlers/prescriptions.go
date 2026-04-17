@@ -11,13 +11,11 @@ import (
 )
 
 func GetPrescriptionsByPatient(c echo.Context) error {
-	list, err := (&models.Prescription{}).GetByPatient(c.Param("patientId"))
+	list := models.PrescriptionList{}
+	err := list.GetByPatient(c.Param("patientId"))
 	if err != nil {
 		log.Println("Error: [GetPrescriptionsByPatient] failed to fetch prescriptions:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch prescriptions"})
-	}
-	if list == nil {
-		list = []models.Prescription{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: list})
 }
@@ -31,7 +29,7 @@ func CreatePrescription(c echo.Context) error {
 
 	if err := p.IsValid(); err != nil {
 		log.Println("Error: [CreatePrescription] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	if err := p.Create(); err != nil {
@@ -50,6 +48,7 @@ func UpdatePrescription(c echo.Context) error {
 	delete(updates, "id")
 	delete(updates, "patientId")
 	delete(updates, "createdAt")
+	delete(updates, "updatedAt")
 
 	p := models.Prescription{ID: c.Param("id")}
 	if err := p.Update(updates); err == sql.ErrNoRows {
@@ -72,29 +71,4 @@ func DeletePrescription(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to delete prescription"})
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true})
-}
-
-// GeneratePrescriptionPDF creates a PDF for a prescription and returns it inline.
-func GeneratePrescriptionPDF(c echo.Context) error {
-	var p models.Prescription
-	if err := p.GetByID(c.Param("id")); err == sql.ErrNoRows {
-		log.Println("Error: [GeneratePrescriptionPDF] prescription not found:", err)
-		return c.JSON(http.StatusNotFound, utils.Response{Error: "prescription not found"})
-	} else if err != nil {
-		log.Println("Error: [GeneratePrescriptionPDF] failed to fetch prescription:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch prescription"})
-	}
-
-	// Get patient info
-	var patient models.Patient
-	if err := patient.GetByID(p.PatientID); err != nil {
-		log.Println("Error: [GeneratePrescriptionPDF] failed to fetch patient:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patient"})
-	}
-
-	pdf := generatePrescriptionPDF(p, patient)
-
-	c.Response().Header().Set("Content-Type", "application/pdf")
-	c.Response().Header().Set("Content-Disposition", "inline; filename=prescription-"+p.ID+".pdf")
-	return pdf.Output(c.Response().Writer)
 }

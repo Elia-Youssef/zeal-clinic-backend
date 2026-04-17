@@ -12,13 +12,11 @@ import (
 
 // GetSupplierPayments returns transactions FROM self balances TO supplier balances.
 func GetSupplierPayments(c echo.Context) error {
-	items, err := (&models.BalanceTransaction{}).GetSupplierPayments(c.Param("id"))
+	items := models.BalanceTransactionList{}
+	err := items.GetSupplierPayments(c.Param("id"))
 	if err != nil {
 		log.Println("Error: GetSupplierPayments:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch supplier payments"})
-	}
-	if items == nil {
-		items = []models.BalanceTransaction{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
@@ -30,7 +28,7 @@ func CreateSupplierPayment(c echo.Context) error {
 		SupplierBalanceID string  `json:"supplierBalanceId"`
 		Amount            float64 `json:"amount"`
 		CurrencyID        string  `json:"currencyId"`
-		TransactionType   string  `json:"transactionType"`
+		TransactionMethod string  `json:"transactionMethod"`
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
@@ -48,7 +46,7 @@ func CreateSupplierPayment(c echo.Context) error {
 		errs["amount"] = msg
 	}
 	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: errs})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	// Verify supplier balance exists
@@ -80,8 +78,9 @@ func CreateSupplierPayment(c echo.Context) error {
 		ToBalanceID:     supplierBalance.ID,
 		Amount:          req.Amount,
 		CurrencyID:      req.CurrencyID,
-		TransactionType: req.TransactionType,
-		Description:     req.Description,
+		TransactionType:   "payment",
+		TransactionMethod: req.TransactionMethod,
+		Description:       req.Description,
 		CreatedBy:       user.DisplayName,
 	}
 	if err := bt.Create(); err != nil {

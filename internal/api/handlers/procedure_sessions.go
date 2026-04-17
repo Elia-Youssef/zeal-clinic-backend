@@ -29,7 +29,7 @@ func CreateProcedureSession(c echo.Context) error {
 	s.ProcedureID = c.Param("id")
 	if err := s.IsValid(); err != nil {
 		log.Println("Error: [CreateProcedureSession] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	if err := s.Create(); err != nil {
 		log.Println("Error: [CreateProcedureSession] failed to create session:", err)

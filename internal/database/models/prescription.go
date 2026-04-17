@@ -13,10 +13,15 @@ func (p *Prescription) IsValid() error {
 	if msg := validation.Required(p.PatientID, "Patient ID"); msg != "" {
 		e["patientId"] = msg
 	}
-	if msg := validation.Required(string(p.PrescriptionDate), "Prescription date"); msg != "" {
-		e["prescriptionDate"] = msg
-	} else if msg := validation.Date(string(p.PrescriptionDate)); msg != "" {
-		e["prescriptionDate"] = msg
+	if msg := validation.Required(string(p.StartDate), "Start date"); msg != "" {
+		e["startDate"] = msg
+	} else if msg := validation.Date(string(p.StartDate)); msg != "" {
+		e["startDate"] = msg
+	}
+	if string(p.EndDate) != "" {
+		if msg := validation.Date(string(p.EndDate)); msg != "" {
+			e["endDate"] = msg
+		}
 	}
 	if len(e) > 0 {
 		return e
@@ -24,18 +29,20 @@ func (p *Prescription) IsValid() error {
 	return nil
 }
 
-const prescriptionColumnsNoId = `patient_id, patient_procedure_id, prescribed_by, prescription_date, created_at, updated_at`
+const prescriptionColumnsNoId = `patient_id, prescribed_by_id, start_date, end_date, created_at, updated_at`
 const prescriptionColumns = `id, ` + prescriptionColumnsNoId
 
 type Prescription struct {
-	ID                 string                   `json:"id"`
-	PatientID          string                   `json:"patientId"`
-	PatientProcedureID string                   `json:"patientProcedureId"`
-	PrescribedBy       string                   `json:"prescribedBy"`
-	PrescriptionDate   Date                     `json:"prescriptionDate"`
-	CreatedAt          Date                     `json:"createdAt"`
-	UpdatedAt          Date                     `json:"updatedAt"`
-	Medicines          PrescriptionMedicineList `json:"medicines,omitempty"`
+	ID             string                   `json:"id"`
+	PatientID      string                   `json:"patientId"`
+	PrescribedByID string                   `json:"prescribedById"`
+	StartDate      Date                     `json:"startDate"`
+	EndDate        Date                     `json:"endDate"`
+	CreatedAt      Date                     `json:"createdAt"`
+	UpdatedAt      Date                     `json:"updatedAt"`
+	Medicines      PrescriptionMedicineList `json:"medicines,omitempty"`
+	// Joined fields
+	PrescribedByName string `json:"prescribedByName,omitempty"`
 }
 
 type PrescriptionList []Prescription
@@ -44,8 +51,8 @@ func (m *Prescription) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil Prescription row")
 	}
-	return row.Scan(&m.ID, &m.PatientID, &m.PatientProcedureID, &m.PrescribedBy,
-		&m.PrescriptionDate, &m.CreatedAt, &m.UpdatedAt)
+	return row.Scan(&m.ID, &m.PatientID, &m.PrescribedByID,
+		&m.StartDate, &m.EndDate, &m.CreatedAt, &m.UpdatedAt, &m.PrescribedByName)
 }
 
 func (l *PrescriptionList) ScanRows(rows *sql.Rows) error {
@@ -55,8 +62,8 @@ func (l *PrescriptionList) ScanRows(rows *sql.Rows) error {
 	*l = PrescriptionList{}
 	for rows.Next() {
 		var item Prescription
-		err := rows.Scan(&item.ID, &item.PatientID, &item.PatientProcedureID, &item.PrescribedBy,
-			&item.PrescriptionDate, &item.CreatedAt, &item.UpdatedAt)
+		err := rows.Scan(&item.ID, &item.PatientID, &item.PrescribedByID,
+			&item.StartDate, &item.EndDate, &item.CreatedAt, &item.UpdatedAt, &item.PrescribedByName)
 		if err != nil {
 			continue
 		}
@@ -65,42 +72,42 @@ func (l *PrescriptionList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (p *Prescription) GetByPatient(patientID string) ([]Prescription, error) {
-	rows, err := RDB.Query(`SELECT `+prescriptionColumns+`
-		FROM prescriptions WHERE patient_id = ? ORDER BY prescription_date DESC`, patientID)
+const prescriptionSelectQuery = `SELECT p.id, p.patient_id, p.prescribed_by_id, p.start_date, p.end_date, p.created_at, p.updated_at,
+	COALESCE(e.first_name || ' ' || e.last_name, '') AS prescribed_by_name
+	FROM prescriptions p
+	LEFT JOIN employees e ON e.id = p.prescribed_by_id`
+
+func (p *PrescriptionList) GetByPatient(patientID string) error {
+	rows, err := RDB.Query(prescriptionSelectQuery+`
+		WHERE p.patient_id = ? ORDER BY p.start_date DESC`, patientID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var list PrescriptionList
-	if err := list.ScanRows(rows); err != nil {
-		return nil, err
+	if err := p.ScanRows(rows); err != nil {
+		return err
 	}
 
-	for i := range list {
-		meds, err := (&PrescriptionMedicine{}).GetByPrescription(list[i].ID)
-		if err != nil {
-			return nil, err
+	for i := range *p {
+		if err := (*p)[i].Medicines.GetByPrescription((*p)[i].ID); err != nil {
+			return err
 		}
-		list[i].Medicines = meds
 	}
 
-	return list, rows.Err()
+	return rows.Err()
 }
 
 func (p *Prescription) GetByID(id string) error {
-	row := RDB.QueryRow(`SELECT `+prescriptionColumns+`
-		FROM prescriptions WHERE id = ?`, id)
+	row := RDB.QueryRow(prescriptionSelectQuery+`
+		WHERE p.id = ?`, id)
 	if err := p.ScanRow(row); err != nil {
 		return err
 	}
 
-	meds, err := (&PrescriptionMedicine{}).GetByPrescription(p.ID)
-	if err != nil {
+	if err := p.Medicines.GetByPrescription(p.ID); err != nil {
 		return err
 	}
-	p.Medicines = meds
 	return nil
 }
 
@@ -110,17 +117,44 @@ func (p *Prescription) Create() error {
 	p.CreatedAt = now
 	p.UpdatedAt = now
 
-	_, err := DB.Exec(`INSERT INTO prescriptions (`+prescriptionColumns+`)
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec(`INSERT INTO prescriptions (`+prescriptionColumns+`)
 		VALUES (?,?,?,?,?,?,?)`,
-		p.ID, p.PatientID, p.PatientProcedureID, p.PrescribedBy, p.PrescriptionDate, p.CreatedAt, p.UpdatedAt,
+		p.ID, p.PatientID, p.PrescribedByID, p.StartDate, p.EndDate, p.CreatedAt, p.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	for i := range p.Medicines {
+		m := &p.Medicines[i]
+		m.ID = uuid.Must(uuid.NewV7()).String()
+		m.PrescriptionID = p.ID
+		m.CreatedAt = now
+		if m.Status == "" {
+			m.Status = "active"
+		}
+		_, err = tx.Exec(`INSERT INTO prescription_medicines (`+prescriptionMedicineColumns+`) VALUES (?,?,?,?,?,?)`,
+			m.ID, m.MedicineID, m.PrescriptionID, m.Instructions, m.Status, m.CreatedAt)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return p.GetByID(p.ID)
 }
 
 func (p *Prescription) Update(updates map[string]interface{}) error {
 	cols := map[string]string{
-		"prescribedBy": "prescribed_by", "prescriptionDate": "prescription_date",
-		"patientProcedureId": "patient_procedure_id",
+		"prescribedById": "prescribed_by_id", "startDate": "start_date", "endDate": "end_date",
 	}
 
 	setClauses := "updated_at = ?"

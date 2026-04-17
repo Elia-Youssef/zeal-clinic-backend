@@ -55,18 +55,17 @@ func (l *ProcedureAllergyConflictList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (c *ProcedureAllergyConflict) GetByProcedure(procedureID string) ([]ProcedureAllergyConflict, error) {
+func (c *ProcedureAllergyConflictList) GetByProcedure(procedureID string) error {
 	rows, err := RDB.Query(`SELECT pac.id, pac.procedure_id, pac.allergy_id, pac.notes, pac.created_at, a.name
 		FROM procedure_allergy_conflicts pac JOIN allergies a ON a.id = pac.allergy_id
 		WHERE pac.procedure_id = ? ORDER BY a.name`, procedureID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var list ProcedureAllergyConflictList
-	list.ScanRows(rows)
-	return list, rows.Err()
+	c.ScanRows(rows)
+	return rows.Err()
 }
 
 func (c *ProcedureAllergyConflict) Create() error {

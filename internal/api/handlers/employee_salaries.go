@@ -28,7 +28,7 @@ func CreateEmployeeSalary(c echo.Context) error {
 	s.EmployeeID = c.Param("id")
 	if err := s.IsValid(); err != nil {
 		log.Println("Error: [CreateEmployeeSalary] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	if err := s.Create(); err != nil {
 		log.Println("Error: [CreateEmployeeSalary] failed to create salary:", err)

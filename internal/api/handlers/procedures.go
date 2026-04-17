@@ -51,7 +51,7 @@ func CreateProcedure(c echo.Context) error {
 	}
 	if err := p.IsValid(); err != nil {
 		log.Println("Error: [CreateProcedure] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	p.IsActive = true
 	if err := p.Create(); err != nil {

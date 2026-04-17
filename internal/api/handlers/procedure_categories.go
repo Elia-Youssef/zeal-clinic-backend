@@ -12,13 +12,11 @@ import (
 
 func GetAllProcedureCategories(c echo.Context) error {
 	params := parseListParams(c)
-	items, total, err := (&models.ProcedureCategory{}).GetAll(params)
+	items := models.ProcedureCategoryList{}
+	total, err := items.GetAll(params)
 	if err != nil {
 		log.Println("Error: GetAllProcedureCategories failed to fetch categories:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch categories"})
-	}
-	if items == nil {
-		items = []models.ProcedureCategory{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: items, Total: total}})
 }
@@ -41,7 +39,7 @@ func CreateProcedureCategory(c echo.Context) error {
 	}
 	if err := cat.IsValid(); err != nil {
 		log.Println("Error: CreateProcedureCategory validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	cat.CreatedAt = models.DateNow()
 	if err := cat.Create(); err != nil {

@@ -61,7 +61,7 @@ func (c *ProcedureCategory) loadParent() {
 	}
 }
 
-func (c *ProcedureCategory) GetAll(params ListParams) (ProcedureCategoryList, int, error) {
+func (c *ProcedureCategoryList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []interface{}
 	if fc, fa := params.FilterClause("name", "description"); fc != "" {
@@ -71,22 +71,21 @@ func (c *ProcedureCategory) GetAll(params ListParams) (ProcedureCategoryList, in
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM procedure_categories"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	query := `SELECT ` + procedureCategoryColumns + ` FROM procedure_categories` + where + ` ORDER BY name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list ProcedureCategoryList
-	list.ScanRows(rows)
-	for i := range list {
-		list[i].loadParent()
+	c.ScanRows(rows)
+	for i := range *c {
+		(*c)[i].loadParent()
 	}
-	return list, total, nil
+	return total, nil
 }
 
 func GetProcedureCategoryDropdown(params ListParams) ([]DropdownItem, error) {

@@ -12,7 +12,8 @@ import (
 
 func GetAllPatients(c echo.Context) error {
 	params := parseListParams(c)
-	patients, total, err := (&models.Patient{}).GetAll(params)
+	patients := models.PatientList{}
+	total, err := patients.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllPatients] failed to fetch patients:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patients"})
@@ -43,6 +44,17 @@ func GetPatientByID(c echo.Context) error {
 		log.Println("Error: [GetPatientByID] failed to fetch patient:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patient"})
 	}
+
+	if p.CountryID != "" {
+		p.Country = models.Country{ID: p.CountryID}
+		p.Country.GetByID()
+	}
+
+	if p.CityID != "" {
+		p.City = models.LebanonCity{ID: p.CityID}
+		p.City.GetByID()
+	}
+
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: p})
 }
 
@@ -54,7 +66,7 @@ func CreatePatient(c echo.Context) error {
 	}
 	if err := p.IsValid(); err != nil {
 		log.Println("Error: [CreatePatient] validation failed:", err.Error())
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	p.CreatedAt = models.DateNow()
 

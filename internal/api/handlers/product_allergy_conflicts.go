@@ -11,13 +11,11 @@ import (
 )
 
 func GetProductAllergyConflicts(c echo.Context) error {
-	items, err := (&models.ProductAllergyConflict{}).GetByProduct(c.Param("id"))
+	items := models.ProductAllergyConflictList{}
+	err := items.GetByProduct(c.Param("id"))
 	if err != nil {
 		log.Println("Error: [GetProductAllergyConflicts] failed to fetch:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch product allergy conflicts"})
-	}
-	if items == nil {
-		items = []models.ProductAllergyConflict{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
@@ -31,7 +29,7 @@ func AddProductAllergyConflict(c echo.Context) error {
 	pac.ProductID = c.Param("id")
 	if err := pac.IsValid(); err != nil {
 		log.Println("Error: [AddProductAllergyConflict] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	pac.CreatedAt = models.DateNow()
 	if err := pac.Create(); err != nil {

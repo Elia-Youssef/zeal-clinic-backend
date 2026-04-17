@@ -17,8 +17,8 @@ type Product struct {
 	UnitPrice    float64 `json:"unitPrice"`
 	CreatedAt    Date    `json:"createdAt"`
 	// Nested
-	AllergyConflicts []ProductAllergyConflict `json:"allergyConflicts,omitempty"`
-	Invoices         []Invoice                `json:"invoices,omitempty"`
+	AllergyConflicts ProductAllergyConflictList `json:"allergyConflicts,omitempty"`
+	Invoices         InvoiceList                `json:"invoices,omitempty"`
 }
 
 func (p *Product) IsValid() error {
@@ -63,7 +63,7 @@ func (l *ProductList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (p *Product) GetAll(params ListParams) (ProductList, int, error) {
+func (p *ProductList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []interface{}
 	if fc, fa := params.FilterClause("name"); fc != "" {
@@ -73,21 +73,20 @@ func (p *Product) GetAll(params ListParams) (ProductList, int, error) {
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM products"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	query := `SELECT ` + productColumns + ` FROM products` + where + ` ORDER BY name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list ProductList
-	if err := list.ScanRows(rows); err != nil {
-		return nil, 0, err
+	if err := p.ScanRows(rows); err != nil {
+		return 0, err
 	}
-	return list, total, rows.Err()
+	return total, nil
 }
 
 func GetProductDropdown(params ListParams) ([]DropdownItem, error) {
@@ -119,8 +118,8 @@ func (p *Product) GetByID(id string) error {
 	if err != nil {
 		return err
 	}
-	p.AllergyConflicts, _ = (&ProductAllergyConflict{}).GetByProduct(p.ID)
-	p.Invoices, _ = (&Invoice{}).GetByItem(p.ID, "product")
+	p.AllergyConflicts.GetByProduct(p.ID)
+	p.Invoices.GetByItem(p.ID, "product")
 	return nil
 }
 

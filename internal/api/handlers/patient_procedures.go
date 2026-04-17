@@ -39,7 +39,7 @@ func CreatePatientProcedure(c echo.Context) error {
 	}
 	if err := pp.IsValid(); err != nil {
 		log.Println("Error: [CreatePatientProcedure] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	if err := pp.Create(); err != nil {
 		log.Println("Error: [CreatePatientProcedure] failed to create patient procedure:", err)

@@ -18,7 +18,7 @@ type Balance struct {
 	CreatedAt  Date    `json:"createdAt"`
 	UpdatedAt  Date    `json:"updatedAt"`
 	// Nested
-	RecentTransactions []BalanceTransaction `json:"recentTransactions,omitempty"`
+	RecentTransactions BalanceTransactionList `json:"recentTransactions,omitempty"`
 }
 
 const balanceColumnsNoId = `entity_type, entity_id, entity_name, currency_id, amount, created_at, updated_at`
@@ -88,22 +88,16 @@ func (b *Balance) GetByID(id string) error {
 	if err != nil {
 		return err
 	}
-	b.RecentTransactions, _ = (&BalanceTransaction{}).GetByBalanceID(b.ID)
+	b.RecentTransactions.GetByBalanceID(b.ID)
 	return nil
 }
 
-func (b *Balance) GetByEntityID(entityType, entityID string) ([]Balance, error) {
-	rows, err := RDB.Query(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = ? AND entity_id = ? ORDER BY currency_id`, entityType, entityID)
+func (b *Balance) GetByEntityID(entityType, entityID string) error {
+	err := b.ScanRow(RDB.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = ? AND entity_id = ? ORDER BY currency_id`, entityType, entityID))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer rows.Close()
-
-	var list BalanceList
-	if err := list.ScanRows(rows); err != nil {
-		return nil, err
-	}
-	return list, nil
+	return nil
 }
 
 func (b *BalanceList) GetAll(entityType string, params ListParams) (int, error) {

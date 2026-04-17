@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"log"
 
@@ -9,6 +10,10 @@ import (
 
 	"github.com/google/uuid"
 )
+
+//go:embed data/countries.json
+//go:embed data/lebanon_cities.json
+var dataFS embed.FS
 
 func seedRoles(db *sql.DB) error {
 	allScopes := "appointments:read,appointments:write,appointments:delete," +
@@ -974,6 +979,74 @@ func seedSuppliers(db *sql.DB) error {
 	return nil
 }
 
+func seedCountries(db *sql.DB) error {
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM countries").Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	data, err := dataFS.ReadFile("data/countries.json")
+	if err != nil {
+		return err
+	}
+	var names []string
+	if err := json.Unmarshal(data, &names); err != nil {
+		return err
+	}
+
+	for _, name := range names {
+		_, err := db.Exec(
+			`INSERT INTO countries (id, name) VALUES (?, ?)`,
+			uuid.Must(uuid.NewV7()).String(), name,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Println("Seeded countries:", len(names))
+	return nil
+}
+
+func seedLebanonCities(db *sql.DB) error {
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM lebanon_cities").Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	data, err := dataFS.ReadFile("data/lebanon_cities.json")
+	if err != nil {
+		return err
+	}
+	var cities []struct {
+		Name        string `json:"name"`
+		Governorate string `json:"governorate"`
+		District    string `json:"district"`
+	}
+	if err := json.Unmarshal(data, &cities); err != nil {
+		return err
+	}
+
+	for _, c := range cities {
+		_, err := db.Exec(
+			`INSERT INTO lebanon_cities (id, name, governorate, district) VALUES (?, ?, ?, ?)`,
+			uuid.Must(uuid.NewV7()).String(), c.Name, c.Governorate, c.District,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Println("Seeded lebanon cities:", len(cities))
+	return nil
+}
+
 func SeedIfEmpty(db *sql.DB) error {
 	if err := seedRoles(db); err != nil {
 		return err
@@ -1006,6 +1079,12 @@ func SeedIfEmpty(db *sql.DB) error {
 		return err
 	}
 	if err := seedSuppliers(db); err != nil {
+		return err
+	}
+	if err := seedCountries(db); err != nil {
+		return err
+	}
+	if err := seedLebanonCities(db); err != nil {
 		return err
 	}
 

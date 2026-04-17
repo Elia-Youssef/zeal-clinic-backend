@@ -51,7 +51,7 @@ func (l *ProductCategoryList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (c *ProductCategory) GetAll(params ListParams) (ProductCategoryList, int, error) {
+func (c *ProductCategoryList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []interface{}
 	if fc, fa := params.FilterClause("name", "description"); fc != "" {
@@ -61,19 +61,18 @@ func (c *ProductCategory) GetAll(params ListParams) (ProductCategoryList, int, e
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM product_categories"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	query := `SELECT ` + productCategoryColumns + ` FROM product_categories` + where + ` ORDER BY name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list ProductCategoryList
-	list.ScanRows(rows)
-	return list, total, nil
+	c.ScanRows(rows)
+	return total, nil
 }
 
 func GetProductCategoryDropdown(params ListParams) ([]DropdownItem, error) {

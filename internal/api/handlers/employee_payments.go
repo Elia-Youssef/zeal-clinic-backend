@@ -12,13 +12,11 @@ import (
 
 // GetEmployeePayments returns transactions FROM self balances TO employee balances.
 func GetEmployeePayments(c echo.Context) error {
-	items, err := (&models.BalanceTransaction{}).GetEmployeePayments(c.Param("id"))
+	items := models.BalanceTransactionList{}
+	err := items.GetEmployeePayments(c.Param("id"))
 	if err != nil {
 		log.Println("Error: GetEmployeePayments:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch employee payments"})
-	}
-	if items == nil {
-		items = []models.BalanceTransaction{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
@@ -30,8 +28,8 @@ func CreateEmployeePayment(c echo.Context) error {
 		EmployeeID      string  `json:"employeeId"`
 		Amount          float64 `json:"amount"`
 		CurrencyID      string  `json:"currencyId"`
-		TransactionType string  `json:"transactionType"`
-		Description     string  `json:"description"`
+		TransactionMethod string  `json:"transactionMethod"`
+		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
@@ -48,7 +46,7 @@ func CreateEmployeePayment(c echo.Context) error {
 		errs["amount"] = msg
 	}
 	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: errs})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	// Verify currency exists
@@ -96,8 +94,9 @@ func CreateEmployeePayment(c echo.Context) error {
 		ToBalanceID:     employeeBalance.ID,
 		Amount:          req.Amount,
 		CurrencyID:      req.CurrencyID,
-		TransactionType: req.TransactionType,
-		Description:     req.Description,
+		TransactionType:   "payment",
+		TransactionMethod: req.TransactionMethod,
+		Description:       req.Description,
 		CreatedBy:       user.DisplayName,
 	}
 	if err := bt.Create(); err != nil {

@@ -61,22 +61,21 @@ func (l *PrescriptionMedicineList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (pm *PrescriptionMedicine) GetByPrescription(prescriptionID string) (PrescriptionMedicineList, error) {
+func (pm *PrescriptionMedicineList) GetByPrescription(prescriptionID string) error {
 	rows, err := RDB.Query(`SELECT pm.id, pm.medicine_id, pm.prescription_id, pm.instructions, pm.status, pm.created_at,
 		m.name
 		FROM prescription_medicines pm
 		JOIN medicines m ON m.id = pm.medicine_id
 		WHERE pm.prescription_id = ? ORDER BY pm.created_at`, prescriptionID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var items PrescriptionMedicineList
-	if err := items.ScanRows(rows); err != nil {
-		return nil, err
+	if err := pm.ScanRows(rows); err != nil {
+		return err
 	}
-	return items, rows.Err()
+	return rows.Err()
 }
 
 func (pm *PrescriptionMedicine) GetByID(id string) error {

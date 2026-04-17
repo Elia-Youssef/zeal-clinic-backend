@@ -12,13 +12,11 @@ import (
 
 func GetAllRooms(c echo.Context) error {
 	params := parseListParams(c)
-	rooms, total, err := (&models.Room{}).GetAll(params)
+	rooms := models.RoomList{}
+	total, err := rooms.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllRooms] failed to fetch rooms:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch rooms"})
-	}
-	if rooms == nil {
-		rooms = []models.Room{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: rooms, Total: total}})
 }
@@ -41,7 +39,7 @@ func CreateRoom(c echo.Context) error {
 	}
 	if err := r.IsValid(); err != nil {
 		log.Println("Error: [CreateRoom] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 
 	if err := r.Create(); err != nil {

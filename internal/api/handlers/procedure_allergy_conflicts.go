@@ -11,13 +11,11 @@ import (
 )
 
 func GetProcedureAllergyConflicts(c echo.Context) error {
-	items, err := (&models.ProcedureAllergyConflict{}).GetByProcedure(c.Param("procedureId"))
+	items := models.ProcedureAllergyConflictList{}
+	err := items.GetByProcedure(c.Param("procedureId"))
 	if err != nil {
 		log.Println("Error: [GetProcedureAllergyConflicts] failed to fetch:", err)
 		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch procedure allergy conflicts"})
-	}
-	if items == nil {
-		items = []models.ProcedureAllergyConflict{}
 	}
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
@@ -31,7 +29,7 @@ func AddProcedureAllergyConflict(c echo.Context) error {
 	pac.ProcedureID = c.Param("procedureId")
 	if err := pac.IsValid(); err != nil {
 		log.Println("Error: [AddProcedureAllergyConflict] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed", Data: err})
+		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
 	}
 	pac.CreatedAt = models.DateNow()
 	if err := pac.Create(); err != nil {

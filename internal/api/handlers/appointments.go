@@ -39,6 +39,18 @@ func GetAppointmentCountPerRoom(c echo.Context) error {
 	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
 }
 
+func GetPatientAppointments(c echo.Context) error {
+	patientID := c.Param("patientId")
+	params := parseListParams(c)
+	apts := models.AppointmentList{}
+	total, err := apts.GetByPatientID(patientID, params)
+	if err != nil {
+		log.Println("Error: GetPatientAppointments failed to fetch appointments:", err)
+		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch appointments"})
+	}
+	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: apts, Total: total}})
+}
+
 func CreateAppointment(c echo.Context) error {
 	var a models.Appointment
 	if err := c.Bind(&a); err != nil {

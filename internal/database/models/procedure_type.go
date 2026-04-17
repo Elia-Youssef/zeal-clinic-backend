@@ -50,7 +50,7 @@ func (l *ProcedureTypeList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (t *ProcedureType) GetAll(params ListParams) (ProcedureTypeList, int, error) {
+func (t *ProcedureTypeList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []interface{}
 	if fc, fa := params.FilterClause("name", "description"); fc != "" {
@@ -60,19 +60,18 @@ func (t *ProcedureType) GetAll(params ListParams) (ProcedureTypeList, int, error
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM procedure_types"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	query := `SELECT ` + procedureTypeColumns + ` FROM procedure_types` + where + ` ORDER BY name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	defer rows.Close()
 
-	var list ProcedureTypeList
-	list.ScanRows(rows)
-	return list, total, nil
+	t.ScanRows(rows)
+	return total, nil
 }
 
 func GetProcedureTypeDropdown(params ListParams) ([]DropdownItem, error) {

@@ -10,4 +10,5 @@ import (
 func SetupClientPaymentRoutes(api *echo.Group) {
 	api.GET("/patients/:id/payments", handlers.GetClientPayments, scope("transactions:read"), middleware.CacheMiddleware("client-payments"))
 	api.POST("/client-payments", handlers.CreateClientPayment, scope("transactions:write"), middleware.CacheMiddleware("client-payments"))
+	api.POST("/client-refunds", handlers.CreateClientRefund, scope("transactions:write"), middleware.CacheMiddleware("client-payments"))
 }
