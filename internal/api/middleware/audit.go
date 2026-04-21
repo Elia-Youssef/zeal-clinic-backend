@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"bytes"
-	"clinic-api/internal/database/models"
+	"clinic-api/internal/database/store"
 	"io"
 	"log"
 	"strings"
@@ -56,12 +56,12 @@ func AuditLogger() echo.MiddlewareFunc {
 
 				userName := ""
 				userRole := ""
-				if user, ok := c.Get("user").(models.User); ok {
+				if user, ok := c.Get("user").(store.User); ok {
 					userName = user.DisplayName
 					userRole = user.Role
 				}
 
-				entry := models.AuditLogEntry{
+				entry := store.AuditLogEntry{
 					UserName:   userName,
 					UserRole:   userRole,
 					Action:     action,

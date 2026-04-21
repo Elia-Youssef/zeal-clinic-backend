@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
-	"database/sql"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
+	"errors"
 	"log"
 	"net/http"
 
@@ -11,19 +11,19 @@ import (
 )
 
 func UpdatePatientProcedureSession(c echo.Context) error {
-	var updates map[string]interface{}
+	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: [UpdatePatientProcedureSession] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	delete(updates, "id")
-	s := models.PatientProcedureSession{ID: c.Param("sessionId")}
-	if err := s.Update(updates); err == sql.ErrNoRows {
+	s := store.PatientProcedureSession{ID: c.Param("sessionId")}
+	if err := s.Update(updates); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [UpdatePatientProcedureSession] session not found:", err)
-		return c.JSON(http.StatusNotFound, utils.Response{Error: "session not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "session not found"})
 	} else if err != nil {
 		log.Println("Error: [UpdatePatientProcedureSession] failed to update session:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to update session"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update session"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: s})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: s})
 }

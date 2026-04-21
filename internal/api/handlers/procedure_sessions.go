@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
-	"database/sql"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
+	"errors"
 	"log"
 	"net/http"
 
@@ -12,45 +12,45 @@ import (
 
 func GetProcedureSessionDropdown(c echo.Context) error {
 	params := parseListParams(c)
-	items, err := models.GetProcedureSessionDropdown(c.Param("id"), params)
+	items, err := store.GetProcedureSessionDropdown(c.Param("id"), params)
 	if err != nil {
 		log.Println("Error: [GetProcedureSessionDropdown] failed to fetch session dropdown:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch session dropdown"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch session dropdown"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
 
 func CreateProcedureSession(c echo.Context) error {
-	var s models.ProcedureSession
+	var s store.ProcedureSession
 	if err := c.Bind(&s); err != nil {
 		log.Println("Error: [CreateProcedureSession] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	s.ProcedureID = c.Param("id")
 	if err := s.IsValid(); err != nil {
 		log.Println("Error: [CreateProcedureSession] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 	if err := s.Create(); err != nil {
 		log.Println("Error: [CreateProcedureSession] failed to create session:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create session"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create session"})
 	}
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: s})
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: s})
 }
 
 func DeleteProcedureSession(c echo.Context) error {
 	id := c.Param("sessionId")
-	if models.HasDependencies(id, map[string]string{"patient_procedure_sessions": "procedure_session_id"}) {
-		return c.JSON(http.StatusConflict, utils.Response{Error: "cannot delete session: has related records"})
+	if store.HasDependencies(id, map[string]string{"patient_procedure_sessions": "procedure_session_id"}) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete session: has related records"})
 	}
 
-	s := models.ProcedureSession{ID: id}
-	if err := s.Delete(); err == sql.ErrNoRows {
+	s := store.ProcedureSession{ID: id}
+	if err := s.Delete(); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [DeleteProcedureSession] session not found:", err)
-		return c.JSON(http.StatusNotFound, utils.Response{Error: "session not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "session not found"})
 	} else if err != nil {
 		log.Println("Error: [DeleteProcedureSession] failed to delete session:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to delete session"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete session"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
-	"database/sql"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
+	"errors"
 	"log"
 	"net/http"
 
@@ -11,43 +11,43 @@ import (
 )
 
 func GetProductAllergyConflicts(c echo.Context) error {
-	items := models.ProductAllergyConflictList{}
+	items := store.ProductAllergyConflictList{}
 	err := items.GetByProduct(c.Param("id"))
 	if err != nil {
 		log.Println("Error: [GetProductAllergyConflicts] failed to fetch:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch product allergy conflicts"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch product allergy conflicts"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
 
 func AddProductAllergyConflict(c echo.Context) error {
-	var pac models.ProductAllergyConflict
+	var pac store.ProductAllergyConflict
 	if err := c.Bind(&pac); err != nil {
 		log.Println("Error: [AddProductAllergyConflict] invalid request body:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	pac.ProductID = c.Param("id")
 	if err := pac.IsValid(); err != nil {
 		log.Println("Error: [AddProductAllergyConflict] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
-	pac.CreatedAt = models.DateNow()
+	pac.CreatedAt = store.DateNow()
 	if err := pac.Create(); err != nil {
 		log.Println("Error: [AddProductAllergyConflict] failed to add:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to add product allergy conflict"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to add product allergy conflict"})
 	}
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: pac})
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: pac})
 }
 
 func RemoveProductAllergyConflict(c echo.Context) error {
-	pac := models.ProductAllergyConflict{ID: c.Param("id")}
+	pac := store.ProductAllergyConflict{ID: c.Param("id")}
 	if err := pac.Delete(); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [RemoveProductAllergyConflict] not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, utils.Response{Error: "conflict not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "conflict not found"})
 		}
 		log.Println("Error: [RemoveProductAllergyConflict] failed to remove:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to remove conflict"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to remove conflict"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

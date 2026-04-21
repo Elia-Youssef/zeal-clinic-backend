@@ -1,7 +1,7 @@
 package database
 
 import (
-	"clinic-api/internal/database/models"
+	"clinic-api/internal/database/store"
 	"database/sql"
 	"fmt"
 	"log"
@@ -42,8 +42,8 @@ func Open(rawPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("ping read db: %w", err)
 	}
 
-	models.DB = db
-	models.RDB = rdb
+	store.DB = db
+	store.RDB = rdb
 
 	log.Println("Database initialized at", dbPath)
 	return db, nil

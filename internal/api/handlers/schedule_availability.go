@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
-	"database/sql"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
+	"errors"
 	"log"
 	"net/http"
 
@@ -12,8 +12,8 @@ import (
 
 func GetAllScheduleAvailability(c echo.Context) error {
 	employeeID := c.QueryParam("employeeId")
-	sa := &models.ScheduleAvailability{}
-	var items []models.ScheduleAvailability
+	sa := &store.ScheduleAvailability{}
+	var items []store.ScheduleAvailability
 	var total int
 	var err error
 	if employeeID != "" {
@@ -25,40 +25,40 @@ func GetAllScheduleAvailability(c echo.Context) error {
 	}
 	if err != nil {
 		log.Println("Error: GetAllScheduleAvailability failed to fetch schedule availability:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch schedule availability"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch schedule availability"})
 	}
 	if items == nil {
-		items = []models.ScheduleAvailability{}
+		items = []store.ScheduleAvailability{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: items, Total: total}})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
 
 func CreateScheduleAvailability(c echo.Context) error {
-	var sa models.ScheduleAvailability
+	var sa store.ScheduleAvailability
 	if err := c.Bind(&sa); err != nil {
 		log.Println("Error: CreateScheduleAvailability invalid request:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	if err := sa.IsValid(); err != nil {
 		log.Println("Error: CreateScheduleAvailability validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
-	sa.CreatedAt = models.DateNow()
+	sa.CreatedAt = store.DateNow()
 	if err := sa.Create(); err != nil {
 		log.Println("Error: CreateScheduleAvailability failed to create schedule availability:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create schedule availability"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create schedule availability"})
 	}
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: sa})
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: sa})
 }
 
 func DeleteScheduleAvailability(c echo.Context) error {
-	sa := models.ScheduleAvailability{ID: c.Param("id")}
-	if err := sa.Delete(); err == sql.ErrNoRows {
+	sa := store.ScheduleAvailability{ID: c.Param("id")}
+	if err := sa.Delete(); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [DeleteScheduleAvailability] schedule entry not found:", err)
-		return c.JSON(http.StatusNotFound, utils.Response{Error: "schedule entry not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "schedule entry not found"})
 	} else if err != nil {
 		log.Println("Error: [DeleteScheduleAvailability] failed to delete schedule entry:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to delete schedule entry"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete schedule entry"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

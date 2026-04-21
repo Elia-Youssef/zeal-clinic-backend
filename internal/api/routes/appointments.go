@@ -7,10 +7,10 @@ import (
 )
 
 func SetupAppointmentRoutes(api *echo.Group) {
-	api.GET("/appointments", handlers.GetAllAppointments, scope("appointments:read"))
-	api.GET("/patients/:patientId/appointments", handlers.GetPatientAppointments, scope("appointments:read"))
-	api.GET("/appointments/count-per-room", handlers.GetAppointmentCountPerRoom, scope("appointments:read"))
-	api.POST("/appointments", handlers.CreateAppointment, scope("appointments:write"))
-	api.PUT("/appointments/:id", handlers.UpdateAppointment, scope("appointments:write"))
-	api.DELETE("/appointments/:id", handlers.DeleteAppointment, scope("appointments:delete"))
+	api.GET("/appointments", handlers.GetAllAppointments, scope("appointments:read"), cache("appointments"))
+	api.GET("/patients/:patientId/appointments", handlers.GetPatientAppointments, scope("appointments:read"), cache("appointments"))
+	api.GET("/appointments/count-per-room", handlers.GetAppointmentCountPerRoom, scope("appointments:read"), cache("appointments"))
+	api.POST("/appointments", handlers.CreateAppointment, scope("appointments:write"), cache("appointments"))
+	api.PUT("/appointments/:id", handlers.UpdateAppointment, scope("appointments:write"), cache("appointments"))
+	api.DELETE("/appointments/:id", handlers.DeleteAppointment, scope("appointments:delete"), cache("appointments"))
 }

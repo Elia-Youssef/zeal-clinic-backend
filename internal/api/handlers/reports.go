@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
 	"log"
 	"net/http"
 	"time"
@@ -11,12 +11,12 @@ import (
 )
 
 func GetReportForecast(c echo.Context) error {
-	result, err := (&models.Report{}).GetForecast()
+	result, err := (&store.Report{}).GetForecast()
 	if err != nil {
 		log.Println("Error: GetReportForecast failed to generate forecast:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to generate forecast"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to generate forecast"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: result})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: result})
 }
 
 func GetReportProfitLoss(c echo.Context) error {
@@ -32,10 +32,10 @@ func GetReportProfitLoss(c echo.Context) error {
 		to = time.Now().Format("2006-01-02")
 	}
 
-	result, err := (&models.Report{}).GetProfitLoss(from, to)
+	result, err := (&store.Report{}).GetProfitLoss(from, to)
 	if err != nil {
 		log.Println("Error: GetReportProfitLoss failed to generate P&L:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to generate P&L"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to generate P&L"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: result})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: result})
 }

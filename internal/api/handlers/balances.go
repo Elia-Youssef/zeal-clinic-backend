@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
 	"log"
 	"net/http"
 
@@ -12,11 +12,11 @@ import (
 func GetAllBalances(c echo.Context) error {
 	params := parseListParams(c)
 	entityType := c.Param("type")
-	var list models.BalanceList
+	var list store.BalanceList
 	total, err := list.GetAll(entityType, params)
 	if err != nil {
 		log.Println("Error: GetAllBalances:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch balances"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch balances"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: list, Total: total}})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: list, Total: total}})
 }

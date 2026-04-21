@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"clinic-api/internal/utils"
+	"clinic-api/internal/auth"
 
 	"github.com/google/uuid"
 )
@@ -21,7 +21,7 @@ func seedRoles(db *sql.DB) error {
 		"team:read,team:write,team:delete," +
 		"transactions:read,transactions:write,transactions:delete," +
 		"inventory:read,inventory:write,inventory:delete," +
-		"services:read,services:write," +
+		"services:read,services:write,services:delete," +
 		"rooms:read,rooms:write,rooms:delete," +
 		"bookings:read,bookings:write," +
 		"roles:read,roles:write," +
@@ -1097,7 +1097,7 @@ func SeedIfEmpty(db *sql.DB) error {
 		return nil
 	}
 
-	hash, err := utils.HashPassword("admin123")
+	hash, err := auth.HashPassword("admin123")
 	if err != nil {
 		return err
 	}

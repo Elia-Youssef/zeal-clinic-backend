@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
 	"log"
 	"net/http"
 
@@ -14,7 +14,7 @@ func GetAllAuditLogs(c echo.Context) error {
 	if params.Limit == 0 {
 		params.Limit = 200
 	}
-	entries := models.AuditLogEntryList{}
+	entries := store.AuditLogEntryList{}
 	total, err := entries.GetAll(
 		c.QueryParam("entityType"),
 		c.QueryParam("entityId"),
@@ -23,10 +23,10 @@ func GetAllAuditLogs(c echo.Context) error {
 	)
 	if err != nil {
 		log.Println("Error: [GetAllAuditLogs] failed to fetch audit log:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch audit log"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch audit log"})
 	}
 	if entries == nil {
-		entries = []models.AuditLogEntry{}
+		entries = []store.AuditLogEntry{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: entries, Total: total}})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: entries, Total: total}})
 }

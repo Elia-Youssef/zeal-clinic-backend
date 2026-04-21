@@ -297,9 +297,9 @@ Table schedule_availability {
 Table prescriptions {
   id string [pk]
   patient_id string [ref: > patients.id]
-  patient_procedure_id string [ref: > patient_procedures.id]
-  prescribed_by string [ref: > employees.id]
-  prescription_date date
+  prescribed_by_id string [ref: > employees.id]
+  start_date date
+  end_date date
   created_at datetime
   updated_at datetime
 }
@@ -410,6 +410,7 @@ Table invoices {
   from_balance_id string [ref: > balances.id]
   to_balance_id string [ref: > balances.id]
   amount float
+  final_amount float [note: 'amount after discounts']
   currency_id string [ref: > currencies.id]
   notes string
   created_by string
@@ -424,6 +425,7 @@ Table invoice_items {
   item_id string
   quantity int
   amount float
+  final_amount float [note: 'per-line amount after discount']
   notes string
   created_at datetime
 }

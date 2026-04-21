@@ -102,4 +102,3 @@ func Positive(value float64, label string) string {
 	}
 	return ""
 }
-

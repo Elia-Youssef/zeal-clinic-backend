@@ -9,31 +9,41 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var (
-	Port         string
-	DBPath       string
-	JWTSecret    string
-	JWTLifetime  time.Duration
-	TLSCert      string
-	TLSKey       string
-	CORSOrigins  []string
-)
+type Config struct {
+	Port        string
+	DBPath      string
+	JWTSecret   string
+	JWTLifetime time.Duration
+	CORSOrigins []string
+}
 
-func Load() {
+var current *Config
+
+func Load() *Config {
 	_ = godotenv.Load() // silently ignore if .env doesn't exist
-	Port = getEnv("PORT", "8080")
-	DBPath = getEnv("DB_PATH", "clinic.db")
-	JWTSecret = getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release")
-	JWTLifetime = parseDuration(getEnv("JWT_LIFETIME", "24h"))
-	TLSCert = getEnv("TLS_CERT", "certs/server.crt")
-	TLSKey = getEnv("TLS_KEY", "certs/server.key")
 
-	origins := getEnv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
-	CORSOrigins = strings.Split(origins, ",")
+	cfg := &Config{
+		Port:        getEnv("PORT", "8080"),
+		DBPath:      getEnv("DB_PATH", "clinic.db"),
+		JWTSecret:   getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release"),
+		JWTLifetime: parseDuration(getEnv("JWT_LIFETIME", "24h")),
+		CORSOrigins: strings.Split(getEnv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"), ","),
+	}
 
-	if JWTSecret == "dev-only-clinic-jwt-secret-not-for-release" {
+	if cfg.JWTSecret == "dev-only-clinic-jwt-secret-not-for-release" {
 		log.Println("[config] WARNING: Using default JWT_SECRET — set JWT_SECRET env var for production")
 	}
+
+	current = cfg
+	return cfg
+}
+
+// Current returns the last loaded config. Panics if Load hasn't been called.
+func Current() *Config {
+	if current == nil {
+		log.Fatal("[config] Current() called before Load()")
+	}
+	return current
 }
 
 func getEnv(key, fallback string) string {

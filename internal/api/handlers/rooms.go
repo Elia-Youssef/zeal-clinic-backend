@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
-	"database/sql"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
+	"errors"
 	"log"
 	"net/http"
 
@@ -12,75 +12,75 @@ import (
 
 func GetAllRooms(c echo.Context) error {
 	params := parseListParams(c)
-	rooms := models.RoomList{}
+	rooms := store.RoomList{}
 	total, err := rooms.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllRooms] failed to fetch rooms:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch rooms"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch rooms"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: rooms, Total: total}})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: rooms, Total: total}})
 }
 
 func GetRoomDropdown(c echo.Context) error {
 	params := parseListParams(c)
-	items, err := models.GetRoomDropdown(params)
+	items, err := store.GetRoomDropdown(params)
 	if err != nil {
 		log.Println("Error: [GetRoomDropdown] failed to fetch room dropdown:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch room dropdown"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch room dropdown"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
 
 func CreateRoom(c echo.Context) error {
-	var r models.Room
+	var r store.Room
 	if err := c.Bind(&r); err != nil {
 		log.Println("Error: [CreateRoom] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	if err := r.IsValid(); err != nil {
 		log.Println("Error: [CreateRoom] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
 	if err := r.Create(); err != nil {
 		log.Println("Error: [CreateRoom] failed to create room:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create room"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create room"})
 	}
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: r})
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: r})
 }
 
 func UpdateRoom(c echo.Context) error {
-	var updates map[string]interface{}
+	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: [UpdateRoom] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	delete(updates, "id")
 
-	r := models.Room{ID: c.Param("id")}
-	if err := r.Update(updates); err == sql.ErrNoRows {
+	r := store.Room{ID: c.Param("id")}
+	if err := r.Update(updates); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [UpdateRoom] room not found:", err)
-		return c.JSON(http.StatusNotFound, utils.Response{Error: "room not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "room not found"})
 	} else if err != nil {
 		log.Println("Error: [UpdateRoom] failed to update room:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to update room"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update room"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: r})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: r})
 }
 
 func DeleteRoom(c echo.Context) error {
 	id := c.Param("id")
-	if models.HasDependencies(id, map[string]string{"appointments": "room_id"}) {
-		return c.JSON(http.StatusConflict, utils.Response{Error: "cannot delete room: has related records"})
+	if store.HasDependencies(id, map[string]string{"appointments": "room_id"}) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete room: has related records"})
 	}
 
-	r := models.Room{ID: id}
-	if err := r.Delete(); err == sql.ErrNoRows {
+	r := store.Room{ID: id}
+	if err := r.Delete(); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [DeleteRoom] room not found:", err)
-		return c.JSON(http.StatusNotFound, utils.Response{Error: "room not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "room not found"})
 	} else if err != nil {
 		log.Println("Error: [DeleteRoom] failed to delete room:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to delete room"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete room"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

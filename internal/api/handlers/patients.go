@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
-	"database/sql"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
+	"errors"
 	"log"
 	"net/http"
 
@@ -12,106 +12,106 @@ import (
 
 func GetAllPatients(c echo.Context) error {
 	params := parseListParams(c)
-	patients := models.PatientList{}
+	patients := store.PatientList{}
 	total, err := patients.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllPatients] failed to fetch patients:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patients"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch patients"})
 	}
 	if patients == nil {
-		patients = []models.Patient{}
+		patients = []store.Patient{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: patients, Total: total}})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: patients, Total: total}})
 }
 
 func GetPatientDropdown(c echo.Context) error {
 	params := parseListParams(c)
-	items, err := models.GetPatientDropdown(params)
+	items, err := store.GetPatientDropdown(params)
 	if err != nil {
 		log.Println("Error: [GetPatientDropdown] failed to fetch patient dropdown:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patient dropdown"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch patient dropdown"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
 
 func GetPatientByID(c echo.Context) error {
-	p := models.Patient{}
+	p := store.Patient{}
 	if err := p.GetByID(c.Param("id")); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [GetPatientByID] patient not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, utils.Response{Error: "patient not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "patient not found"})
 		}
 		log.Println("Error: [GetPatientByID] failed to fetch patient:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch patient"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch patient"})
 	}
 
 	if p.CountryID != "" {
-		p.Country = models.Country{ID: p.CountryID}
+		p.Country = store.Country{ID: p.CountryID}
 		p.Country.GetByID()
 	}
 
 	if p.CityID != "" {
-		p.City = models.LebanonCity{ID: p.CityID}
+		p.City = store.LebanonCity{ID: p.CityID}
 		p.City.GetByID()
 	}
 
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: p})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: p})
 }
 
 func CreatePatient(c echo.Context) error {
-	var p models.Patient
+	var p store.Patient
 	if err := c.Bind(&p); err != nil {
 		log.Println("Error: [CreatePatient] invalid request body:", err.Error())
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	if err := p.IsValid(); err != nil {
 		log.Println("Error: [CreatePatient] validation failed:", err.Error())
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
-	p.CreatedAt = models.DateNow()
+	p.CreatedAt = store.DateNow()
 
 	if err := p.Create(); err != nil {
 		log.Println("Error: [CreatePatient] failed to create patient:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create patient"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create patient"})
 	}
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: p})
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: p})
 }
 
 func UpdatePatient(c echo.Context) error {
-	var updates map[string]interface{}
+	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: [UpdatePatient] invalid request body:", err.Error())
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	delete(updates, "id")
 	delete(updates, "createdAt")
 
-	p := models.Patient{ID: c.Param("id")}
+	p := store.Patient{ID: c.Param("id")}
 	if err := p.Update(updates); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [UpdatePatient] patient not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, utils.Response{Error: "patient not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "patient not found"})
 		}
 		log.Println("Error: [UpdatePatient] failed to update patient:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to update patient"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update patient"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: p})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: p})
 }
 
 func DeletePatient(c echo.Context) error {
 	id := c.Param("id")
-	if models.HasDependencies(id, map[string]string{"patient_procedures": "patient_id", "appointments": "patient_id", "prescriptions": "patient_id"}) {
-		return c.JSON(http.StatusConflict, utils.Response{Error: "cannot delete patient: has related records"})
+	if store.HasDependencies(id, map[string]string{"patient_procedures": "patient_id", "appointments": "patient_id", "prescriptions": "patient_id"}) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete patient: has related records"})
 	}
 
-	p := models.Patient{ID: id}
+	p := store.Patient{ID: id}
 	if err := p.Delete(); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [DeletePatient] patient not found:", id)
-			return c.JSON(http.StatusNotFound, utils.Response{Error: "patient not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "patient not found"})
 		}
 		log.Println("Error: [DeletePatient] failed to delete patient:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to delete patient"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete patient"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

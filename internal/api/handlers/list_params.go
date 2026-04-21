@@ -1,14 +1,14 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
+	"clinic-api/internal/database/store"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
 )
 
-func parseListParams(c echo.Context) models.ListParams {
-	var params models.ListParams
+func parseListParams(c echo.Context) store.ListParams {
+	var params store.ListParams
 	if v := c.QueryParam("offset"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			params.Offset = n

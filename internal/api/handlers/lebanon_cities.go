@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,29 +12,29 @@ import (
 
 func GetAllLebanonCities(c echo.Context) error {
 	params := parseListParams(c)
-	cities := models.LebanonCityList{}
+	cities := store.LebanonCityList{}
 	total, err := cities.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllLebanonCities] failed to fetch lebanon cities:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch lebanon cities"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch lebanon cities"})
 	}
 	if cities == nil {
-		cities = []models.LebanonCity{}
+		cities = []store.LebanonCity{}
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: utils.PaginatedList{Items: cities, Total: total}})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: cities, Total: total}})
 }
 
 func GetLebanonCityDropdown(c echo.Context) error {
 	params := parseListParams(c)
-	cities := models.LebanonCityList{}
+	cities := store.LebanonCityList{}
 	_, err := cities.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetLebanonCityDropdown] failed to fetch lebanon city dropdown:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch lebanon city dropdown"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch lebanon city dropdown"})
 	}
-	items := []models.DropdownItem{}
+	items := []store.DropdownItem{}
 	for _, city := range cities {
-		items = append(items, models.DropdownItem{ID: city.ID, Name: fmt.Sprintf("%s, %s, %s", city.Governorate, city.District, city.Name)})
+		items = append(items, store.DropdownItem{ID: city.ID, Name: fmt.Sprintf("%s, %s, %s", city.Governorate, city.District, city.Name)})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }

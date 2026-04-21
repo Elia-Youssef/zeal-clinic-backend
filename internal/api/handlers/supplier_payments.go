@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
 	"clinic-api/internal/validation"
 	"log"
 	"net/http"
@@ -12,13 +12,13 @@ import (
 
 // GetSupplierPayments returns transactions FROM self balances TO supplier balances.
 func GetSupplierPayments(c echo.Context) error {
-	items := models.BalanceTransactionList{}
+	items := store.BalanceTransactionList{}
 	err := items.GetSupplierPayments(c.Param("id"))
 	if err != nil {
 		log.Println("Error: GetSupplierPayments:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to fetch supplier payments"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch supplier payments"})
 	}
-	return c.JSON(http.StatusOK, utils.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
 
 // CreateSupplierPayment records a payment from the clinic to a supplier.
@@ -32,7 +32,7 @@ func CreateSupplierPayment(c echo.Context) error {
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
 	errs := make(validation.Errors)
@@ -46,21 +46,21 @@ func CreateSupplierPayment(c echo.Context) error {
 		errs["amount"] = msg
 	}
 	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
 	// Verify supplier balance exists
-	var supplierBalance models.Balance
+	var supplierBalance store.Balance
 	if err := supplierBalance.GetByID(req.SupplierBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "supplier balance not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "supplier balance not found"})
 	}
 	if supplierBalance.EntityType != "supplier" {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "balance is not a supplier balance"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "balance is not a supplier balance"})
 	}
 
 	// Resolve self balance (FROM)
 	selfID := "self"
-	selfBalance := models.Balance{
+	selfBalance := store.Balance{
 		EntityType: "self",
 		EntityID:   &selfID,
 		EntityName: "Clinic",
@@ -68,28 +68,28 @@ func CreateSupplierPayment(c echo.Context) error {
 	}
 	if err := selfBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateSupplierPayment self balance:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to resolve self balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve self balance"})
 	}
 
-	user := c.Get("user").(models.User)
+	user := c.Get("user").(store.User)
 
-	bt := models.BalanceTransaction{
-		FromBalanceID:   selfBalance.ID,
-		ToBalanceID:     supplierBalance.ID,
-		Amount:          req.Amount,
-		CurrencyID:      req.CurrencyID,
+	bt := store.BalanceTransaction{
+		FromBalanceID:     selfBalance.ID,
+		ToBalanceID:       supplierBalance.ID,
+		Amount:            req.Amount,
+		CurrencyID:        req.CurrencyID,
 		TransactionType:   "payment",
 		TransactionMethod: req.TransactionMethod,
 		Description:       req.Description,
-		CreatedBy:       user.DisplayName,
+		CreatedBy:         user.DisplayName,
 	}
 	if err := bt.Create(); err != nil {
 		log.Println("Error: CreateSupplierPayment:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create payment: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create payment: " + err.Error()})
 	}
 
 	bt.FromEntityName = selfBalance.EntityName
 	bt.ToEntityName = supplierBalance.EntityName
 
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: bt})
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }

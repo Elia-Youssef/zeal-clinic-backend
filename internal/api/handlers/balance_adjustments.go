@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"clinic-api/internal/database/models"
-	"clinic-api/internal/utils"
+	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/database/store"
 	"clinic-api/internal/validation"
 	"log"
 	"net/http"
@@ -22,7 +22,7 @@ func CreateAdjustment(c echo.Context) error {
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
 	errs := make(validation.Errors)
@@ -39,21 +39,21 @@ func CreateAdjustment(c echo.Context) error {
 		errs["description"] = msg
 	}
 	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
 	// Verify both balances exist
-	var fromBal, toBal models.Balance
+	var fromBal, toBal store.Balance
 	if err := fromBal.GetByID(req.FromBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "from balance not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "from balance not found"})
 	}
 	if err := toBal.GetByID(req.ToBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "to balance not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "to balance not found"})
 	}
 
-	user := c.Get("user").(models.User)
+	user := c.Get("user").(store.User)
 
-	bt := models.BalanceTransaction{
+	bt := store.BalanceTransaction{
 		FromBalanceID:     req.FromBalanceID,
 		ToBalanceID:       req.ToBalanceID,
 		Amount:            req.Amount,
@@ -65,13 +65,13 @@ func CreateAdjustment(c echo.Context) error {
 	}
 	if err := bt.Create(); err != nil {
 		log.Println("Error: CreateAdjustment:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create adjustment: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create adjustment: " + err.Error()})
 	}
 
 	bt.FromEntityName = fromBal.EntityName
 	bt.ToEntityName = toBal.EntityName
 
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: bt})
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }
 
 // CreateWriteOff records a debt write-off (admin only).
@@ -85,7 +85,7 @@ func CreateWriteOff(c echo.Context) error {
 		Description   string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
 	errs := make(validation.Errors)
@@ -102,20 +102,20 @@ func CreateWriteOff(c echo.Context) error {
 		errs["description"] = msg
 	}
 	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
-	var fromBal, toBal models.Balance
+	var fromBal, toBal store.Balance
 	if err := fromBal.GetByID(req.FromBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "from balance not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "from balance not found"})
 	}
 	if err := toBal.GetByID(req.ToBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, utils.Response{Error: "to balance not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "to balance not found"})
 	}
 
-	user := c.Get("user").(models.User)
+	user := c.Get("user").(store.User)
 
-	bt := models.BalanceTransaction{
+	bt := store.BalanceTransaction{
 		FromBalanceID:     req.FromBalanceID,
 		ToBalanceID:       req.ToBalanceID,
 		Amount:            req.Amount,
@@ -127,11 +127,11 @@ func CreateWriteOff(c echo.Context) error {
 	}
 	if err := bt.Create(); err != nil {
 		log.Println("Error: CreateWriteOff:", err)
-		return c.JSON(http.StatusInternalServerError, utils.Response{Error: "failed to create write-off: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create write-off: " + err.Error()})
 	}
 
 	bt.FromEntityName = fromBal.EntityName
 	bt.ToEntityName = toBal.EntityName
 
-	return c.JSON(http.StatusCreated, utils.Response{Success: true, Data: bt})
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }
