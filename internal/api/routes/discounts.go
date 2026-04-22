@@ -11,8 +11,9 @@ func SetupDiscountRoutes(api *echo.Group) {
 	api.GET("/discounts/:id", handlers.GetDiscountByID, scope("services:read"), cache("discounts"))
 	api.GET("/items/:itemId/discounts", handlers.GetItemDiscounts, scope("services:read"), cache("discounts"))
 	api.POST("/discounts", handlers.CreateDiscount, scope("services:write"), cache("discounts"))
-	api.PUT("/discounts/:id", handlers.UpdateDiscount, scope("services:write"), cache("discounts"))
-	api.DELETE("/discounts/:id", handlers.DeleteDiscount, scope("services:delete"), cache("discounts"))
+	// invoice-item-discounts display the discount name, so updates must invalidate it.
+	api.PUT("/discounts/:id", handlers.UpdateDiscount, scope("services:write"), cache("discounts", "invoice-item-discounts"))
+	api.DELETE("/discounts/:id", handlers.DeleteDiscount, scope("services:delete"), cache("discounts", "invoice-item-discounts"))
 	// Discount items
 	api.POST("/discounts/:id/items", handlers.AddDiscountItem, scope("services:write"), cache("discounts"))
 	api.DELETE("/discounts/:id/items/:itemId", handlers.RemoveDiscountItem, scope("services:delete"), cache("discounts"))

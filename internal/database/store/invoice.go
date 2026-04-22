@@ -122,8 +122,23 @@ func (inv *Invoice) Create() error {
 	}
 	defer tx.Rollback()
 
+	bal := Balance{}
+	fromEntityType := bal.GetEntityType(inv.FromBalanceID, tx)
+	toEntityType := bal.GetEntityType(inv.ToBalanceID, tx)
+
+	// Scope the invoice counter to the non-self party (patient vs supplier),
+	// so client and supplier invoices maintain independent sequences.
+	partyEntityType := fromEntityType
+	if partyEntityType == "self" {
+		partyEntityType = toEntityType
+	}
+
 	var nextNum int
-	if err := tx.QueryRow(`SELECT COALESCE(MAX(invoice_number), 0) + 1 FROM invoices`).Scan(&nextNum); err != nil {
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(i.invoice_number), 0) + 1
+		FROM invoices i
+		JOIN balances fb ON fb.id = i.from_balance_id
+		JOIN balances tb ON tb.id = i.to_balance_id
+		WHERE fb.entity_type = ? OR tb.entity_type = ?`, partyEntityType, partyEntityType).Scan(&nextNum); err != nil {
 		return fmt.Errorf("invoice counter: %w", err)
 	}
 
@@ -194,9 +209,6 @@ func (inv *Invoice) Create() error {
 	}
 
 	// Adjust product stock based on direction relative to self.
-	bal := Balance{}
-	fromEntityType := bal.GetEntityType(inv.FromBalanceID, tx)
-	toEntityType := bal.GetEntityType(inv.ToBalanceID, tx)
 	for _, item := range inv.Items {
 		if item.ItemType != "product" || item.ItemID == "" {
 			continue

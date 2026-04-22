@@ -83,6 +83,7 @@ var protectedRouteRegistrars = []func(*echo.Group){
 	routes.SetupDiscountRoutes,
 	routes.SetupInvoiceItemDiscountRoutes,
 	routes.SetupNotificationRoutes,
+	routes.SetupEventRoutes,
 	routes.SetupAuditRoutes,
 	routes.SetupReportRoutes,
 	routes.SetupSearchRoutes,

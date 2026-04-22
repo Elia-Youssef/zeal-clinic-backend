@@ -3,9 +3,11 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/realtime"
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -40,23 +42,6 @@ func GetUnreadNotificationCount(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: count})
 }
 
-func CreateNotification(c echo.Context) error {
-	var n store.Notification
-	if err := c.Bind(&n); err != nil {
-		log.Println("Error: [CreateNotification] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
-	}
-	if err := n.IsValid(); err != nil {
-		log.Println("Error: [CreateNotification] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
-	}
-	if err := n.Create(); err != nil {
-		log.Println("Error: [CreateNotification] failed to create notification:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create notification"})
-	}
-	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: n})
-}
-
 func MarkNotificationRead(c echo.Context) error {
 	id := c.Param("id")
 	userID := currentUserID(c)
@@ -87,6 +72,30 @@ func MarkAllNotificationsRead(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
 
+// SendTestNotification creates a notification for the current user and pushes
+// it over SSE. Intended for manually verifying the realtime pipeline from the
+// frontend.
+func SendTestNotification(c echo.Context) error {
+	userID := currentUserID(c)
+	if userID == "" {
+		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Not Authorized"})
+	}
+
+	n := store.Notification{
+		UserID:      userID,
+		Title:       "Test notification",
+		Description: "Sent at " + time.Now().Format("15:04:05"),
+		Action:      "test",
+	}
+	if err := n.Create(); err != nil {
+		log.Println("Error: [SendTestNotification] failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to send test notification"})
+	}
+
+	realtime.SendTo(userID, realtime.Event{Type: "notification", Data: n})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: n})
+}
+
 func DeleteNotification(c echo.Context) error {
 	id := c.Param("id")
 	userID := currentUserID(c)
@@ -105,16 +114,6 @@ func DeleteNotification(c echo.Context) error {
 	} else if err != nil {
 		log.Println("Error: [DeleteNotification] failed:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete notification"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true})
-}
-
-func DeleteAllNotifications(c echo.Context) error {
-	userID := currentUserID(c)
-	_, err := store.DeleteAllNotifications(userID)
-	if err != nil {
-		log.Println("Error: [DeleteAllNotifications] failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete notifications"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

@@ -9,5 +9,6 @@ import (
 func SetupScheduleAvailabilityRoutes(api *echo.Group) {
 	api.GET("/schedule-availability", handlers.GetAllScheduleAvailability, scope("team:read"))
 	api.POST("/schedule-availability", handlers.CreateScheduleAvailability, scope("team:write"))
+	api.PUT("/schedule-availability/:id", handlers.UpdateScheduleAvailability, scope("team:write"))
 	api.DELETE("/schedule-availability/:id", handlers.DeleteScheduleAvailability, scope("team:write"))
 }

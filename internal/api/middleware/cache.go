@@ -20,21 +20,28 @@ var (
 	cacheMu sync.RWMutex
 )
 
-func CacheMiddleware(key string) echo.MiddlewareFunc {
+func CacheMiddleware(keys ...string) echo.MiddlewareFunc {
+	if len(keys) == 0 {
+		panic("CacheMiddleware requires at least one cache key")
+	}
+	primary := keys[0]
+
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if c.Request().Method != http.MethodGet {
-				InvalidateCache(key)
+				for _, k := range keys {
+					InvalidateCache(k)
+				}
 				return next(c)
 			}
 
 			url := c.Request().URL.RequestURI()
-			if strings.Contains(url, "filter") {
+			if strings.Contains(url, "filter") || len(c.ParamNames()) > 0 {
 				return next(c)
 			}
 
 			cacheMu.RLock()
-			entry, found := cache[key][url]
+			entry, found := cache[primary][url]
 			cacheMu.RUnlock()
 
 			if found {
@@ -50,15 +57,15 @@ func CacheMiddleware(key string) echo.MiddlewareFunc {
 
 			if c.Response().Status >= 200 && c.Response().Status < 400 {
 				cacheMu.Lock()
-				if cache[key] == nil {
-					cache[key] = make(map[string]*cachedResponse)
+				if cache[primary] == nil {
+					cache[primary] = make(map[string]*cachedResponse)
 				}
-				cache[key][url] = &cachedResponse{body: buf.Bytes()}
+				cache[primary][url] = &cachedResponse{body: buf.Bytes()}
 				cacheMu.Unlock()
 				size, sizeString := CacheSize()
 				log.Println("Updated cache size:", sizeString)
 				if size > 30*1024*1024 {
-					log.Println("Cache size exceeded 10MB, clearing cache")
+					log.Println("Cache size exceeded 30MB, clearing cache")
 					InvalidateCacheAll()
 				}
 			}
@@ -79,10 +86,13 @@ func (c *CustomWriter) Write(b []byte) (int, error) {
 }
 
 func InvalidateCache(key string) {
-	log.Println("Invalidating Cache")
 	cacheMu.Lock()
+	_, existed := cache[key]
 	delete(cache, key)
 	cacheMu.Unlock()
+	if existed {
+		log.Println("Invalidated cache:", key)
+	}
 }
 
 func InvalidateCacheAll() {

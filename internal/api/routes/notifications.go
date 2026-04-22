@@ -9,9 +9,8 @@ import (
 func SetupNotificationRoutes(api *echo.Group) {
 	api.GET("/notifications", handlers.GetAllNotifications)
 	api.GET("/notifications/unread-count", handlers.GetUnreadNotificationCount)
-	api.POST("/notifications", handlers.CreateNotification)
+	api.POST("/notifications/test", handlers.SendTestNotification)
 	api.PUT("/notifications/:id/read", handlers.MarkNotificationRead)
 	api.PUT("/notifications/read-all", handlers.MarkAllNotificationsRead)
 	api.DELETE("/notifications/:id", handlers.DeleteNotification)
-	api.DELETE("/notifications", handlers.DeleteAllNotifications)
 }

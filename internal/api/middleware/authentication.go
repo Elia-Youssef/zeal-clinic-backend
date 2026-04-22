@@ -67,5 +67,6 @@ func getTokenFromRequest(c echo.Context) string {
 	if tokenStr, ok := strings.CutPrefix(auth, "Bearer "); ok {
 		return tokenStr
 	}
-	return ""
+	// Fallback for browser EventSource which cannot set custom headers.
+	return c.QueryParam("access_token")
 }

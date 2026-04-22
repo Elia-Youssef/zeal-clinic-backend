@@ -3,10 +3,12 @@ package main
 import (
 	"flag"
 	"log"
+	"time"
 
 	"clinic-api/internal/api/server"
 	"clinic-api/internal/config"
 	"clinic-api/internal/database"
+	"clinic-api/internal/monitor"
 )
 
 func main() {
@@ -30,6 +32,15 @@ func main() {
 			log.Fatal("Failed to seed demo data:", err)
 		}
 	}
+
+	mon := monitor.New(1 * time.Minute)
+	mon.Register(
+		monitor.Action{Name: "expire-discounts", Fn: monitor.ExpireDiscounts},
+		monitor.Action{Name: "expire-prescription-medicines", Fn: monitor.ExpirePrescriptionMedicines},
+		monitor.Action{Name: "appointment-reminders", Fn: monitor.SendAppointmentReminders},
+	)
+	mon.Start()
+	defer mon.Stop()
 
 	e := server.CreateServer()
 	server.Start(e, cfg)

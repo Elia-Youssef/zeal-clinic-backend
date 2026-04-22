@@ -121,6 +121,15 @@ func (sa *ScheduleAvailability) GetAll(params ListParams) ([]ScheduleAvailabilit
 	return items, total, rows.Err()
 }
 
+func (sa *ScheduleAvailability) GetByID(id string) error {
+	return sa.ScanRow(RDB.QueryRow(`SELECT sa.id, sa.employee_id, sa.day_of_week, sa.start_time, sa.end_time,
+		sa.effective_date, sa.created_at,
+		e.first_name || ' ' || e.last_name
+		FROM schedule_availability sa
+		JOIN employees e ON e.id = sa.employee_id
+		WHERE sa.id = ?`, id))
+}
+
 func (sa *ScheduleAvailability) Create() error {
 	sa.ID = uuid.Must(uuid.NewV7()).String()
 	sa.CreatedAt = DateNow()
@@ -128,6 +137,32 @@ func (sa *ScheduleAvailability) Create() error {
 		VALUES (?,?,?,?,?,?,?)`,
 		sa.ID, sa.EmployeeID, sa.DayOfWeek, sa.StartTime, sa.EndTime, sa.EffectiveDate, sa.CreatedAt)
 	return err
+}
+
+func (sa *ScheduleAvailability) Update(updates map[string]any) error {
+	cols := map[string]string{
+		"dayOfWeek": "day_of_week", "startTime": "start_time", "endTime": "end_time",
+		"effectiveDate": "effective_date",
+	}
+	setClauses := ""
+	var args []any
+	for jsonKey, dbCol := range cols {
+		if val, ok := updates[jsonKey]; ok {
+			if setClauses != "" {
+				setClauses += ", "
+			}
+			setClauses += dbCol + " = ?"
+			args = append(args, val)
+		}
+	}
+	if setClauses == "" {
+		return sa.GetByID(sa.ID)
+	}
+	args = append(args, sa.ID)
+	if _, err := DB.Exec("UPDATE schedule_availability SET "+setClauses+" WHERE id = ?", args...); err != nil {
+		return err
+	}
+	return sa.GetByID(sa.ID)
 }
 
 func (sa *ScheduleAvailability) Delete() error {

@@ -3,7 +3,6 @@ package config
 import (
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -14,7 +13,6 @@ type Config struct {
 	DBPath      string
 	JWTSecret   string
 	JWTLifetime time.Duration
-	CORSOrigins []string
 }
 
 var current *Config
@@ -27,7 +25,6 @@ func Load() *Config {
 		DBPath:      getEnv("DB_PATH", "clinic.db"),
 		JWTSecret:   getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release"),
 		JWTLifetime: parseDuration(getEnv("JWT_LIFETIME", "24h")),
-		CORSOrigins: strings.Split(getEnv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"), ","),
 	}
 
 	if cfg.JWTSecret == "dev-only-clinic-jwt-secret-not-for-release" {

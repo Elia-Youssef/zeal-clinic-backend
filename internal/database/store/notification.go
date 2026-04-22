@@ -141,15 +141,6 @@ func (n *Notification) Delete() error {
 	return nil
 }
 
-func DeleteAllNotifications(userID string) (int64, error) {
-	res, err := DB.Exec("DELETE FROM notifications WHERE user_id = ?", userID)
-	if err != nil {
-		return 0, err
-	}
-	n, _ := res.RowsAffected()
-	return n, nil
-}
-
 func GetUserIDForNotification(id string) (string, error) {
 	var userID string
 	err := RDB.QueryRow("SELECT user_id FROM notifications WHERE id = ?", id).Scan(&userID)

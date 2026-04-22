@@ -7,6 +7,10 @@ import (
 )
 
 func SetupBalanceAdjustmentRoutes(api *echo.Group) {
-	api.POST("/balance-adjustments", handlers.CreateAdjustment, scope("transactions:write"), cache("balance-adjustments"))
-	api.POST("/balance-write-offs", handlers.CreateWriteOff, scope("transactions:write"), cache("balance-adjustments"))
+	// Adjustments and write-offs can touch any balance pair; invalidate every
+	// payment-list cache so those views reflect the new transaction.
+	api.POST("/balance-adjustments", handlers.CreateAdjustment, scope("transactions:write"),
+		cache("balances", "client-payments", "supplier-payments", "employee-payments"))
+	api.POST("/balance-write-offs", handlers.CreateWriteOff, scope("transactions:write"),
+		cache("balances", "client-payments", "supplier-payments", "employee-payments"))
 }

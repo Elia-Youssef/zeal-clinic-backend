@@ -51,6 +51,24 @@ func CreateScheduleAvailability(c echo.Context) error {
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: sa})
 }
 
+func UpdateScheduleAvailability(c echo.Context) error {
+	var updates map[string]any
+	if err := c.Bind(&updates); err != nil {
+		log.Println("Error: [UpdateScheduleAvailability] invalid request body:", err)
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+	sa := store.ScheduleAvailability{ID: c.Param("id")}
+	if err := sa.Update(updates); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			log.Println("Error: [UpdateScheduleAvailability] schedule entry not found:", c.Param("id"))
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "schedule entry not found"})
+		}
+		log.Println("Error: [UpdateScheduleAvailability] failed to update schedule entry:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update schedule entry"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: sa})
+}
+
 func DeleteScheduleAvailability(c echo.Context) error {
 	sa := store.ScheduleAvailability{ID: c.Param("id")}
 	if err := sa.Delete(); errors.Is(err, store.ErrNotFound) {
