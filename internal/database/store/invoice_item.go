@@ -16,10 +16,12 @@ type InvoiceItem struct {
 	Notes       string  `json:"notes"`
 	CreatedAt   Date    `json:"createdAt"`
 	/* Transient */
-	ItemName      string  `json:"itemName"`
-	DiscountID    string  `json:"discountId,omitempty"`
-	DiscountValue float64 `json:"discountValue,omitempty"`
-	DiscountName  string  `json:"discountName,omitempty"`
+	ItemName            string  `json:"itemName"`
+	DiscountID          string  `json:"discountId,omitempty"`
+	DiscountValue       float64 `json:"discountValue,omitempty"`
+	DiscountName        string  `json:"discountName,omitempty"`
+	DiscountDescription string  `json:"discountDescription,omitempty"`
+	VoucherCode         string  `json:"voucherCode,omitempty"`
 }
 
 const invoiceItemColumnsNoId = `invoice_id, item_type, item_id, quantity, amount, final_amount, notes, created_at`
@@ -66,6 +68,8 @@ func (ii *InvoiceItemList) GetByInvoice(invoiceID string) error {
 			RDB.QueryRow(`SELECT name FROM products WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
 		case "procedure":
 			RDB.QueryRow(`SELECT name FROM procedures WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
+		case "discount":
+			RDB.QueryRow(`SELECT name FROM discounts WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
 		default:
 			(*ii)[idx].ItemName = "Other"
 		}

@@ -21,11 +21,9 @@ type Procedure struct {
 	CreatedAt  Date    `json:"createdAt"`
 	UpdatedAt  Date    `json:"updatedAt"`
 	// Nested
-	Type              *ProcedureType               `json:"type,omitempty"`
-	Category          *ProcedureCategory           `json:"category,omitempty"`
-	Sessions          ProcedureSessionList         `json:"sessions,omitempty"`
-	AllergyConflicts  ProcedureAllergyConflictList `json:"allergyConflicts,omitempty"`
-	PatientProcedures PatientProcedureList         `json:"patientProcedures,omitempty"`
+	Type     *ProcedureType       `json:"type,omitempty"`
+	Category *ProcedureCategory   `json:"category,omitempty"`
+	Sessions ProcedureSessionList `json:"sessions,omitempty"`
 }
 
 func (p *Procedure) IsValid() error {
@@ -118,7 +116,6 @@ func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 
 	for i := range *p {
 		(*p)[i].loadRelations()
-		(*p)[i].Sessions.GetByProcedure((*p)[i].ID)
 	}
 	return total, nil
 }
@@ -177,8 +174,6 @@ func (p *Procedure) GetByID(id string) error {
 		return err
 	}
 	p.loadRelations()
-	p.Sessions.GetByProcedure(p.ID)
-	p.PatientProcedures.GetByProcedure(p.ID)
 	return nil
 }
 

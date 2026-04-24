@@ -31,6 +31,8 @@ type Invoice struct {
 	// Nested
 	Items InvoiceItemList `json:"items,omitempty"`
 	// Joined fields
+	FromEntityID   string `json:"fromEntityId,omitempty"`
+	ToEntityID     string `json:"toEntityId,omitempty"`
 	FromEntityName string `json:"fromEntityName,omitempty"`
 	ToEntityName   string `json:"toEntityName,omitempty"`
 }
@@ -91,10 +93,10 @@ func (inv *InvoiceList) GetAll(filterBalanceID string) error {
 	for i := range *inv {
 		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
 		if (*inv)[i].FromBalanceID != "" {
-			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityName)
+			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
 		}
 		if (*inv)[i].ToBalanceID != "" {
-			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityName)
+			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
 		}
 	}
 	return nil
@@ -107,10 +109,10 @@ func (inv *Invoice) GetByID(id string) error {
 	}
 	inv.Items.GetByInvoice(inv.ID)
 	if inv.FromBalanceID != "" {
-		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, inv.FromBalanceID).Scan(&inv.FromEntityName)
+		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, inv.FromBalanceID).Scan(&inv.FromEntityID, &inv.FromEntityName)
 	}
 	if inv.ToBalanceID != "" {
-		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, inv.ToBalanceID).Scan(&inv.ToEntityName)
+		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, inv.ToBalanceID).Scan(&inv.ToEntityID, &inv.ToEntityName)
 	}
 	return nil
 }
@@ -153,6 +155,28 @@ func (inv *Invoice) Create() error {
 	hasDiscount := false
 	for i := range inv.Items {
 		item := &inv.Items[i]
+		// A "discount" item with no item_id is a gift card sale: auto-create a
+		// fixed-value, single-use gift discount and link it as the line's item.
+		// The line amount doubles as the gift's redeemable value.
+		if item.ItemType == "discount" && item.ItemID == "" {
+			maxUsages := 1
+			gift := Discount{
+				Name:         item.DiscountName,
+				Description:  item.DiscountDescription,
+				DiscountType: "gift",
+				ValueType:    "fixed",
+				Value:        item.Amount,
+				MaxUsages:    &maxUsages,
+				IsActive:     1,
+			}
+			if item.VoucherCode != "" {
+				gift.Vouchers = VoucherList{{Code: item.VoucherCode}}
+			}
+			if err := gift.CreateWithTx(tx); err != nil {
+				return fmt.Errorf("create gift discount: %w", err)
+			}
+			item.ItemID = gift.ID
+		}
 		item.FinalAmount = item.Amount
 		if item.DiscountID != "" {
 			var valueType string
@@ -299,8 +323,8 @@ func (inv *InvoiceList) GetClientInvoices(patientID string) error {
 	}
 	for i := range *inv {
 		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
-		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityName)
-		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityName)
+		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
+		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
 	}
 	return nil
 }
@@ -329,8 +353,8 @@ func (inv *InvoiceList) GetSupplierInvoices(supplierID string) error {
 	}
 	for i := range *inv {
 		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
-		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityName)
-		RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityName)
+		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
+		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
 	}
 	return nil
 }
@@ -370,10 +394,10 @@ func (inv *InvoiceList) GetAllByType(entityType string, params ListParams) (int,
 	for i := range *inv {
 		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
 		if (*inv)[i].FromBalanceID != "" {
-			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityName)
+			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
 		}
 		if (*inv)[i].ToBalanceID != "" {
-			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityName)
+			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
 		}
 	}
 	return total, nil
@@ -399,10 +423,10 @@ func (inv *InvoiceList) GetByItem(itemID, itemType string) error {
 	for i := range *inv {
 		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
 		if (*inv)[i].FromBalanceID != "" {
-			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityName)
+			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
 		}
 		if (*inv)[i].ToBalanceID != "" {
-			RDB.QueryRow(`SELECT entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityName)
+			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
 		}
 	}
 	return nil

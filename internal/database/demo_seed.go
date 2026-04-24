@@ -37,6 +37,7 @@ func SeedDemo(db *sql.DB) error {
 		{"medicines", seedDemoMedicines},
 		{"employees", seedDemoEmployees},
 		{"schedules", seedDemoSchedules},
+		{"suppliers", seedDemoSuppliers},
 		{"supplier balances", seedDemoSupplierBalances},
 		{"patients", seedDemoPatients},
 		{"patient allergies & medicines", seedDemoPatientAllergiesAndMeds},
@@ -362,6 +363,32 @@ func seedDemoSchedules(db *sql.DB, c *demoCtx) error {
 		count++
 	}
 	log.Printf("Demo: seeded %d schedule rows", count)
+	return nil
+}
+
+// Suppliers
+
+func seedDemoSuppliers(db *sql.DB, c *demoCtx) error {
+	suppliers := []struct {
+		name, contact, email, address string
+	}{
+		{"MedSupply Co.", "+961 1 234 567", "orders@example.com", "Beirut, Lebanon"},
+		{"DermaPharma", "+961 1 345 678", "info@example.org", "Jounieh, Lebanon"},
+		{"Aesthetic Essentials", "+961 3 456 789", "sales@example.net", "Tripoli, Lebanon"},
+		{"BioTech Materials", "+961 1 567 890", "supply@example.net", "Sidon, Lebanon"},
+	}
+	now := rfc3339(time.Now())
+	for _, s := range suppliers {
+		id := newID()
+		if _, err := db.Exec(
+			`INSERT INTO suppliers (id, name, contact, email, address, created_at, updated_at) VALUES (?,?,?,?,?,?,?)`,
+			id, s.name, s.contact, s.email, s.address, now, now,
+		); err != nil {
+			return err
+		}
+		c.supplierByName[s.name] = id
+	}
+	log.Printf("Demo: seeded %d suppliers", len(suppliers))
 	return nil
 }
 

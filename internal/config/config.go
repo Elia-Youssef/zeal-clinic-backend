@@ -3,14 +3,17 @@ package config
 import (
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/joho/godotenv"
 )
 
+const appDataDirName = "Zeal Clinic"
+
 type Config struct {
 	Port        string
-	DBPath      string
 	JWTSecret   string
 	JWTLifetime time.Duration
 }
@@ -18,13 +21,18 @@ type Config struct {
 var current *Config
 
 func Load() *Config {
-	_ = godotenv.Load() // silently ignore if .env doesn't exist
+	// Load .env from cwd first (dev), then from the directory containing the
+	// executable (installed layout; the installer drops a generated .env there).
+	// godotenv doesn't overwrite existing env vars, so cwd wins on conflicts.
+	_ = godotenv.Load()
+	if exe, err := os.Executable(); err == nil {
+		_ = godotenv.Load(filepath.Join(filepath.Dir(exe), ".env"))
+	}
 
 	cfg := &Config{
 		Port:        getEnv("PORT", "8080"),
-		DBPath:      getEnv("DB_PATH", "clinic.db"),
 		JWTSecret:   getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release"),
-		JWTLifetime: parseDuration(getEnv("JWT_LIFETIME", "24h")),
+		JWTLifetime: parseDuration(getEnv("JWT_LIFETIME", "12h")),
 	}
 
 	if cfg.JWTSecret == "dev-only-clinic-jwt-secret-not-for-release" {
@@ -41,6 +49,17 @@ func Current() *Config {
 		log.Fatal("[config] Current() called before Load()")
 	}
 	return current
+}
+
+// SharedDataDir returns the platform data directory for this app (e.g.
+// %PROGRAMDATA%\Zeal Clinic on Windows), or "" if unavailable.
+func SharedDataDir() string {
+	if runtime.GOOS == "windows" {
+		if pd := os.Getenv("PROGRAMDATA"); pd != "" {
+			return filepath.Join(pd, appDataDirName)
+		}
+	}
+	return ""
 }
 
 func getEnv(key, fallback string) string {

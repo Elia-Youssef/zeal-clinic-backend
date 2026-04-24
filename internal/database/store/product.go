@@ -16,9 +16,6 @@ type Product struct {
 	MinThreshold int     `json:"minThreshold"`
 	UnitPrice    float64 `json:"unitPrice"`
 	CreatedAt    Date    `json:"createdAt"`
-	// Nested
-	AllergyConflicts ProductAllergyConflictList `json:"allergyConflicts,omitempty"`
-	Invoices         InvoiceList                `json:"invoices,omitempty"`
 }
 
 func (p *Product) IsValid() error {
@@ -114,13 +111,7 @@ func GetProductDropdown(params ListParams) ([]DropdownItem, error) {
 }
 
 func (p *Product) GetByID(id string) error {
-	err := p.ScanRow(RDB.QueryRow(`SELECT `+productColumns+` FROM products WHERE id = ?`, id))
-	if err != nil {
-		return err
-	}
-	p.AllergyConflicts.GetByProduct(p.ID)
-	p.Invoices.GetByItem(p.ID, "product")
-	return nil
+	return p.ScanRow(RDB.QueryRow(`SELECT `+productColumns+` FROM products WHERE id = ?`, id))
 }
 
 func (p *Product) Create() error {

@@ -42,10 +42,14 @@ func CreateServer() *echo.Echo {
 	}
 	routes.SetupBookingRoutes(api, pub)
 
+	// SPA (Vite build embedded from client/dist)
+	e.GET("/*", spaHandler())
+
 	return e
 }
 
 var protectedRouteRegistrars = []func(*echo.Group){
+	routes.SetupServerInfoRoutes,
 	routes.SetupRoleRoutes,
 	routes.SetupRoomRoutes,
 	routes.SetupAllergyRoutes,
@@ -86,9 +90,12 @@ var protectedRouteRegistrars = []func(*echo.Group){
 	routes.SetupEventRoutes,
 	routes.SetupAuditRoutes,
 	routes.SetupReportRoutes,
+	routes.SetupAnalyticsRoutes,
 	routes.SetupSearchRoutes,
 }
 
 func Start(e *echo.Echo, cfg *config.Config) {
-	e.Logger.Fatal(e.Start(":" + cfg.Port))
+	if err := e.Start(":" + cfg.Port); err != nil && err != http.ErrServerClosed {
+		e.Logger.Fatal(err)
+	}
 }

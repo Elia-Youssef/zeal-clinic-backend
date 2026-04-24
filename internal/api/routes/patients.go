@@ -10,8 +10,8 @@ func SetupPatientRoutes(api *echo.Group) {
 	api.GET("/patients", handlers.GetAllPatients, scope("patients:read"), cache("patients"))
 	api.GET("/patients/dropdown", handlers.GetPatientDropdown, scope("patients:read"), cache("patients"))
 	api.GET("/patients/:id", handlers.GetPatientByID, scope("patients:read"), cache("patients"))
-	api.POST("/patients", handlers.CreatePatient, scope("patients:write"), cache("patients"))
+	api.POST("/patients", handlers.CreatePatient, scope("patients:write"), cache("patients", "analytics"))
 	// Appointment views embed patient_name; bust them on edits + deletes.
-	api.PUT("/patients/:id", handlers.UpdatePatient, scope("patients:write"), cache("patients", "appointments"))
-	api.DELETE("/patients/:id", handlers.DeletePatient, scope("patients:delete"), cache("patients", "appointments"))
+	api.PUT("/patients/:id", handlers.UpdatePatient, scope("patients:write"), cache("patients", "appointments", "analytics"))
+	api.DELETE("/patients/:id", handlers.DeletePatient, scope("patients:delete"), cache("patients", "appointments", "analytics"))
 }

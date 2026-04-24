@@ -8,5 +8,5 @@ import (
 
 func SetupSupplierPaymentRoutes(api *echo.Group) {
 	api.GET("/suppliers/:id/payments", handlers.GetSupplierPayments, scope("transactions:read"), cache("supplier-payments"))
-	api.POST("/supplier-payments", handlers.CreateSupplierPayment, scope("transactions:write"), cache("supplier-payments", "balances"))
+	api.POST("/supplier-payments", handlers.CreateSupplierPayment, scope("transactions:write"), cache("supplier-payments", "balances", "analytics"))
 }

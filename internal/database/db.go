@@ -1,6 +1,7 @@
 package database
 
 import (
+	"clinic-api/internal/config"
 	"clinic-api/internal/database/store"
 	"database/sql"
 	"fmt"
@@ -12,8 +13,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func Open(rawPath string) (*sql.DB, error) {
-	dbPath := resolveSQLitePath(rawPath)
+func Open(pathOverride string) (*sql.DB, error) {
+	path := pathOverride
+	if path == "" {
+		path = defaultDBPath()
+	}
+	dbPath := resolveSQLitePath(path)
 	dsn := dbPath + "?_foreign_keys=1&_journal_mode=WAL&_busy_timeout=5000"
 
 	// Write connection: single conn, serialises all writes.
@@ -47,6 +52,18 @@ func Open(rawPath string) (*sql.DB, error) {
 
 	log.Println("Database initialized at", dbPath)
 	return db, nil
+}
+
+// defaultDBPath picks where clinic.db lives when launched: %PROGRAMDATA%\Zeal Clinic\clinic.db
+// if that directory exists (installed layout; the Inno Setup script creates it), otherwise
+// clinic.db relative to cwd (dev fallback).
+func defaultDBPath() string {
+	if dir := config.SharedDataDir(); dir != "" {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			return filepath.Join(dir, "clinic.db")
+		}
+	}
+	return "clinic.db"
 }
 
 func resolveSQLitePath(rawPath string) string {

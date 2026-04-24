@@ -148,6 +148,20 @@ func (d *Discount) GetByID(id string) error {
 }
 
 func (d *Discount) Create() error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if err := d.CreateWithTx(tx); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (d *Discount) CreateWithTx(tx *sql.Tx) error {
 	d.ID = uuid.Must(uuid.NewV7()).String()
 	now := DateNow()
 	d.CreatedAt = now
@@ -156,17 +170,10 @@ func (d *Discount) Create() error {
 		d.IsActive = 1
 	}
 
-	tx, err := DB.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	_, err = tx.Exec(`INSERT INTO discounts (`+discountColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	if _, err := tx.Exec(`INSERT INTO discounts (`+discountColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		d.ID, d.Name, d.Description, d.DiscountType, d.ValueType, d.Value,
 		d.MaxUsages, d.CurrentUsages, d.StartDate, d.EndDate,
-		d.IsActive, d.CreatedAt, d.UpdatedAt)
-	if err != nil {
+		d.IsActive, d.CreatedAt, d.UpdatedAt); err != nil {
 		return err
 	}
 
@@ -174,9 +181,8 @@ func (d *Discount) Create() error {
 		d.Items[i].ID = uuid.Must(uuid.NewV7()).String()
 		d.Items[i].DiscountID = d.ID
 		d.Items[i].CreatedAt = now
-		_, err = tx.Exec(`INSERT INTO discount_items (`+discountItemColumns+`) VALUES (?,?,?,?,?)`,
-			d.Items[i].ID, d.Items[i].DiscountID, d.Items[i].ItemType, d.Items[i].ItemID, d.Items[i].CreatedAt)
-		if err != nil {
+		if _, err := tx.Exec(`INSERT INTO discount_items (`+discountItemColumns+`) VALUES (?,?,?,?,?)`,
+			d.Items[i].ID, d.Items[i].DiscountID, d.Items[i].ItemType, d.Items[i].ItemID, d.Items[i].CreatedAt); err != nil {
 			return err
 		}
 	}
@@ -185,14 +191,13 @@ func (d *Discount) Create() error {
 		d.Vouchers[i].ID = uuid.Must(uuid.NewV7()).String()
 		d.Vouchers[i].DiscountID = d.ID
 		d.Vouchers[i].CreatedAt = now
-		_, err = tx.Exec(`INSERT INTO vouchers (`+voucherColumns+`) VALUES (?,?,?,?,?)`,
-			d.Vouchers[i].ID, d.Vouchers[i].DiscountID, d.Vouchers[i].Code, d.Vouchers[i].IsUsed, d.Vouchers[i].CreatedAt)
-		if err != nil {
+		if _, err := tx.Exec(`INSERT INTO vouchers (`+voucherColumns+`) VALUES (?,?,?,?,?)`,
+			d.Vouchers[i].ID, d.Vouchers[i].DiscountID, d.Vouchers[i].Code, d.Vouchers[i].IsUsed, d.Vouchers[i].CreatedAt); err != nil {
 			return err
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func (d *Discount) Update(updates map[string]any) error {

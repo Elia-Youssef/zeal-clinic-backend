@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"errors"
 	"log"
 	"net/http"
 
@@ -11,7 +12,7 @@ import (
 
 func GetAllInvoices(c echo.Context) error {
 	params := parseListParams(c)
-	entityType := c.Param("type")
+	entityType := c.QueryParam("type")
 	items := store.InvoiceList{}
 	total, err := items.GetAllByType(entityType, params)
 	if err != nil {
@@ -22,4 +23,15 @@ func GetAllInvoices(c echo.Context) error {
 		items = []store.Invoice{}
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
+}
+
+func GetInvoiceByID(c echo.Context) error {
+	var inv store.Invoice
+	if err := inv.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "invoice not found"})
+	} else if err != nil {
+		log.Println("Error: GetInvoiceByID:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch invoice"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
 }

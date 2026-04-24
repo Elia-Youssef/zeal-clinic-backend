@@ -8,10 +8,9 @@ import (
 
 func SetupClientInvoiceRoutes(api *echo.Group) {
 	api.GET("/patients/:id/invoices", handlers.GetClientInvoices, scope("transactions:read"), cache("client-invoices"))
-	api.GET("/client-invoices/:id", handlers.GetClientInvoiceByID, scope("transactions:read"), cache("client-invoices"))
 	// Create posts a balance transaction, records discounts, and adjusts product stock.
 	api.POST("/client-invoices", handlers.CreateClientInvoice, scope("transactions:write"),
-		cache("client-invoices", "invoices", "balances", "products", "discounts", "invoice-item-discounts", "client-payments"))
-	api.PUT("/client-invoices/:id", handlers.UpdateClientInvoice, scope("transactions:write"), cache("client-invoices", "invoices"))
-	api.DELETE("/client-invoices/:id", handlers.DeleteClientInvoice, scope("transactions:delete"), cache("client-invoices", "invoices", "balances"))
+		cache("client-invoices", "invoices", "balances", "products", "discounts", "invoice-item-discounts", "client-payments", "analytics"))
+	api.PUT("/client-invoices/:id", handlers.UpdateClientInvoice, scope("transactions:write"), cache("client-invoices", "invoices", "analytics"))
+	api.DELETE("/client-invoices/:id", handlers.DeleteClientInvoice, scope("transactions:delete"), cache("client-invoices", "invoices", "balances", "analytics"))
 }

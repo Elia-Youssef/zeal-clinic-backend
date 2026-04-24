@@ -21,10 +21,9 @@ type Employee struct {
 	CreatedAt      Date    `json:"createdAt"`
 	UpdatedAt      Date    `json:"updatedAt"`
 	// Nested
-	Salaries      EmployeeSalaryList `json:"salaries,omitempty"`
-	User          *User              `json:"user,omitempty"`
-	Balance       Balance            `json:"balance,omitempty"`
-	LatestActions AuditLogEntryList  `json:"latestActions,omitempty"`
+	Salaries EmployeeSalaryList `json:"salaries,omitempty"`
+	User     *User              `json:"user,omitempty"`
+	Balance  Balance            `json:"balance,omitempty"`
 }
 
 func (m *Employee) IsValid() error {
@@ -160,10 +159,6 @@ func (m *Employee) GetByID(id string) error {
 	}
 	// Load balance
 	m.Balance.GetByEntityID("employee", m.ID)
-	// Load latest actions (by user)
-	if m.User != nil {
-		m.LatestActions.GetByUserName(m.User.Username, 10)
-	}
 	return nil
 }
 

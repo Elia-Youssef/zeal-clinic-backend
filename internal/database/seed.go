@@ -947,38 +947,6 @@ func seedProducts(db *sql.DB) error {
 	return nil
 }
 
-func seedSuppliers(db *sql.DB) error {
-	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM suppliers").Scan(&count); err != nil {
-		return err
-	}
-	if count > 0 {
-		return nil
-	}
-
-	suppliers := []struct {
-		name, contact, email, address string
-	}{
-		{"MedSupply Co.", "+961 1 234 567", "orders@example.com", "Beirut, Lebanon"},
-		{"DermaPharma", "+961 1 345 678", "info@example.org", "Jounieh, Lebanon"},
-		{"Aesthetic Essentials", "+961 3 456 789", "sales@example.net", "Tripoli, Lebanon"},
-		{"BioTech Materials", "+961 1 567 890", "supply@example.net", "Sidon, Lebanon"},
-	}
-
-	for _, s := range suppliers {
-		_, err := db.Exec(
-			`INSERT INTO suppliers (id, name, contact, email, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-			uuid.Must(uuid.NewV7()).String(), s.name, s.contact, s.email, s.address,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Println("Seeded suppliers")
-	return nil
-}
-
 func seedCountries(db *sql.DB) error {
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM countries").Scan(&count); err != nil {
@@ -1076,9 +1044,6 @@ func SeedIfEmpty(db *sql.DB) error {
 		return err
 	}
 	if err := seedProducts(db); err != nil {
-		return err
-	}
-	if err := seedSuppliers(db); err != nil {
 		return err
 	}
 	if err := seedCountries(db); err != nil {

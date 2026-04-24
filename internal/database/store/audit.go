@@ -59,18 +59,28 @@ func (e *AuditLogEntry) Log() error {
 	return err
 }
 
-func (e *AuditLogEntryList) GetByUserName(userName string, limit int) error {
-	if limit <= 0 {
-		limit = 10
+func (e *AuditLogEntryList) GetByUserName(userName string, params ListParams) (int, error) {
+	where := " WHERE user_name = ?"
+	args := []any{userName}
+	if fc, fa := params.FilterClause("action", "details", "entity_type"); fc != "" {
+		where += " AND " + fc
+		args = append(args, fa...)
 	}
-	rows, err := RDB.Query(`SELECT `+auditLogEntryColumns+` FROM audit_log WHERE user_name = ? ORDER BY created_at DESC LIMIT ?`, userName, limit)
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*) FROM audit_log"+where, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + ` ORDER BY created_at DESC` + params.PaginationClause()
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer rows.Close()
 
 	e.ScanRows(rows)
-	return nil
+	return total, nil
 }
 
 func (e *AuditLogEntryList) GetAll(entityType, entityID, action string, params ListParams) (int, error) {

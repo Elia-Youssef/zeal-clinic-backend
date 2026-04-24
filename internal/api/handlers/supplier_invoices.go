@@ -22,17 +22,6 @@ func GetSupplierInvoices(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
 
-func GetSupplierInvoiceByID(c echo.Context) error {
-	var inv store.Invoice
-	if err := inv.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "invoice not found"})
-	} else if err != nil {
-		log.Println("Error: GetSupplierInvoiceByID:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch invoice"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
-}
-
 // CreateSupplierInvoice records an invoice from a supplier (receiving goods).
 // Direction: Supplier Balance (FROM) to Self Balance (TO).
 func CreateSupplierInvoice(c echo.Context) error {
@@ -126,6 +115,12 @@ func CreateSupplierInvoice(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create invoice: " + err.Error()})
 	}
 
+	if supplierBalance.EntityID != nil {
+		inv.FromEntityID = *supplierBalance.EntityID
+	}
+	if selfBalance.EntityID != nil {
+		inv.ToEntityID = *selfBalance.EntityID
+	}
 	inv.FromEntityName = supplierBalance.EntityName
 	inv.ToEntityName = selfBalance.EntityName
 

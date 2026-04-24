@@ -10,6 +10,8 @@ func SetupProcedureRoutes(api *echo.Group) {
 	api.GET("/procedures", handlers.GetAllProcedures, scope("services:read"), cache("procedures"))
 	api.GET("/procedures/dropdown", handlers.GetProcedureDropdown, scope("services:read"), cache("procedures"))
 	api.GET("/procedures/:id", handlers.GetProcedureByID, scope("services:read"), cache("procedures"))
+	api.GET("/procedures/:id/sessions", handlers.GetProcedureSessions, scope("services:read"))
+	api.GET("/procedures/:id/patient-procedures", handlers.GetProcedurePatientProcedures, scope("patients:read"))
 	api.POST("/procedures", handlers.CreateProcedure, scope("services:write"), cache("procedures"))
 	// Discount items reference procedure names; bust discounts on edit/delete.
 	api.PUT("/procedures/:id", handlers.UpdateProcedure, scope("services:write"), cache("procedures", "discounts"))

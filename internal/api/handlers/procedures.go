@@ -33,6 +33,24 @@ func GetProcedureByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: proc})
 }
 
+func GetProcedureSessions(c echo.Context) error {
+	items := store.ProcedureSessionList{}
+	if err := items.GetByProcedure(c.Param("id")); err != nil {
+		log.Println("Error: [GetProcedureSessions] failed to fetch sessions:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch sessions"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+}
+
+func GetProcedurePatientProcedures(c echo.Context) error {
+	items := store.PatientProcedureList{}
+	if err := items.GetByProcedure(c.Param("id")); err != nil {
+		log.Println("Error: [GetProcedurePatientProcedures] failed to fetch patient procedures:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch patient procedures"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+}
+
 func GetProcedureDropdown(c echo.Context) error {
 	params := parseListParams(c)
 	items, err := store.GetProcedureDropdown(params)

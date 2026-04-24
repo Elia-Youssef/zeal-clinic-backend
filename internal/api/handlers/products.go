@@ -43,6 +43,15 @@ func GetProductByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: item})
 }
 
+func GetProductInvoices(c echo.Context) error {
+	items := store.InvoiceList{}
+	if err := items.GetByItem(c.Param("id"), "product"); err != nil {
+		log.Println("Error: [GetProductInvoices] failed to fetch invoices:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch invoices"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+}
+
 func CreateProduct(c echo.Context) error {
 	var p store.Product
 	if err := c.Bind(&p); err != nil {

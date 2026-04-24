@@ -7,5 +7,6 @@ import (
 )
 
 func SetupInvoiceRoutes(api *echo.Group) {
-	api.GET("/invoices/:type", handlers.GetAllInvoices, scope("transactions:read"), cache("invoices"))
+	api.GET("/invoices", handlers.GetAllInvoices, scope("transactions:read"), cache("invoices"))
+	api.GET("/invoices/:id", handlers.GetInvoiceByID, scope("transactions:read"))
 }

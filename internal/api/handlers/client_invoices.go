@@ -21,17 +21,6 @@ func GetClientInvoices(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
 
-func GetClientInvoiceByID(c echo.Context) error {
-	var inv store.Invoice
-	if err := inv.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "invoice not found"})
-	} else if err != nil {
-		log.Println("Error: GetClientInvoiceByID:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch invoice"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
-}
-
 // CreateClientInvoice creates an invoice for a patient.
 // Direction: Self Balance (FROM) to Patient Balance (TO).
 func CreateClientInvoice(c echo.Context) error {
@@ -108,6 +97,12 @@ func CreateClientInvoice(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create invoice: " + err.Error()})
 	}
 
+	if selfBalance.EntityID != nil {
+		inv.FromEntityID = *selfBalance.EntityID
+	}
+	if patientBalance.EntityID != nil {
+		inv.ToEntityID = *patientBalance.EntityID
+	}
 	inv.FromEntityName = selfBalance.EntityName
 	inv.ToEntityName = patientBalance.EntityName
 

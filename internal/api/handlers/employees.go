@@ -117,6 +117,27 @@ func UpdateEmployee(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: member})
 }
 
+func GetEmployeeActions(c echo.Context) error {
+	var emp store.Employee
+	if err := emp.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "employee not found"})
+	} else if err != nil {
+		log.Println("Error: [GetEmployeeActions] failed to load employee:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch actions"})
+	}
+	entries := store.AuditLogEntryList{}
+	if emp.User == nil {
+		return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: entries, Total: 0}})
+	}
+	params := parseListParams(c)
+	total, err := entries.GetByUserName(emp.User.Username, params)
+	if err != nil {
+		log.Println("Error: [GetEmployeeActions] failed to fetch actions:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch actions"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: entries, Total: total}})
+}
+
 func DeleteEmployee(c echo.Context) error {
 	id := c.Param("id")
 	if store.HasDependencies(id, map[string]string{"employee_salaries": "employee_id", "schedule_availability": "employee_id"}) {
