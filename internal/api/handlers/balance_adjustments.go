@@ -3,135 +3,124 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"clinic-api/internal/validation"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
 
-// CreateAdjustment records a manual balance adjustment (admin only).
-// Can go in either direction depending on fromBalanceId/toBalanceId.
-func CreateAdjustment(c echo.Context) error {
-	var req struct {
-		FromBalanceID     string  `json:"fromBalanceId"`
-		ToBalanceID       string  `json:"toBalanceId"`
-		Amount            float64 `json:"amount"`
-		CurrencyID        string  `json:"currencyId"`
-		TransactionMethod string  `json:"transactionMethod"`
-		Description       string  `json:"description"`
+// DeleteBalanceTransaction removes a balance transaction (payment, adjustment,
+// write-off, etc.) and reverses the balance updates it made. If the transaction
+// was created as part of a paired charge+payment (expense payment), both legs
+// are removed atomically.
+func DeleteBalanceTransaction(c echo.Context) error {
+	bt := store.BalanceTransaction{ID: c.Param("id")}
+	if err := bt.Delete(); errors.Is(err, store.ErrNotFound) {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "transaction not found"})
+	} else if err != nil {
+		log.Println("Error: DeleteBalanceTransaction:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete transaction"})
 	}
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
-	}
-
-	errs := make(validation.Errors)
-	if msg := validation.Required(req.FromBalanceID, "From balance ID"); msg != "" {
-		errs["fromBalanceId"] = msg
-	}
-	if msg := validation.Required(req.ToBalanceID, "To balance ID"); msg != "" {
-		errs["toBalanceId"] = msg
-	}
-	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
-		errs["amount"] = msg
-	}
-	if msg := validation.Required(req.Description, "Description"); msg != "" {
-		errs["description"] = msg
-	}
-	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
-	}
-
-	// Verify both balances exist
-	var fromBal, toBal store.Balance
-	if err := fromBal.GetByID(req.FromBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "from balance not found"})
-	}
-	if err := toBal.GetByID(req.ToBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "to balance not found"})
-	}
-
-	user := c.Get("user").(store.User)
-
-	bt := store.BalanceTransaction{
-		FromBalanceID:     req.FromBalanceID,
-		ToBalanceID:       req.ToBalanceID,
-		Amount:            req.Amount,
-		CurrencyID:        req.CurrencyID,
-		TransactionType:   "adjustment",
-		TransactionMethod: req.TransactionMethod,
-		Description:       req.Description,
-		CreatedBy:         user.DisplayName,
-	}
-	if err := bt.Create(); err != nil {
-		log.Println("Error: CreateAdjustment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create adjustment: " + err.Error()})
-	}
-
-	bt.FromEntityName = fromBal.EntityName
-	bt.ToEntityName = toBal.EntityName
-
-	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
 
-// CreateWriteOff records a debt write-off (admin only).
-// Zeroes out uncollectible debt without actual money movement.
-func CreateWriteOff(c echo.Context) error {
-	var req struct {
-		FromBalanceID string  `json:"fromBalanceId"`
-		ToBalanceID   string  `json:"toBalanceId"`
-		Amount        float64 `json:"amount"`
-		CurrencyID    string  `json:"currencyId"`
-		Description   string  `json:"description"`
-	}
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
-	}
-
-	errs := make(validation.Errors)
-	if msg := validation.Required(req.FromBalanceID, "From balance ID"); msg != "" {
-		errs["fromBalanceId"] = msg
-	}
-	if msg := validation.Required(req.ToBalanceID, "To balance ID"); msg != "" {
-		errs["toBalanceId"] = msg
-	}
-	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
-		errs["amount"] = msg
-	}
-	if msg := validation.Required(req.Description, "Description"); msg != "" {
-		errs["description"] = msg
-	}
-	if len(errs) > 0 {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+// createEntityBalanceCorrection records an adjustment or write-off transaction
+// between an entity's balance and the clinic's self balance. It resolves both
+// balances by entity ID and direction:
+//   - "incoming": entity balance (FROM) to self balance (TO)
+//   - "outgoing": self balance (FROM) to entity balance (TO)
+//
+// transactionType is "adjustment" or "write-off".
+func createEntityBalanceCorrection(
+	c echo.Context,
+	entityType, entityID, currencyID string,
+	amount float64,
+	direction, transactionType, transactionMethod, description string,
+) (*store.BalanceTransaction, error) {
+	var currency store.Currency
+	if err := currency.GetByID(currencyID); err != nil {
+		return nil, errors.New("currency not found")
 	}
 
-	var fromBal, toBal store.Balance
-	if err := fromBal.GetByID(req.FromBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "from balance not found"})
+	entityName, err := resolveEntityName(entityType, entityID)
+	if err != nil {
+		return nil, err
 	}
-	if err := toBal.GetByID(req.ToBalanceID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "to balance not found"})
+
+	entityBalance := store.Balance{
+		EntityType: entityType,
+		EntityID:   &entityID,
+		EntityName: entityName,
+		CurrencyID: currencyID,
+	}
+	if err := entityBalance.GetOrCreate(); err != nil {
+		return nil, fmt.Errorf("resolve entity balance: %w", err)
+	}
+
+	selfID := "self"
+	selfBalance := store.Balance{
+		EntityType: "self",
+		EntityID:   &selfID,
+		EntityName: "Clinic",
+		CurrencyID: currencyID,
+	}
+	if err := selfBalance.GetOrCreate(); err != nil {
+		return nil, fmt.Errorf("resolve self balance: %w", err)
+	}
+
+	from, to := entityBalance, selfBalance
+	if direction == "outgoing" {
+		from, to = selfBalance, entityBalance
 	}
 
 	user := c.Get("user").(store.User)
-
 	bt := store.BalanceTransaction{
-		FromBalanceID:     req.FromBalanceID,
-		ToBalanceID:       req.ToBalanceID,
-		Amount:            req.Amount,
-		CurrencyID:        req.CurrencyID,
-		TransactionType:   "write-off",
-		TransactionMethod: "other",
-		Description:       req.Description,
+		FromBalanceID:     from.ID,
+		ToBalanceID:       to.ID,
+		Amount:            amount,
+		CurrencyID:        currencyID,
+		TransactionType:   transactionType,
+		TransactionMethod: transactionMethod,
+		Description:       description,
 		CreatedBy:         user.DisplayName,
 	}
 	if err := bt.Create(); err != nil {
-		log.Println("Error: CreateWriteOff:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create write-off: " + err.Error()})
+		return nil, err
 	}
 
-	bt.FromEntityName = fromBal.EntityName
-	bt.ToEntityName = toBal.EntityName
+	bt.FromEntityName = from.EntityName
+	bt.ToEntityName = to.EntityName
+	return &bt, nil
+}
 
-	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
+func resolveEntityName(entityType, entityID string) (string, error) {
+	switch entityType {
+	case "patient":
+		var p store.Patient
+		if err := p.GetByID(entityID); err != nil {
+			return "", errors.New("patient not found")
+		}
+		return p.FirstName + " " + p.LastName, nil
+	case "supplier":
+		var s store.Supplier
+		if err := s.GetByID(entityID); err != nil {
+			return "", errors.New("supplier not found")
+		}
+		return s.Name, nil
+	case "employee":
+		var e store.Employee
+		if err := e.GetByID(entityID); err != nil {
+			return "", errors.New("employee not found")
+		}
+		return e.FirstName + " " + e.LastName, nil
+	case "expense":
+		var ex store.Expense
+		if err := ex.GetByID(entityID); err != nil {
+			return "", errors.New("expense not found")
+		}
+		return ex.Name, nil
+	}
+	return "", fmt.Errorf("unsupported entity type: %s", entityType)
 }

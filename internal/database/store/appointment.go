@@ -23,12 +23,10 @@ type Appointment struct {
 	CreatedAt       Date   `json:"createdAt"`
 	UpdatedAt       Date   `json:"updatedAt"`
 	// Transient fields (not stored in appointments table)
-	ProcedureID        *string `json:"procedureId,omitempty"`
-	ProcedureSessionID *string `json:"procedureSessionId,omitempty"`
+	ProcedureID *string `json:"procedureId,omitempty"`
 	// Joined fields
-	PatientName             string                   `json:"patientName,omitempty"`
-	PatientProcedure        *PatientProcedure        `json:"patientProcedure,omitempty"`
-	PatientProcedureSession *PatientProcedureSession `json:"patientProcedureSession,omitempty"`
+	PatientName      string            `json:"patientName,omitempty"`
+	PatientProcedure *PatientProcedure `json:"patientProcedure,omitempty"`
 }
 
 func (a *Appointment) IsValid() error {
@@ -102,7 +100,7 @@ func (l *AppointmentList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-// LoadProcedures populates PatientProcedure and PatientProcedureSession for each appointment.
+// LoadProcedures populates PatientProcedure for each appointment.
 func (l *AppointmentList) LoadProcedures() error {
 	if len(*l) == 0 {
 		return nil
@@ -138,36 +136,6 @@ func (l *AppointmentList) LoadProcedures() error {
 		}
 		if idx, ok := idIdx[*pp.AppointmentID]; ok {
 			(*l)[idx].PatientProcedure = &pp
-		}
-	}
-
-	// Patient procedure sessions linked to appointments (with their parent procedure)
-	ppsRows, err := RDB.Query(`SELECT pps.id, pps.patient_procedure_id, pps.procedure_session_id, pps.appointment_id,
-		pps.status, pps.notes, pps.created_at, pps.updated_at,
-		pp.id, pp.patient_id, pp.procedure_id, pp.appointment_id, pp.status, pp.notes,
-		pp.created_at, pp.updated_at, pr.name
-		FROM patient_procedure_sessions pps
-		JOIN patient_procedures pp ON pp.id = pps.patient_procedure_id
-		JOIN procedures pr ON pr.id = pp.procedure_id
-		WHERE pps.appointment_id IN (`+placeholders+`)`, ids...)
-	if err != nil {
-		return err
-	}
-	defer ppsRows.Close()
-	for ppsRows.Next() {
-		var pps PatientProcedureSession
-		var pp PatientProcedure
-		if err := ppsRows.Scan(&pps.ID, &pps.PatientProcedureID, &pps.ProcedureSessionID,
-			&pps.AppointmentID, &pps.Status, &pps.Notes, &pps.CreatedAt, &pps.UpdatedAt,
-			&pp.ID, &pp.PatientID, &pp.ProcedureID, &pp.AppointmentID, &pp.Status, &pp.Notes,
-			&pp.CreatedAt, &pp.UpdatedAt, &pp.ProcedureName); err != nil {
-			continue
-		}
-		if idx, ok := idIdx[*pps.AppointmentID]; ok {
-			(*l)[idx].PatientProcedureSession = &pps
-			if (*l)[idx].PatientProcedure == nil {
-				(*l)[idx].PatientProcedure = &pp
-			}
 		}
 	}
 
@@ -350,23 +318,13 @@ func (a *Appointment) Create() error {
 
 	// If a procedure is specified, create the patient_procedure and link the appointment
 	if a.ProcedureID != nil && *a.ProcedureID != "" {
-		hasSessions := a.ProcedureSessionID != nil && *a.ProcedureSessionID != ""
 		pp := PatientProcedure{
-			PatientID:   a.PatientID,
-			ProcedureID: *a.ProcedureID,
-		}
-		if !hasSessions {
-			pp.AppointmentID = &a.ID
+			PatientID:     a.PatientID,
+			ProcedureID:   *a.ProcedureID,
+			AppointmentID: &a.ID,
 		}
 		if err := pp.create(tx); err != nil {
 			return err
-		}
-		if hasSessions {
-			if _, err := tx.Exec(`UPDATE patient_procedure_sessions SET appointment_id = ?
-				WHERE patient_procedure_id = ? AND procedure_session_id = ?`,
-				a.ID, pp.ID, *a.ProcedureSessionID); err != nil {
-				return err
-			}
 		}
 	}
 

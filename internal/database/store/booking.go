@@ -245,9 +245,9 @@ func (b *Booking) Confirm(roomID string) error {
 	endTime := t.Add(time.Duration(b.DurationMinutes) * time.Minute).Format("2006-01-02T15:04:05")
 
 	now := DateNow()
-	_, err = tx.Exec(`INSERT INTO appointments (id, patient_id, room_id, employee_id, patient_procedure_session_id, start_time, end_time, status, notes, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		aptID, patientID, roomID, "", nil, startTime, endTime, "Scheduled",
+	_, err = tx.Exec(`INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status, notes, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?)`,
+		aptID, patientID, roomID, startTime, endTime, "Scheduled",
 		fmt.Sprintf("Online booking by %s (%s) — %s", b.ClientName, b.ClientPhone, b.ServiceName),
 		now, now,
 	)

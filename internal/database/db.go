@@ -32,8 +32,8 @@ func Open(pathOverride string) (*sql.DB, error) {
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
 
-	if _, err := db.Exec(schema); err != nil {
-		return nil, fmt.Errorf("schema: %w", err)
+	if err := Migrate(db); err != nil {
+		return nil, fmt.Errorf("migrate: %w", err)
 	}
 
 	// Read connection: multiple conns, concurrent reads via WAL.

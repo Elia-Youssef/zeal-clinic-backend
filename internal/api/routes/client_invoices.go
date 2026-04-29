@@ -12,5 +12,6 @@ func SetupClientInvoiceRoutes(api *echo.Group) {
 	api.POST("/client-invoices", handlers.CreateClientInvoice, scope("transactions:write"),
 		cache("client-invoices", "invoices", "balances", "products", "discounts", "invoice-item-discounts", "client-payments", "analytics"))
 	api.PUT("/client-invoices/:id", handlers.UpdateClientInvoice, scope("transactions:write"), cache("client-invoices", "invoices", "analytics"))
-	api.DELETE("/client-invoices/:id", handlers.DeleteClientInvoice, scope("transactions:delete"), cache("client-invoices", "invoices", "balances", "analytics"))
+	api.DELETE("/client-invoices/:id", handlers.DeleteClientInvoice, scope("transactions:delete"),
+		cache("client-invoices", "invoices", "balances", "products", "discounts", "invoice-item-discounts", "client-payments", "analytics"))
 }

@@ -65,15 +65,19 @@ func CreateEmployee(c echo.Context) error {
 	// Optionally create a user account for this employee
 	username := strings.TrimSpace(body.Username)
 	password := strings.TrimSpace(body.Password)
-	if username != "" && password != "" {
+	if username != "" {
 		userRole := strings.TrimSpace(body.UserRole)
 		if userRole == "" {
 			userRole = "user"
 		}
-		hash, err := auth.HashPassword(password)
-		if err != nil {
-			log.Println("Error: [CreateEmployee] failed to hash password:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create user"})
+		var hash string
+		if password != "" {
+			h, err := auth.HashPassword(password)
+			if err != nil {
+				log.Println("Error: [CreateEmployee] failed to hash password:", err)
+				return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create user"})
+			}
+			hash = h
 		}
 		user := store.User{
 			Username:    username,

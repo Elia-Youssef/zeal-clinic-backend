@@ -61,6 +61,22 @@ func (a *Analytics) RevenueThisMonth() (float64, error) {
 	return v, err
 }
 
+// ExpensesThisMonth sums payment transactions sent by the clinic this month
+// (transaction_type = 'payment', from_balance.entity_type = 'self'). Covers all
+// outflows: employee, supplier, and expense-entity payments alike.
+func (a *Analytics) ExpensesThisMonth() (float64, error) {
+	var v float64
+	err := RDB.QueryRow(`
+		SELECT COALESCE(SUM(bt.amount), 0)
+		FROM balance_transactions bt
+		JOIN balances fb ON fb.id = bt.from_balance_id
+		WHERE fb.entity_type = 'self'
+		AND bt.transaction_type = 'payment'
+		AND strftime('%Y-%m', bt.created_at) = strftime('%Y-%m', 'now')
+	`).Scan(&v)
+	return v, err
+}
+
 // OutstandingReceivables sums positive patient balances (patients who owe the clinic).
 // Patient balance goes positive on charge (self-to-patient invoice) and back down on payment.
 func (a *Analytics) OutstandingReceivables() (float64, error) {

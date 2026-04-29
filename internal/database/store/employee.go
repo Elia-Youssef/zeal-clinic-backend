@@ -23,7 +23,6 @@ type Employee struct {
 	// Nested
 	Salaries EmployeeSalaryList `json:"salaries,omitempty"`
 	User     *User              `json:"user,omitempty"`
-	Balance  Balance            `json:"balance,omitempty"`
 }
 
 func (m *Employee) IsValid() error {
@@ -157,8 +156,6 @@ func (m *Employee) GetByID(id string) error {
 			m.User = &user
 		}
 	}
-	// Load balance
-	m.Balance.GetByEntityID("employee", m.ID)
 	return nil
 }
 

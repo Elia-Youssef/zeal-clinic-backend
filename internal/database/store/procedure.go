@@ -21,9 +21,8 @@ type Procedure struct {
 	CreatedAt  Date    `json:"createdAt"`
 	UpdatedAt  Date    `json:"updatedAt"`
 	// Nested
-	Type     *ProcedureType       `json:"type,omitempty"`
-	Category *ProcedureCategory   `json:"category,omitempty"`
-	Sessions ProcedureSessionList `json:"sessions,omitempty"`
+	Type     *ProcedureType     `json:"type,omitempty"`
+	Category *ProcedureCategory `json:"category,omitempty"`
 }
 
 func (p *Procedure) IsValid() error {
@@ -33,8 +32,13 @@ func (p *Procedure) IsValid() error {
 	return nil
 }
 
-const procedureColumnsNoId = `name, type_id, category_id, price, price_note, is_active, remarks, includes, created_at, updated_at`
-const procedureColumns = `id, ` + procedureColumnsNoId
+// procedureSelect joins the active price row so reads expose Price even though
+// it's stored in procedure_prices.
+const procedureSelect = `SELECT p.id, p.name, p.type_id, p.category_id,
+		COALESCE(pp.price, 0), p.price_note, p.is_active, p.remarks, p.includes,
+		p.created_at, p.updated_at
+	FROM procedures p
+	LEFT JOIN procedure_prices pp ON pp.procedure_id = p.id AND pp.is_active = 1`
 
 type ProcedureList []Procedure
 
@@ -89,7 +93,7 @@ func (p *Procedure) loadRelations() {
 func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []any
-	if fc, fa := params.FilterClause("name"); fc != "" {
+	if fc, fa := params.FilterClause("name", "remarks", "includes", "price_note"); fc != "" {
 		where = " WHERE " + fc
 		args = fa
 	}
@@ -99,7 +103,7 @@ func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + procedureColumns + ` FROM procedures` + where + ` ORDER BY name` + params.PaginationClause()
+	query := procedureSelect + where + ` ORDER BY p.name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err
@@ -120,13 +124,7 @@ func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 	return total, nil
 }
 
-type ProcedureDropdownItem struct {
-	ID       string         `json:"id"`
-	Name     string         `json:"name"`
-	Sessions []DropdownItem `json:"sessions"`
-}
-
-func GetProcedureDropdown(params ListParams) ([]ProcedureDropdownItem, error) {
+func GetProcedureDropdown(params ListParams) ([]DropdownItem, error) {
 	where := ""
 	var args []any
 	if fc, fa := params.FilterClause("name"); fc != "" {
@@ -138,38 +136,20 @@ func GetProcedureDropdown(params ListParams) ([]ProcedureDropdownItem, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Collect all items first so the rows are closed before we query
-	// sessions. Holding rows open while calling another Query deadlocks
-	// with MaxOpenConns(1).
-	var items []ProcedureDropdownItem
+	defer rows.Close()
+	var items []DropdownItem
 	for rows.Next() {
-		var item ProcedureDropdownItem
+		var item DropdownItem
 		if err := rows.Scan(&item.ID, &item.Name); err != nil {
 			continue
 		}
 		items = append(items, item)
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
-
-	for i := range items {
-		sessions, err := GetProcedureSessionDropdown(items[i].ID, ListParams{})
-		if err != nil {
-			continue
-		}
-		if sessions == nil {
-			sessions = []DropdownItem{}
-		}
-		items[i].Sessions = sessions
-	}
-	return items, nil
+	return items, rows.Err()
 }
 
 func (p *Procedure) GetByID(id string) error {
-	err := p.ScanRow(RDB.QueryRow(`SELECT `+procedureColumns+` FROM procedures WHERE id = ?`, id))
+	err := p.ScanRow(RDB.QueryRow(procedureSelect+` WHERE p.id = ?`, id))
 	if err != nil {
 		return err
 	}
@@ -188,34 +168,64 @@ func (p *Procedure) Create() error {
 	now := DateNow()
 	p.CreatedAt = now
 	p.UpdatedAt = now
-	_, err = tx.Exec(`INSERT INTO procedures (`+procedureColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		p.ID, p.Name, p.TypeID, p.CategoryID, p.Price, p.PriceNote,
+	_, err = tx.Exec(`INSERT INTO procedures (id, name, type_id, category_id, price_note, is_active, remarks, includes, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		p.ID, p.Name, p.TypeID, p.CategoryID, p.PriceNote,
 		BoolToInt(p.IsActive), p.Remarks, p.Includes, p.CreatedAt, p.UpdatedAt)
 	if err != nil {
 		return err
 	}
-	for i := range p.Sessions {
-		p.Sessions[i].ProcedureID = p.ID
-		p.Sessions[i].ID = uuid.Must(uuid.NewV7()).String()
-		p.Sessions[i].CreatedAt = now
-		if p.Sessions[i].SessionNumber == 0 {
-			p.Sessions[i].SessionNumber = i + 1
-		}
-		if _, err := tx.Exec(`INSERT INTO procedure_sessions (`+procedureSessionColumns+`) VALUES (?,?,?,?,?,?,?)`,
-			p.Sessions[i].ID, p.Sessions[i].ProcedureID, p.Sessions[i].SessionNumber,
-			p.Sessions[i].Name, p.Sessions[i].Description,
-			p.Sessions[i].Price, p.Sessions[i].CreatedAt); err != nil {
-			return err
-		}
+	if _, err := tx.Exec(`INSERT INTO procedure_prices (id, procedure_id, price, is_active, created_at)
+		VALUES (?, ?, ?, 1, ?)`,
+		uuid.Must(uuid.NewV7()).String(), p.ID, p.Price, now); err != nil {
+		return err
 	}
 	return tx.Commit()
 }
 
 func (p *Procedure) Update(updates map[string]any) error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	now := DateNow()
+
+	// Price changes are written to procedure_prices: deactivate previous active
+	// rows and insert a new active row. The procedures row itself doesn't
+	// store the price.
+	if val, ok := updates["price"]; ok {
+		var price float64
+		switch v := val.(type) {
+		case float64:
+			price = v
+		case float32:
+			price = float64(v)
+		case int:
+			price = float64(v)
+		case int64:
+			price = float64(v)
+		}
+		var current float64
+		_ = tx.QueryRow(`SELECT price FROM procedure_prices WHERE procedure_id = ? AND is_active = 1`, p.ID).Scan(&current)
+		if current != price {
+			if _, err := tx.Exec(`UPDATE procedure_prices SET is_active = 0 WHERE procedure_id = ? AND is_active = 1`, p.ID); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(`INSERT INTO procedure_prices (id, procedure_id, price, is_active, created_at)
+				VALUES (?, ?, ?, 1, ?)`,
+				uuid.Must(uuid.NewV7()).String(), p.ID, price, now); err != nil {
+				return err
+			}
+		}
+		delete(updates, "price")
+	}
+
 	cols := map[string]string{
 		"name": "name", "typeId": "type_id", "categoryId": "category_id",
-		"price": "price", "priceNote": "price_note",
-		"isActive": "is_active", "remarks": "remarks", "includes": "includes",
+		"priceNote": "price_note",
+		"isActive":  "is_active", "remarks": "remarks", "includes": "includes",
 	}
 	setClauses := ""
 	var args []any
@@ -235,12 +245,14 @@ func (p *Procedure) Update(updates map[string]any) error {
 	}
 	if setClauses != "" {
 		setClauses += ", updated_at = ?"
-		args = append(args, DateNow())
+		args = append(args, now)
 		args = append(args, p.ID)
-		_, err := DB.Exec("UPDATE procedures SET "+setClauses+" WHERE id = ?", args...)
-		if err != nil {
+		if _, err := tx.Exec("UPDATE procedures SET "+setClauses+" WHERE id = ?", args...); err != nil {
 			return err
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
 	}
 	return p.GetByID(p.ID)
 }

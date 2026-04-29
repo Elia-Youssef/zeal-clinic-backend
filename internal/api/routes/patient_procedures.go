@@ -9,9 +9,8 @@ import (
 func SetupPatientProcedureRoutes(api *echo.Group) {
 	api.GET("/patients/:patientId/procedures", handlers.GetPatientProceduresByPatient, scope("patients:read"))
 	api.GET("/patient-procedures/:id", handlers.GetPatientProcedureByID, scope("patients:read"))
-	// Appointment GETs hydrate patient_procedure + session data; invalidate them on write.
+	// Appointment GETs hydrate patient_procedure data; invalidate them on write.
 	api.POST("/patient-procedures", handlers.CreatePatientProcedure, scope("patients:write"), cache("appointments", "analytics"))
 	api.PUT("/patient-procedures/:id", handlers.UpdatePatientProcedure, scope("patients:write"), cache("appointments", "analytics"))
 	api.DELETE("/patient-procedures/:id", handlers.DeletePatientProcedure, scope("patients:delete"), cache("appointments", "analytics"))
-	api.PUT("/patient-procedure-sessions/:sessionId", handlers.UpdatePatientProcedureSession, scope("patients:write"), cache("appointments", "analytics"))
 }

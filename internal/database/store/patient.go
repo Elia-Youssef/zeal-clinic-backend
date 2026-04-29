@@ -32,7 +32,6 @@ type Patient struct {
 	CreatedAt             Date    `json:"createdAt"`
 	UpdatedAt             Date    `json:"updatedAt"`
 	// Nested
-	Balance Balance     `json:"balance,omitempty"`
 	Country Country     `json:"country,omitempty"`
 	City    LebanonCity `json:"city,omitempty"`
 }
@@ -161,11 +160,7 @@ func GetPatientDropdown(params ListParams) ([]DropdownItem, error) {
 
 func (p *Patient) GetByID(id string) error {
 	row := RDB.QueryRow(`SELECT `+patientColumns+` FROM patients WHERE id = ?`, id)
-	if err := p.ScanRow(row); err != nil {
-		return err
-	}
-	p.Balance.GetByEntityID("patient", p.ID)
-	return nil
+	return p.ScanRow(row)
 }
 
 func (p *Patient) Create() error {

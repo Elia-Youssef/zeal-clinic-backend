@@ -20,6 +20,8 @@ func SetupAnalyticsRoutes(api *echo.Group) {
 	api.GET("/analytics/revenue/this-month", handlers.GetAnalyticsRevenueThisMonth, scope("reports:read"), cache("analytics"))
 	api.GET("/analytics/revenue/outstanding", handlers.GetAnalyticsOutstandingReceivables, scope("reports:read"), cache("analytics"))
 
+	api.GET("/analytics/expenses/this-month", handlers.GetAnalyticsExpensesThisMonth, scope("reports:read"), cache("analytics"))
+
 	api.GET("/analytics/transactions/recent", handlers.GetAnalyticsRecentTransactions, scope("reports:read"), cache("analytics"))
 
 	api.GET("/analytics/procedures/completed-this-month", handlers.GetAnalyticsProceduresCompletedThisMonth, scope("reports:read"), cache("analytics"))

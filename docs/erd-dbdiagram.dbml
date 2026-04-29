@@ -102,16 +102,6 @@ Table procedures {
   updated_at datetime
 }
 
-Table procedure_sessions {
-  id string [pk]
-  procedure_id string [ref: > procedures.id]
-  session_number int
-  name string
-  description string
-  price float
-  created_at datetime
-}
-
 Table procedure_allergy_conflicts {
   id string [pk]
   procedure_id string [ref: > procedures.id]
@@ -187,17 +177,6 @@ Table patient_procedures {
   procedure_id string [ref: > procedures.id]
   appointment_id string [ref: > appointments.id]
   status string [note: 'planned | in-progress | completed']
-  notes string
-  created_at datetime
-  updated_at datetime
-}
-
-Table patient_procedure_sessions {
-  id string [pk]
-  patient_procedure_id string [ref: > patient_procedures.id]
-  procedure_session_id string [ref: > procedure_sessions.id]
-  appointment_id string [ref: > appointments.id]
-  status string [note: 'pending | scheduled | completed | skipped | cancelled']
   notes string
   created_at datetime
   updated_at datetime

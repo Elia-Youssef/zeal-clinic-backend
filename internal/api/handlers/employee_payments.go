@@ -10,15 +10,17 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// GetEmployeePayments returns transactions FROM self balances TO employee balances.
+// GetEmployeePayments returns every transaction between an employee and the
+// clinic: payments, refunds, adjustments, and write-offs in both directions.
 func GetEmployeePayments(c echo.Context) error {
+	params := parseListParams(c)
 	items := store.BalanceTransactionList{}
-	err := items.GetEmployeePayments(c.Param("id"))
+	total, err := items.GetEntityPayments("employee", c.Param("id"), params)
 	if err != nil {
 		log.Println("Error: GetEmployeePayments:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch employee payments"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
 
 // CreateEmployeePayment records a payment from the clinic to an employee.
@@ -107,5 +109,94 @@ func CreateEmployeePayment(c echo.Context) error {
 	bt.FromEntityName = selfBalance.EntityName
 	bt.ToEntityName = employeeBalance.EntityName
 
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
+}
+
+// CreateEmployeeAdjustment records a manual balance correction for an employee.
+// Direction is determined by `direction`: "incoming" = Employee to Self,
+// "outgoing" = Self to Employee.
+func CreateEmployeeAdjustment(c echo.Context) error {
+	var req struct {
+		EmployeeID        string  `json:"employeeId"`
+		Amount            float64 `json:"amount"`
+		CurrencyID        string  `json:"currencyId"`
+		TransactionMethod string  `json:"transactionMethod"`
+		Direction         string  `json:"direction"`
+		Description       string  `json:"description"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+
+	errs := make(validation.Errors)
+	if msg := validation.Required(req.EmployeeID, "Employee ID"); msg != "" {
+		errs["employeeId"] = msg
+	}
+	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
+		errs["currencyId"] = msg
+	}
+	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
+		errs["amount"] = msg
+	}
+	if msg := validation.Required(req.Description, "Description"); msg != "" {
+		errs["description"] = msg
+	}
+	if msg := validation.OneOf(req.Direction, []string{"incoming", "outgoing"}, "Direction"); msg != "" {
+		errs["direction"] = msg
+	}
+	if len(errs) > 0 {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+	}
+
+	bt, err := createEntityBalanceCorrection(c, "employee", req.EmployeeID, req.CurrencyID,
+		req.Amount, req.Direction, "adjustment", req.TransactionMethod, req.Description)
+	if err != nil {
+		log.Println("Error: CreateEmployeeAdjustment:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create adjustment: " + err.Error()})
+	}
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
+}
+
+// CreateEmployeeWriteOff records a debt write-off for an employee.
+// Direction is determined by `direction`: "outgoing" = Self to Employee
+// (forgive what we owe employee), "incoming" = Employee to Self.
+func CreateEmployeeWriteOff(c echo.Context) error {
+	var req struct {
+		EmployeeID  string  `json:"employeeId"`
+		Amount      float64 `json:"amount"`
+		CurrencyID  string  `json:"currencyId"`
+		Direction   string  `json:"direction"`
+		Description string  `json:"description"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+
+	errs := make(validation.Errors)
+	if msg := validation.Required(req.EmployeeID, "Employee ID"); msg != "" {
+		errs["employeeId"] = msg
+	}
+	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
+		errs["currencyId"] = msg
+	}
+	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
+		errs["amount"] = msg
+	}
+	if msg := validation.Required(req.Description, "Description"); msg != "" {
+		errs["description"] = msg
+	}
+	if msg := validation.OneOf(req.Direction, []string{"incoming", "outgoing"}, "Direction"); msg != "" {
+		errs["direction"] = msg
+	}
+	if len(errs) > 0 {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+	}
+
+	bt, err := createEntityBalanceCorrection(c, "employee", req.EmployeeID, req.CurrencyID,
+		req.Amount, req.Direction, "write-off", "other", req.Description)
+	if err != nil {
+		log.Println("Error: CreateEmployeeWriteOff:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create write-off: " + err.Error()})
+	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }

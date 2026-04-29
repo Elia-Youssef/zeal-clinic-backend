@@ -47,14 +47,14 @@ func CreateUser(c echo.Context) error {
 	if err := body.User.IsValid(); err != nil {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
-	if body.Password == "" {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed", Data: map[string]string{"password": "Password is required"}})
-	}
-
-	hash, err := auth.HashPassword(body.Password)
-	if err != nil {
-		log.Println("Error: [CreateUser] failed to hash password:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create user"})
+	var hash string
+	if body.Password != "" {
+		h, err := auth.HashPassword(body.Password)
+		if err != nil {
+			log.Println("Error: [CreateUser] failed to hash password:", err)
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create user"})
+		}
+		hash = h
 	}
 
 	if err := body.User.Create(hash); err != nil {

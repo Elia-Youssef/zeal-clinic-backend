@@ -61,7 +61,6 @@ func main() {
 
 	// seed and quit
 	if *seedOnly {
-		database.SeedIfEmpty(db)
 		if *demo {
 			if err := database.SeedDemo(db); err != nil {
 				log.Fatal("Failed to seed demo data:", err)
@@ -77,6 +76,7 @@ func main() {
 		monitor.Action{Name: "expire-discounts", Fn: monitor.ExpireDiscounts},
 		monitor.Action{Name: "expire-prescription-medicines", Fn: monitor.ExpirePrescriptionMedicines},
 		monitor.Action{Name: "appointment-reminders", Fn: monitor.SendAppointmentReminders},
+		monitor.Action{Name: "low-stock-alerts", Fn: monitor.SendLowStockAlerts},
 	)
 	mon.Start()
 	defer mon.Stop()

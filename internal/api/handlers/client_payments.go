@@ -10,15 +10,17 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// GetClientPayments returns transactions FROM patient balances TO self balances.
+// GetClientPayments returns every transaction between a patient and the
+// clinic: payments, refunds, adjustments, and write-offs in both directions.
 func GetClientPayments(c echo.Context) error {
+	params := parseListParams(c)
 	items := store.BalanceTransactionList{}
-	err := items.GetClientPayments(c.Param("id"))
+	total, err := items.GetEntityPayments("patient", c.Param("id"), params)
 	if err != nil {
 		log.Println("Error: GetClientPayments:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch client payments"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
 
 // CreateClientPayment records a payment from a patient.
@@ -107,6 +109,96 @@ func CreateClientPayment(c echo.Context) error {
 	bt.FromEntityName = patientBalance.EntityName
 	bt.ToEntityName = selfBalance.EntityName
 
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
+}
+
+// CreateClientAdjustment records a manual balance correction for a patient.
+// Direction is determined by `direction`: "incoming" = Patient to Self,
+// "outgoing" = Self to Patient.
+func CreateClientAdjustment(c echo.Context) error {
+	var req struct {
+		PatientID         string  `json:"patientId"`
+		Amount            float64 `json:"amount"`
+		CurrencyID        string  `json:"currencyId"`
+		TransactionMethod string  `json:"transactionMethod"`
+		Direction         string  `json:"direction"`
+		Description       string  `json:"description"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+
+	errs := make(validation.Errors)
+	if msg := validation.Required(req.PatientID, "Patient ID"); msg != "" {
+		errs["patientId"] = msg
+	}
+	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
+		errs["currencyId"] = msg
+	}
+	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
+		errs["amount"] = msg
+	}
+	if msg := validation.Required(req.Description, "Description"); msg != "" {
+		errs["description"] = msg
+	}
+	if msg := validation.OneOf(req.Direction, []string{"incoming", "outgoing"}, "Direction"); msg != "" {
+		errs["direction"] = msg
+	}
+	if len(errs) > 0 {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+	}
+
+	bt, err := createEntityBalanceCorrection(c, "patient", req.PatientID, req.CurrencyID,
+		req.Amount, req.Direction, "adjustment", req.TransactionMethod, req.Description)
+	if err != nil {
+		log.Println("Error: CreateClientAdjustment:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create adjustment: " + err.Error()})
+	}
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
+}
+
+// CreateClientWriteOff records a debt write-off for a patient.
+// Direction is determined by `direction`: "incoming" = Patient to Self
+// (forgive what patient owes), "outgoing" = Self to Patient (forgive a refund
+// owed to patient).
+func CreateClientWriteOff(c echo.Context) error {
+	var req struct {
+		PatientID   string  `json:"patientId"`
+		Amount      float64 `json:"amount"`
+		CurrencyID  string  `json:"currencyId"`
+		Direction   string  `json:"direction"`
+		Description string  `json:"description"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+
+	errs := make(validation.Errors)
+	if msg := validation.Required(req.PatientID, "Patient ID"); msg != "" {
+		errs["patientId"] = msg
+	}
+	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
+		errs["currencyId"] = msg
+	}
+	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
+		errs["amount"] = msg
+	}
+	if msg := validation.Required(req.Description, "Description"); msg != "" {
+		errs["description"] = msg
+	}
+	if msg := validation.OneOf(req.Direction, []string{"incoming", "outgoing"}, "Direction"); msg != "" {
+		errs["direction"] = msg
+	}
+	if len(errs) > 0 {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+	}
+
+	bt, err := createEntityBalanceCorrection(c, "patient", req.PatientID, req.CurrencyID,
+		req.Amount, req.Direction, "write-off", "other", req.Description)
+	if err != nil {
+		log.Println("Error: CreateClientWriteOff:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create write-off: " + err.Error()})
+	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }
 

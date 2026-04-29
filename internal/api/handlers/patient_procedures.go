@@ -70,10 +70,6 @@ func UpdatePatientProcedure(c echo.Context) error {
 
 func DeletePatientProcedure(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"patient_procedure_sessions": "patient_procedure_id"}) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete patient procedure: has related records"})
-	}
-
 	pp := store.PatientProcedure{ID: id}
 	if err := pp.Delete(); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [DeletePatientProcedure] patient procedure not found:", err)

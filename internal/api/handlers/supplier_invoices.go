@@ -90,18 +90,11 @@ func CreateSupplierInvoice(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve self balance"})
 	}
 
-	// Compute total
-	var total float64
-	for _, item := range req.Items {
-		total += item.Amount
-	}
-
 	user := c.Get("user").(store.User)
 
 	inv := store.Invoice{
 		FromBalanceID: supplierBalance.ID,
 		ToBalanceID:   selfBalance.ID,
-		Amount:        total,
 		CurrencyID:    req.CurrencyID,
 		Notes:         req.Notes,
 		CreatedBy:     user.DisplayName,

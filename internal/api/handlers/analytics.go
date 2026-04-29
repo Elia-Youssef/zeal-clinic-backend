@@ -66,6 +66,15 @@ func GetAnalyticsRevenueThisMonth(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]float64{"total": v}})
 }
 
+func GetAnalyticsExpensesThisMonth(c echo.Context) error {
+	v, err := (&store.Analytics{}).ExpensesThisMonth()
+	if err != nil {
+		log.Println("Error: GetAnalyticsExpensesThisMonth failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch expenses"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]float64{"total": v}})
+}
+
 func GetAnalyticsOutstandingReceivables(c echo.Context) error {
 	v, err := (&store.Analytics{}).OutstandingReceivables()
 	if err != nil {

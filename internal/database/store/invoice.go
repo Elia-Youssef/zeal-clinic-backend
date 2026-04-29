@@ -258,6 +258,8 @@ func (inv *Invoice) Create() error {
 		Amount:          inv.FinalAmount,
 		CurrencyID:      inv.CurrencyID,
 		TransactionType: "charge",
+		SourceType:      "invoice",
+		SourceID:        inv.ID,
 		Description:     fmt.Sprintf("Invoice #%d", inv.InvoiceNumber),
 		CreatedBy:       inv.CreatedBy,
 	}
@@ -432,14 +434,101 @@ func (inv *InvoiceList) GetByItem(itemID, itemType string) error {
 	return nil
 }
 
+// Delete reverses every side effect of Invoice.Create (product stock, discount
+// usages, and the charge balance transaction), then removes the invoice. Items
+// and item-discount rows cascade via FK.
 func (inv *Invoice) Delete() error {
-	res, err := DB.Exec("DELETE FROM invoices WHERE id = ?", inv.ID)
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	defer tx.Rollback()
+
+	var fromBalance, toBalance string
+	err = tx.QueryRow(`SELECT from_balance_id, to_balance_id FROM invoices WHERE id = ?`, inv.ID).
+		Scan(&fromBalance, &toBalance)
+	if err == sql.ErrNoRows {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+
+	bal := Balance{}
+	fromEntityType := bal.GetEntityType(fromBalance, tx)
+	toEntityType := bal.GetEntityType(toBalance, tx)
+
+	// Reverse product stock and discount usages by walking the items.
+	rows, err := tx.Query(`SELECT id, item_type, item_id, quantity FROM invoice_items WHERE invoice_id = ?`, inv.ID)
+	if err != nil {
+		return err
+	}
+	type itemRow struct {
+		id, itemType, itemID string
+		quantity             int
+	}
+	var items []itemRow
+	for rows.Next() {
+		var it itemRow
+		if err := rows.Scan(&it.id, &it.itemType, &it.itemID, &it.quantity); err != nil {
+			rows.Close()
+			return err
+		}
+		items = append(items, it)
+	}
+	rows.Close()
+
+	for _, it := range items {
+		if it.itemType == "product" && it.itemID != "" {
+			var delta int
+			if toEntityType == "self" {
+				delta -= it.quantity
+			}
+			if fromEntityType == "self" {
+				delta += it.quantity
+			}
+			if delta != 0 {
+				if _, err := tx.Exec(`UPDATE products SET quantity = quantity + ? WHERE id = ?`, delta, it.itemID); err != nil {
+					return fmt.Errorf("reverse product quantity: %w", err)
+				}
+			}
+		}
+		// Reverse discount usages applied via this invoice item.
+		if _, err := tx.Exec(`UPDATE discounts SET current_usages = current_usages - 1, updated_at = ?
+			WHERE id IN (SELECT discount_id FROM invoice_item_discounts WHERE invoice_item_id = ?)
+			AND current_usages > 0`, DateNow(), it.id); err != nil {
+			return fmt.Errorf("reverse discount usages: %w", err)
+		}
+	}
+
+	// Reverse and delete every balance transaction sourced from this invoice.
+	chargeRows, err := tx.Query(`SELECT id, from_balance_id, to_balance_id, amount, transaction_type FROM balance_transactions
+		WHERE source_type = 'invoice' AND source_id = ?`, inv.ID)
+	if err != nil {
+		return err
+	}
+	var charges []BalanceTransaction
+	for chargeRows.Next() {
+		var ch BalanceTransaction
+		if err := chargeRows.Scan(&ch.ID, &ch.FromBalanceID, &ch.ToBalanceID, &ch.Amount, &ch.TransactionType); err != nil {
+			chargeRows.Close()
+			return err
+		}
+		charges = append(charges, ch)
+	}
+	chargeRows.Close()
+	for i := range charges {
+		if err := charges[i].reverseAndDeleteWithTx(tx); err != nil {
+			return fmt.Errorf("reverse charge transaction: %w", err)
+		}
+	}
+
+	res, err := tx.Exec(`DELETE FROM invoices WHERE id = ?`, inv.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
-	return nil
+
+	return tx.Commit()
 }

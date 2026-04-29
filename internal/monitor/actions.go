@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -125,6 +126,90 @@ func SendAppointmentReminders() error {
 	}
 	if sent > 0 {
 		log.Printf("monitor: sent %d appointment reminder notification(s)", sent)
+	}
+	return nil
+}
+
+// SendLowStockAlerts notifies all active users about products whose quantity
+// has dropped to or below their min_threshold. Idempotency is enforced by the
+// action field `low-stock:<productId>`; once a product triggers an alert, no
+// further alerts fire until it is restocked above the threshold, which clears
+// the prior notifications so a subsequent drop re-alerts.
+func SendLowStockAlerts() error {
+	if _, err := store.DB.Exec(`DELETE FROM notifications
+		WHERE action LIKE 'low-stock:%'
+		  AND substr(action, 11) IN (
+		    SELECT id FROM products WHERE quantity > min_threshold
+		  )`); err != nil {
+		return err
+	}
+
+	rows, err := store.RDB.Query(`SELECT id, name, quantity, min_threshold
+		FROM products
+		WHERE quantity <= min_threshold`)
+	if err != nil {
+		return err
+	}
+	type lowItem struct {
+		id, name            string
+		quantity, threshold int
+	}
+	var pending []lowItem
+	for rows.Next() {
+		var li lowItem
+		if err := rows.Scan(&li.id, &li.name, &li.quantity, &li.threshold); err != nil {
+			continue
+		}
+		pending = append(pending, li)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(pending) == 0 {
+		return nil
+	}
+
+	userRows, err := store.RDB.Query(`SELECT id FROM users WHERE is_active = 1`)
+	if err != nil {
+		return err
+	}
+	var userIDs []string
+	for userRows.Next() {
+		var id string
+		if err := userRows.Scan(&id); err != nil {
+			continue
+		}
+		userIDs = append(userIDs, id)
+	}
+	userRows.Close()
+
+	sent := 0
+	for _, li := range pending {
+		action := "low-stock:" + li.id
+		var existing int
+		if err := store.RDB.QueryRow(`SELECT COUNT(*) FROM notifications WHERE action = ?`, action).Scan(&existing); err != nil || existing > 0 {
+			continue
+		}
+
+		title := "Low stock: " + li.name
+		desc := fmt.Sprintf("Quantity %d at or below min threshold %d.", li.quantity, li.threshold)
+
+		for _, uid := range userIDs {
+			n := store.Notification{
+				UserID:      uid,
+				Title:       title,
+				Description: desc,
+				Action:      action,
+			}
+			if err := n.Create(); err == nil {
+				sent++
+				realtime.SendTo(uid, realtime.Event{Type: "notification", Data: n})
+			}
+		}
+	}
+	if sent > 0 {
+		log.Printf("monitor: sent %d low-stock notification(s)", sent)
 	}
 	return nil
 }

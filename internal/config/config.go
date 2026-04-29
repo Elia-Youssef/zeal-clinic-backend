@@ -32,7 +32,7 @@ func Load() *Config {
 	cfg := &Config{
 		Port:        getEnv("PORT", "8080"),
 		JWTSecret:   getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release"),
-		JWTLifetime: parseDuration(getEnv("JWT_LIFETIME", "12h")),
+		JWTLifetime: parseDuration(getEnv("JWT_LIFETIME", "14h")),
 	}
 
 	if cfg.JWTSecret == "dev-only-clinic-jwt-secret-not-for-release" {

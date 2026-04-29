@@ -62,10 +62,23 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, httpx.Response{Error: "account is disabled"})
 	}
 
-	match, err := auth.ComparePassword(password, user.PasswordHash)
-	if err != nil || !match {
-		log.Println("Error: [Login] invalid password for:", username)
-		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "invalid username or password"})
+	if user.PasswordHash == "" {
+		hash, err := auth.HashPassword(password)
+		if err != nil {
+			log.Println("Error: [Login] failed to hash initial password:", err)
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "authentication failed"})
+		}
+		if err := user.UpdatePassword(hash); err != nil {
+			log.Println("Error: [Login] failed to set initial password:", err)
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "authentication failed"})
+		}
+		user.PasswordHash = hash
+	} else {
+		match, err := auth.ComparePassword(password, user.PasswordHash)
+		if err != nil || !match {
+			log.Println("Error: [Login] invalid password for:", username)
+			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "invalid username or password"})
+		}
 	}
 
 	role := store.Role{}

@@ -17,8 +17,6 @@ type Supplier struct {
 	Notes     string `json:"notes"`
 	CreatedAt Date   `json:"createdAt"`
 	UpdatedAt Date   `json:"updatedAt"`
-	// Nested
-	Balance Balance `json:"balance,omitempty"`
 }
 
 func (s *Supplier) IsValid() error {
@@ -117,12 +115,7 @@ func GetSupplierDropdown(params ListParams) ([]DropdownItem, error) {
 }
 
 func (s *Supplier) GetByID(id string) error {
-	err := s.ScanRow(RDB.QueryRow(`SELECT `+supplierColumns+` FROM suppliers WHERE id = ?`, id))
-	if err != nil {
-		return err
-	}
-	s.Balance.GetByEntityID("supplier", s.ID)
-	return nil
+	return s.ScanRow(RDB.QueryRow(`SELECT `+supplierColumns+` FROM suppliers WHERE id = ?`, id))
 }
 
 func (s *Supplier) Create() error {

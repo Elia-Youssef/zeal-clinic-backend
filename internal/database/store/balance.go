@@ -15,13 +15,15 @@ type Balance struct {
 	EntityName string  `json:"entityName"`
 	CurrencyID string  `json:"currencyId"`
 	Amount     float64 `json:"amount"`
+	TotalIn    float64 `json:"totalIn"`
+	TotalOut   float64 `json:"totalOut"`
 	CreatedAt  Date    `json:"createdAt"`
 	UpdatedAt  Date    `json:"updatedAt"`
 	// Nested
 	RecentTransactions BalanceTransactionList `json:"recentTransactions,omitempty"`
 }
 
-const balanceColumnsNoId = `entity_type, entity_id, entity_name, currency_id, amount, created_at, updated_at`
+const balanceColumnsNoId = `entity_type, entity_id, entity_name, currency_id, amount, total_in, total_out, created_at, updated_at`
 const balanceColumns = `id, ` + balanceColumnsNoId
 
 type BalanceList []Balance
@@ -30,7 +32,7 @@ func (m *Balance) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil Balance row")
 	}
-	return row.Scan(&m.ID, &m.EntityType, &m.EntityID, &m.EntityName, &m.CurrencyID, &m.Amount, &m.CreatedAt, &m.UpdatedAt)
+	return row.Scan(&m.ID, &m.EntityType, &m.EntityID, &m.EntityName, &m.CurrencyID, &m.Amount, &m.TotalIn, &m.TotalOut, &m.CreatedAt, &m.UpdatedAt)
 }
 
 func (l *BalanceList) ScanRows(rows *sql.Rows) error {
@@ -40,7 +42,7 @@ func (l *BalanceList) ScanRows(rows *sql.Rows) error {
 	*l = BalanceList{}
 	for rows.Next() {
 		var item Balance
-		err := rows.Scan(&item.ID, &item.EntityType, &item.EntityID, &item.EntityName, &item.CurrencyID, &item.Amount, &item.CreatedAt, &item.UpdatedAt)
+		err := rows.Scan(&item.ID, &item.EntityType, &item.EntityID, &item.EntityName, &item.CurrencyID, &item.Amount, &item.TotalIn, &item.TotalOut, &item.CreatedAt, &item.UpdatedAt)
 		if err != nil {
 			continue
 		}
@@ -53,7 +55,7 @@ func (b *Balance) IsValid() error {
 	e := make(validation.Errors)
 	if msg := validation.Required(b.EntityType, "Entity type"); msg != "" {
 		e["entityType"] = msg
-	} else if msg := validation.OneOf(b.EntityType, []string{"patient", "employee", "self", "supplier"}, "Entity type"); msg != "" {
+	} else if msg := validation.OneOf(b.EntityType, []string{"patient", "employee", "self", "supplier", "expense"}, "Entity type"); msg != "" {
 		e["entityType"] = msg
 	}
 	if len(e) > 0 {
@@ -74,8 +76,8 @@ func (b *Balance) GetOrCreate() error {
 	now := DateNow()
 	id := uuid.Must(uuid.NewV7()).String()
 	// INSERT OR IGNORE avoids race conditions with the UNIQUE(entity_type, entity_id, currency_id) constraint
-	_, err := DB.Exec(`INSERT OR IGNORE INTO balances (`+balanceColumns+`) VALUES (?,?,?,?,?,?,?,?)`,
-		id, b.EntityType, b.EntityID, b.EntityName, b.CurrencyID, 0, now, now)
+	_, err := DB.Exec(`INSERT OR IGNORE INTO balances (`+balanceColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		id, b.EntityType, b.EntityID, b.EntityName, b.CurrencyID, 0, 0, 0, now, now)
 	if err != nil {
 		return err
 	}
@@ -99,6 +101,7 @@ func (b *Balance) GetByEntityID(entityType, entityID string) error {
 	}
 	return nil
 }
+
 
 func (b *BalanceList) GetAll(entityType string, params ListParams) (int, error) {
 	where := " WHERE 1=1"

@@ -20,3 +20,15 @@ func GetAllBalances(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: list, Total: total}})
 }
+
+// GetEntityBalance returns the single balance row for a given entity,
+// including the running totals (amount, totalIn, totalOut) that are
+// maintained incrementally by each balance transaction.
+func GetEntityBalance(c echo.Context) error {
+	var b store.Balance
+	if err := b.GetByEntityID(c.Param("type"), c.Param("id")); err != nil {
+		log.Println("Error: GetEntityBalance:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch entity balance"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: b})
+}

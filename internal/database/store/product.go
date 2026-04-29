@@ -32,8 +32,12 @@ func (p *Product) IsValid() error {
 	return nil
 }
 
-const productColumnsNoId = `name, category_id, quantity, min_threshold, unit_price, created_at`
-const productColumns = `id, ` + productColumnsNoId
+// productSelect joins the active price row so reads expose UnitPrice even
+// though it's stored in product_prices.
+const productSelect = `SELECT p.id, p.name, p.category_id, p.quantity, p.min_threshold,
+		COALESCE(pp.price, 0), p.created_at
+	FROM products p
+	LEFT JOIN product_prices pp ON pp.product_id = p.id AND pp.is_active = 1`
 
 type ProductList []Product
 
@@ -73,7 +77,7 @@ func (p *ProductList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + productColumns + ` FROM products` + where + ` ORDER BY name` + params.PaginationClause()
+	query := productSelect + where + ` ORDER BY p.name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err
@@ -111,21 +115,69 @@ func GetProductDropdown(params ListParams) ([]DropdownItem, error) {
 }
 
 func (p *Product) GetByID(id string) error {
-	return p.ScanRow(RDB.QueryRow(`SELECT `+productColumns+` FROM products WHERE id = ?`, id))
+	return p.ScanRow(RDB.QueryRow(productSelect+` WHERE p.id = ?`, id))
 }
 
 func (p *Product) Create() error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	p.ID = uuid.Must(uuid.NewV7()).String()
 	p.CreatedAt = DateNow()
-	_, err := DB.Exec(`INSERT INTO products (`+productColumns+`) VALUES (?,?,?,?,?,?,?)`,
-		p.ID, p.Name, p.CategoryID, p.Quantity, p.MinThreshold, p.UnitPrice, p.CreatedAt)
-	return err
+	if _, err := tx.Exec(`INSERT INTO products (id, name, category_id, quantity, min_threshold, created_at) VALUES (?,?,?,?,?,?)`,
+		p.ID, p.Name, p.CategoryID, p.Quantity, p.MinThreshold, p.CreatedAt); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO product_prices (id, product_id, price, is_active, created_at)
+		VALUES (?, ?, ?, 1, ?)`,
+		uuid.Must(uuid.NewV7()).String(), p.ID, p.UnitPrice, p.CreatedAt); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (p *Product) Update(updates map[string]any) error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Price changes are written to product_prices: deactivate previous active
+	// rows and insert a new active row.
+	if val, ok := updates["unitPrice"]; ok {
+		var price float64
+		switch v := val.(type) {
+		case float64:
+			price = v
+		case float32:
+			price = float64(v)
+		case int:
+			price = float64(v)
+		case int64:
+			price = float64(v)
+		}
+		var current float64
+		_ = tx.QueryRow(`SELECT price FROM product_prices WHERE product_id = ? AND is_active = 1`, p.ID).Scan(&current)
+		if current != price {
+			if _, err := tx.Exec(`UPDATE product_prices SET is_active = 0 WHERE product_id = ? AND is_active = 1`, p.ID); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(`INSERT INTO product_prices (id, product_id, price, is_active, created_at)
+				VALUES (?, ?, ?, 1, ?)`,
+				uuid.Must(uuid.NewV7()).String(), p.ID, price, DateNow()); err != nil {
+				return err
+			}
+		}
+		delete(updates, "unitPrice")
+	}
+
 	cols := map[string]string{
 		"name": "name", "categoryId": "category_id", "quantity": "quantity",
-		"minThreshold": "min_threshold", "unitPrice": "unit_price",
+		"minThreshold": "min_threshold",
 	}
 
 	setClauses := ""
@@ -139,13 +191,13 @@ func (p *Product) Update(updates map[string]any) error {
 			args = append(args, val)
 		}
 	}
-	if setClauses == "" {
-		return p.GetByID(p.ID)
+	if setClauses != "" {
+		args = append(args, p.ID)
+		if _, err := tx.Exec("UPDATE products SET "+setClauses+" WHERE id = ?", args...); err != nil {
+			return err
+		}
 	}
-
-	args = append(args, p.ID)
-	_, err := DB.Exec("UPDATE products SET "+setClauses+" WHERE id = ?", args...)
-	if err != nil {
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return p.GetByID(p.ID)

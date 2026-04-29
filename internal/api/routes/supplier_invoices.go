@@ -12,5 +12,6 @@ func SetupSupplierInvoiceRoutes(api *echo.Group) {
 	api.POST("/supplier-invoices", handlers.CreateSupplierInvoice, scope("transactions:write"),
 		cache("supplier-invoices", "invoices", "balances", "products", "supplier-payments", "analytics"))
 	api.PUT("/supplier-invoices/:id", handlers.UpdateSupplierInvoice, scope("transactions:write"), cache("supplier-invoices", "invoices", "analytics"))
-	api.DELETE("/supplier-invoices/:id", handlers.DeleteSupplierInvoice, scope("transactions:delete"), cache("supplier-invoices", "invoices", "balances", "analytics"))
+	api.DELETE("/supplier-invoices/:id", handlers.DeleteSupplierInvoice, scope("transactions:delete"),
+		cache("supplier-invoices", "invoices", "balances", "products", "supplier-payments", "analytics"))
 }
