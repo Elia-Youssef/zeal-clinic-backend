@@ -1,4 +1,18 @@
-BINARY     := installer/ZealClinic.exe
+ifeq ($(OS),Windows_NT)
+    EXE         := .exe
+    LDFLAGS     := -s -w -H=windowsgui
+    RM           = del /Q /F $(subst /,\,$(1))
+    RMDIR_IF     = if exist $(subst /,\,$(1)) rmdir /S /Q $(subst /,\,$(1))
+    COPY_DIST    = xcopy /E /I /Y "$(subst /,\,$(FRONTEND))\dist" client\dist
+else
+    EXE         :=
+    LDFLAGS     := -s -w
+    RM           = rm -f $(1)
+    RMDIR_IF     = rm -rf $(1)
+    COPY_DIST    = cp -r $(FRONTEND)/dist client/dist
+endif
+
+BINARY     := installer/ZealClinic$(EXE)
 PKG        := ./cmd/server
 ISCC       ?= ISCC.exe
 FRONTEND   := ../zeal-clinic-frontend
@@ -22,20 +36,20 @@ build:
 
 frontend:
 	cd $(FRONTEND) && npm run build
-	if exist client\dist rmdir /S /Q client\dist
-	xcopy /E /I /Y "$(subst /,\,$(FRONTEND))\dist" client\dist
+	$(call RMDIR_IF,client/dist)
+	$(COPY_DIST)
 
 release: frontend
-	go build -trimpath -ldflags "-s -w -H=windowsgui" -o $(BINARY) $(PKG)
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG)
 
 installer: release
 	$(ISCC) installer/installer.iss
 
 clean:
-	-del /Q /F installer\ZealClinic.exe
-	-del /Q /F installer\output\ZealClinicSetup-*.exe
-	-del /Q /F dist\clinic.db*
-	-del /Q /F clinic.db*
+	-$(call RM,installer/ZealClinic$(EXE))
+	-$(call RM,installer/output/ZealClinicSetup-*.exe)
+	-$(call RM,*.pdf)
+	-$(call RM,dist/clinic.db*)
 
 help:
 	@echo   dev        - build and run as --dev
@@ -45,5 +59,5 @@ help:
 	@echo   build      - debug build to $(BINARY)
 	@echo   frontend   - npm build the frontend and copy dist into client/dist
 	@echo   release    - prod build to $(BINARY) + embed frontend
-	@echo   installer  - release + Inno Setup installer
+	@echo   installer  - release + Inno Setup installer (Windows only)
 	@echo   clean      - remove binaries and database

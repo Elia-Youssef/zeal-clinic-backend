@@ -6,6 +6,7 @@ import (
 	mw "clinic-api/internal/api/middleware"
 	"clinic-api/internal/api/routes"
 	"clinic-api/internal/config"
+	"clinic-api/internal/pdf"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -27,7 +28,6 @@ func CreateServer() *echo.Echo {
 	})
 
 	// Public routes (no auth)
-	pub := e.Group("/api/public")
 	authGroup := e.Group("/api")
 
 	// Protected routes (auth required)
@@ -40,7 +40,8 @@ func CreateServer() *echo.Echo {
 	for _, register := range protectedRouteRegistrars {
 		register(api)
 	}
-	routes.SetupBookingRoutes(api, pub)
+	// Generated PDFs (served from local tmp dir)
+	e.Static("/files", pdf.TmpDir())
 
 	// SPA (Vite build embedded from client/dist)
 	e.GET("/*", spaHandler())
@@ -61,9 +62,9 @@ var protectedRouteRegistrars = []func(*echo.Group){
 	routes.SetupPatientAllergyRoutes,
 	routes.SetupMedicineRoutes,
 	routes.SetupPatientMedicineRoutes,
-	routes.SetupPatientProcedureRoutes,
 	routes.SetupAppointmentRoutes,
 	routes.SetupScheduleAvailabilityRoutes,
+	routes.SetupHRRoutes,
 	routes.SetupProductRoutes,
 	routes.SetupProductCategoryRoutes,
 	routes.SetupProductAllergyConflictRoutes,
@@ -85,11 +86,11 @@ var protectedRouteRegistrars = []func(*echo.Group){
 	routes.SetupCountryRoutes,
 	routes.SetupLebanonCityRoutes,
 	routes.SetupDiscountRoutes,
-	routes.SetupInvoiceItemDiscountRoutes,
 	routes.SetupNotificationRoutes,
 	routes.SetupEventRoutes,
 	routes.SetupAuditRoutes,
 	routes.SetupAnalyticsRoutes,
+	routes.SetupReportsRoutes,
 	routes.SetupSearchRoutes,
 }
 

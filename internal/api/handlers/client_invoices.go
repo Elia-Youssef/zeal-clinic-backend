@@ -23,10 +23,17 @@ func GetClientInvoices(c echo.Context) error {
 
 // CreateClientInvoice creates an invoice for a patient.
 // Direction: Self Balance (FROM) to Patient Balance (TO).
+//
+// Optional fields:
+//   - DiscountID: invoice-level "offer" discount, reduces final_amount.
+//   - Items[i].ItemType == "gift" with GiftPatientID or GiftCode: creates a
+//     gift discount during invoice creation; if GiftPatientID is set, the
+//     gift's value is also auto-applied as a credit on that patient's balance.
 func CreateClientInvoice(c echo.Context) error {
 	var req struct {
 		PatientID  string              `json:"patientId"`
 		CurrencyID string              `json:"currencyId"`
+		DiscountID string              `json:"discountId"`
 		Notes      string              `json:"notes"`
 		Items      []store.InvoiceItem `json:"items"`
 	}
@@ -88,6 +95,7 @@ func CreateClientInvoice(c echo.Context) error {
 		FromBalanceID: selfBalance.ID,
 		ToBalanceID:   patientBalance.ID,
 		CurrencyID:    req.CurrencyID,
+		DiscountID:    req.DiscountID,
 		Notes:         req.Notes,
 		CreatedBy:     user.DisplayName,
 		Items:         req.Items,

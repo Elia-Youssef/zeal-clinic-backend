@@ -93,13 +93,20 @@ Table procedures {
   name string
   type_id string [ref: > procedure_types.id]
   category_id string [ref: > procedure_categories.id]
-  price float
   price_note string
   is_active bool
   remarks string
   includes string [note: 'JSON array']
   created_at datetime
   updated_at datetime
+}
+
+Table procedure_prices {
+  id string [pk]
+  procedure_id string [ref: > procedures.id]
+  price float
+  is_active bool
+  created_at datetime
 }
 
 Table procedure_allergy_conflicts {
@@ -168,15 +175,14 @@ Table patient_medicines {
 }
 
 // ============================================================
-// PATIENT PROCEDURES
+// APPOINTMENT PROCEDURES
 // ============================================================
 
-Table patient_procedures {
+Table appointment_procedures {
   id string [pk]
   patient_id string [ref: > patients.id]
   procedure_id string [ref: > procedures.id]
   appointment_id string [ref: > appointments.id]
-  status string [note: 'planned | in-progress | completed']
   notes string
   created_at datetime
   updated_at datetime
@@ -210,6 +216,22 @@ Table employee_salaries {
   notes string
   created_at datetime
   updated_at datetime
+}
+
+Table employee_salary_preparations {
+  id string [pk]
+  employee_id string [ref: > employees.id]
+  period_start date
+  period_end date
+  salary_id string
+  transaction_id string
+  currency_id string [ref: > currencies.id]
+  base_salary float
+  adjustment float
+  prepared_amount float
+  notes string
+  created_by string
+  created_at datetime
 }
 
 // ============================================================
@@ -265,8 +287,35 @@ Table schedule_availability {
   day_of_week int [note: '0-6']
   start_time string
   end_time string
-  effective_date date
+  start_date date
+  end_date date
+  is_active bool
   created_at datetime
+  updated_at datetime
+}
+
+Table holidays {
+  id string [pk]
+  name string
+  start_date date
+  end_date date
+  notes string
+  created_by string
+  created_at datetime
+  updated_at datetime
+}
+
+Table employee_vacations {
+  id string [pk]
+  employee_id string [ref: > employees.id]
+  start_date date
+  end_date date
+  start_time string [note: 'optional, partial-day only when start_date == end_date']
+  end_time string
+  status string [note: 'pending | accepted | rejected; only accepted affects schedule projection']
+  notes string
+  created_at datetime
+  updated_at datetime
 }
 
 // ============================================================
@@ -310,7 +359,14 @@ Table products {
   category_id string [ref: > product_categories.id]
   quantity int
   min_threshold int
-  unit_price float
+  created_at datetime
+}
+
+Table product_prices {
+  id string [pk]
+  product_id string [ref: > products.id]
+  price float
+  is_active bool
   created_at datetime
 }
 
@@ -342,6 +398,18 @@ Table suppliers {
 }
 
 // ============================================================
+// EXPENSES
+// ============================================================
+
+Table expenses {
+  id string [pk]
+  name string
+  notes string
+  created_at datetime
+  updated_at datetime
+}
+
+// ============================================================
 // FINANCIAL
 // ============================================================
 
@@ -357,11 +425,13 @@ Table currencies {
 
 Table balances {
   id string [pk]
-  entity_type string [note: 'patient | employee | self | supplier']
-  entity_id string [note: 'Polymorphic FK to patients/employees/suppliers']
+  entity_type string [note: 'patient | employee | self | supplier | expense']
+  entity_id string [note: 'Polymorphic FK to patients/employees/suppliers/expenses']
   entity_name string
   currency_id string [ref: > currencies.id]
   amount float
+  total_in float
+  total_out float
   created_at datetime
   updated_at datetime
 
@@ -378,6 +448,8 @@ Table balance_transactions {
   currency_id string [ref: > currencies.id]
   transaction_type string [note: 'charge | payment | refund | adjustment | write-off']
   transaction_method string [note: 'cash | card | transfer | discount | other']
+  source_type string [note: 'optional originating entity, e.g. employee_salary_preparation']
+  source_id string [note: 'optional originating row id']
   description string
   created_by string
   created_at datetime
@@ -385,10 +457,12 @@ Table balance_transactions {
 
 Table invoices {
   id string [pk]
-  invoice_number int [increment]
+  invoice_number int
   from_balance_id string [ref: > balances.id]
   to_balance_id string [ref: > balances.id]
   amount float
+  discount_id string [ref: > discounts.id, note: 'optional offer applied to whole invoice']
+  discount_value float
   final_amount float [note: 'amount after discounts']
   currency_id string [ref: > currencies.id]
   notes string
@@ -400,7 +474,7 @@ Table invoices {
 Table invoice_items {
   id string [pk]
   invoice_id string [ref: > invoices.id]
-  item_type string [note: 'product | procedure | discount | other']
+  item_type string [note: 'product | procedure | gift | other']
   item_id string
   quantity int
   amount float
@@ -413,48 +487,24 @@ Table invoice_items {
 // DISCOUNTS
 // ============================================================
 
+// Offer discounts: applied to a whole invoice via invoices.discount_id.
+// Gift discounts: created via an invoice line (item_type='gift') and have
+// exactly one of patient_id (credit applied at creation) or code (redeemed later).
 Table discounts {
   id string [pk]
   name string
   description string
-  discount_type string [note: 'offer | voucher | gift']
+  discount_type string [note: 'offer | gift']
   value_type string [note: 'percentage | fixed']
   value float
-  max_usages int [note: 'nullable, null = unlimited']
-  current_usages int
+  patient_id string [ref: > patients.id, note: 'gift only, nullable']
+  code string [unique, note: 'gift only, nullable']
+  redeemed_at datetime [note: 'gift only, marks code as consumed']
   start_date date [note: 'nullable']
   end_date date [note: 'nullable']
   is_active bool
   created_at datetime
   updated_at datetime
-}
-
-Table discount_items {
-  id string [pk]
-  discount_id string [ref: > discounts.id]
-  item_type string [note: 'procedure | product']
-  item_id string
-  created_at datetime
-
-  indexes {
-    (discount_id, item_type, item_id) [unique]
-  }
-}
-
-Table vouchers {
-  id string [pk]
-  discount_id string [ref: > discounts.id]
-  code string [unique]
-  is_used bool
-  created_at datetime
-}
-
-Table invoice_item_discounts {
-  id string [pk]
-  invoice_item_id string [ref: > invoice_items.id]
-  discount_id string [ref: > discounts.id]
-  discount_value float
-  created_at datetime
 }
 
 // ============================================================

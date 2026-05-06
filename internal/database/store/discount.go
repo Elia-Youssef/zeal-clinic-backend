@@ -9,22 +9,23 @@ import (
 )
 
 type Discount struct {
-	ID            string  `json:"id"`
-	Name          string  `json:"name"`
-	Description   string  `json:"description"`
-	DiscountType  string  `json:"discountType"`
-	ValueType     string  `json:"valueType"`
-	Value         float64 `json:"value"`
-	MaxUsages     *int    `json:"maxUsages"`
-	CurrentUsages int     `json:"currentUsages"`
-	StartDate     *Date   `json:"startDate"`
-	EndDate       *Date   `json:"endDate"`
-	IsActive      int     `json:"isActive"`
-	CreatedAt     Date    `json:"createdAt"`
-	UpdatedAt     Date    `json:"updatedAt"`
-	// Nested
-	Items    DiscountItemList `json:"items,omitempty"`
-	Vouchers VoucherList      `json:"vouchers,omitempty"`
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	Description  string  `json:"description"`
+	DiscountType string  `json:"discountType"`
+	ValueType    string  `json:"valueType"`
+	Value        float64 `json:"value"`
+	// Gift-only: at most one of PatientID / Code is set. PatientID means the
+	// gift was assigned to a specific patient on creation (credit applied
+	// immediately). Code means the gift is a redeemable code applied later.
+	PatientID  *string `json:"patientId,omitempty"`
+	Code       *string `json:"code,omitempty"`
+	RedeemedAt *Date   `json:"redeemedAt,omitempty"`
+	StartDate  *Date   `json:"startDate"`
+	EndDate    *Date   `json:"endDate"`
+	IsActive   int     `json:"isActive"`
+	CreatedAt  Date    `json:"createdAt"`
+	UpdatedAt  Date    `json:"updatedAt"`
 }
 
 func (d *Discount) IsValid() error {
@@ -34,7 +35,7 @@ func (d *Discount) IsValid() error {
 	}
 	if msg := validation.Required(d.DiscountType, "Discount type"); msg != "" {
 		e["discountType"] = msg
-	} else if msg := validation.OneOf(d.DiscountType, []string{"offer", "voucher", "gift"}, "Discount type"); msg != "" {
+	} else if msg := validation.OneOf(d.DiscountType, []string{"offer", "gift"}, "Discount type"); msg != "" {
 		e["discountType"] = msg
 	}
 	if msg := validation.Required(d.ValueType, "Value type"); msg != "" {
@@ -45,13 +46,27 @@ func (d *Discount) IsValid() error {
 	if msg := validation.Positive(d.Value, "Value"); msg != "" {
 		e["value"] = msg
 	}
+
+	hasPatient := d.PatientID != nil && *d.PatientID != ""
+	hasCode := d.Code != nil && *d.Code != ""
+	switch d.DiscountType {
+	case "gift":
+		if hasPatient == hasCode {
+			e["gift"] = "Gift must have exactly one of patientId or code"
+		}
+	case "offer":
+		if hasPatient || hasCode {
+			e["gift"] = "Only gift discounts can have patientId or code"
+		}
+	}
+
 	if len(e) > 0 {
 		return e
 	}
 	return nil
 }
 
-const discountColumnsNoId = `name, description, discount_type, value_type, value, max_usages, current_usages, start_date, end_date, is_active, created_at, updated_at`
+const discountColumnsNoId = `name, description, discount_type, value_type, value, patient_id, code, redeemed_at, start_date, end_date, is_active, created_at, updated_at`
 const discountColumns = `id, ` + discountColumnsNoId
 
 type DiscountList []Discount
@@ -61,7 +76,7 @@ func (d *Discount) ScanRow(row *sql.Row) error {
 		return errors.New("nil Discount row")
 	}
 	return row.Scan(&d.ID, &d.Name, &d.Description, &d.DiscountType, &d.ValueType, &d.Value,
-		&d.MaxUsages, &d.CurrentUsages, &d.StartDate, &d.EndDate,
+		&d.PatientID, &d.Code, &d.RedeemedAt, &d.StartDate, &d.EndDate,
 		&d.IsActive, &d.CreatedAt, &d.UpdatedAt)
 }
 
@@ -73,7 +88,7 @@ func (l *DiscountList) ScanRows(rows *sql.Rows) error {
 	for rows.Next() {
 		var item Discount
 		err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.DiscountType, &item.ValueType, &item.Value,
-			&item.MaxUsages, &item.CurrentUsages, &item.StartDate, &item.EndDate,
+			&item.PatientID, &item.Code, &item.RedeemedAt, &item.StartDate, &item.EndDate,
 			&item.IsActive, &item.CreatedAt, &item.UpdatedAt)
 		if err != nil {
 			continue
@@ -106,45 +121,17 @@ func (l *DiscountList) GetAll(params ListParams) (int, error) {
 	if err := l.ScanRows(rows); err != nil {
 		return 0, err
 	}
-	for i := range *l {
-		(*l)[i].Items.GetByDiscount((*l)[i].ID)
-		(*l)[i].Vouchers.GetByDiscount((*l)[i].ID)
-	}
 	return total, rows.Err()
-}
-
-func (l *DiscountList) GetByItem(itemID string) error {
-	query := `SELECT DISTINCT d.id, d.name, d.description, d.discount_type, d.value_type, d.value,
-			d.max_usages, d.current_usages, d.start_date, d.end_date,
-			d.is_active, d.created_at, d.updated_at
-		FROM discounts d
-		INNER JOIN discount_items di ON di.discount_id = d.id
-		WHERE di.item_id = ? AND d.is_active = 1
-		ORDER BY d.created_at DESC`
-	rows, err := RDB.Query(query, itemID)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	if err := l.ScanRows(rows); err != nil {
-		return err
-	}
-	for i := range *l {
-		(*l)[i].Items.GetByDiscount((*l)[i].ID)
-		(*l)[i].Vouchers.GetByDiscount((*l)[i].ID)
-	}
-	return rows.Err()
 }
 
 func (d *Discount) GetByID(id string) error {
 	row := RDB.QueryRow(`SELECT `+discountColumns+` FROM discounts WHERE id = ?`, id)
-	if err := d.ScanRow(row); err != nil {
-		return err
-	}
-	d.Items.GetByDiscount(d.ID)
-	d.Vouchers.GetByDiscount(d.ID)
-	return nil
+	return d.ScanRow(row)
+}
+
+func (d *Discount) GetByCode(code string) error {
+	row := RDB.QueryRow(`SELECT `+discountColumns+` FROM discounts WHERE code = ?`, code)
+	return d.ScanRow(row)
 }
 
 func (d *Discount) Create() error {
@@ -170,31 +157,11 @@ func (d *Discount) CreateWithTx(tx *sql.Tx) error {
 		d.IsActive = 1
 	}
 
-	if _, err := tx.Exec(`INSERT INTO discounts (`+discountColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	if _, err := tx.Exec(`INSERT INTO discounts (`+discountColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		d.ID, d.Name, d.Description, d.DiscountType, d.ValueType, d.Value,
-		d.MaxUsages, d.CurrentUsages, d.StartDate, d.EndDate,
+		d.PatientID, d.Code, d.RedeemedAt, d.StartDate, d.EndDate,
 		d.IsActive, d.CreatedAt, d.UpdatedAt); err != nil {
 		return err
-	}
-
-	for i := range d.Items {
-		d.Items[i].ID = uuid.Must(uuid.NewV7()).String()
-		d.Items[i].DiscountID = d.ID
-		d.Items[i].CreatedAt = now
-		if _, err := tx.Exec(`INSERT INTO discount_items (`+discountItemColumns+`) VALUES (?,?,?,?,?)`,
-			d.Items[i].ID, d.Items[i].DiscountID, d.Items[i].ItemType, d.Items[i].ItemID, d.Items[i].CreatedAt); err != nil {
-			return err
-		}
-	}
-
-	for i := range d.Vouchers {
-		d.Vouchers[i].ID = uuid.Must(uuid.NewV7()).String()
-		d.Vouchers[i].DiscountID = d.ID
-		d.Vouchers[i].CreatedAt = now
-		if _, err := tx.Exec(`INSERT INTO vouchers (`+voucherColumns+`) VALUES (?,?,?,?,?)`,
-			d.Vouchers[i].ID, d.Vouchers[i].DiscountID, d.Vouchers[i].Code, d.Vouchers[i].IsUsed, d.Vouchers[i].CreatedAt); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -202,9 +169,9 @@ func (d *Discount) CreateWithTx(tx *sql.Tx) error {
 
 func (d *Discount) Update(updates map[string]any) error {
 	cols := map[string]string{
-		"name": "name", "description": "description", "discountType": "discount_type",
+		"name": "name", "description": "description",
 		"valueType": "value_type", "value": "value",
-		"maxUsages": "max_usages", "startDate": "start_date", "endDate": "end_date",
+		"startDate": "start_date", "endDate": "end_date",
 		"isActive": "is_active",
 	}
 
@@ -244,69 +211,13 @@ func (d *Discount) Delete() error {
 	return nil
 }
 
-func (d *Discount) IncrementUsage() error {
-	_, err := DB.Exec(`UPDATE discounts SET current_usages = current_usages + 1, updated_at = ? WHERE id = ?`, DateNow(), d.ID)
-	return err
-}
-
-// Discount Items
-
-type DiscountItem struct {
-	ID         string `json:"id"`
-	DiscountID string `json:"discountId"`
-	ItemType   string `json:"itemType"`
-	ItemID     string `json:"itemId"`
-	CreatedAt  Date   `json:"createdAt"`
-	// Transient
-	ItemName string `json:"itemName"`
-}
-
-const discountItemColumnsNoId = `discount_id, item_type, item_id, created_at`
-const discountItemColumns = `id, ` + discountItemColumnsNoId
-
-type DiscountItemList []DiscountItem
-
-func (l *DiscountItemList) GetByDiscount(discountID string) error {
-	rows, err := RDB.Query(`SELECT `+discountItemColumns+` FROM discount_items WHERE discount_id = ? ORDER BY created_at`, discountID)
-	if err != nil {
+// MarkRedeemed sets redeemed_at on the discount within the given tx.
+func (d *Discount) MarkRedeemedWithTx(tx *sql.Tx) error {
+	now := DateNow()
+	if _, err := tx.Exec(`UPDATE discounts SET redeemed_at = ?, updated_at = ? WHERE id = ?`, now, now, d.ID); err != nil {
 		return err
 	}
-	defer rows.Close()
-
-	*l = DiscountItemList{}
-	for rows.Next() {
-		var item DiscountItem
-		if err := rows.Scan(&item.ID, &item.DiscountID, &item.ItemType, &item.ItemID, &item.CreatedAt); err != nil {
-			continue
-		}
-		switch item.ItemType {
-		case "procedure":
-			RDB.QueryRow(`SELECT name FROM procedures WHERE id = ?`, item.ItemID).Scan(&item.ItemName)
-		case "product":
-			RDB.QueryRow(`SELECT name FROM products WHERE id = ?`, item.ItemID).Scan(&item.ItemName)
-		}
-		*l = append(*l, item)
-	}
-	return nil
-}
-
-func CreateDiscountItem(discountID string, item *DiscountItem) error {
-	item.ID = uuid.Must(uuid.NewV7()).String()
-	item.DiscountID = discountID
-	item.CreatedAt = DateNow()
-	_, err := DB.Exec(`INSERT INTO discount_items (`+discountItemColumns+`) VALUES (?,?,?,?,?)`,
-		item.ID, item.DiscountID, item.ItemType, item.ItemID, item.CreatedAt)
-	return err
-}
-
-func DeleteDiscountItem(id string) error {
-	res, err := DB.Exec("DELETE FROM discount_items WHERE id = ?", id)
-	if err != nil {
-		return err
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
-	}
+	d.RedeemedAt = &now
+	d.UpdatedAt = now
 	return nil
 }

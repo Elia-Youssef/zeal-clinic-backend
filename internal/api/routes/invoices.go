@@ -9,4 +9,5 @@ import (
 func SetupInvoiceRoutes(api *echo.Group) {
 	api.GET("/invoices", handlers.GetAllInvoices, scope("transactions:read"), cache("invoices"))
 	api.GET("/invoices/:id", handlers.GetInvoiceByID, scope("transactions:read"))
+	api.GET("/invoices/:id/pdf", handlers.GetInvoicePDF, scope("transactions:read"))
 }

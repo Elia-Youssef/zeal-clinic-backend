@@ -19,7 +19,7 @@ func upSeedRoles(ctx context.Context, tx *sql.Tx) error {
 		"inventory:read,inventory:write,inventory:delete," +
 		"services:read,services:write,services:delete," +
 		"rooms:read,rooms:write,rooms:delete," +
-		"bookings:read,bookings:write," +
+		"schedule:read,schedule:write,schedule:delete," +
 		"roles:read,roles:write," +
 		"reports:read"
 
@@ -28,7 +28,7 @@ func upSeedRoles(ctx context.Context, tx *sql.Tx) error {
 	}{
 		{"super-admin", "Super Admin", allScopes},
 		{"admin", "Admin", allScopes},
-		{"user", "User", "appointments:read,patients:read,team:read,rooms:read,bookings:read,services:read,inventory:read,reports:read"},
+		{"user", "User", "appointments:read,patients:read,team:read,rooms:read,schedule:read,services:read,inventory:read,reports:read"},
 	}
 
 	for _, r := range roles {

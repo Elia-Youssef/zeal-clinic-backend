@@ -4,7 +4,6 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
-	"log"
 
 	"github.com/google/uuid"
 )
@@ -232,7 +231,6 @@ func (p *Patient) Update(updates map[string]any) error {
 	setClauses += ", updated_at = ?"
 	args = append(args, DateNow())
 	args = append(args, p.ID)
-	log.Println(updates, args)
 	if _, err := DB.Exec("UPDATE patients SET "+setClauses+" WHERE id = ?", args...); err != nil {
 		return err
 	}

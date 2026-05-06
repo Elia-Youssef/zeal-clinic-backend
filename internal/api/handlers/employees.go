@@ -144,7 +144,7 @@ func GetEmployeeActions(c echo.Context) error {
 
 func DeleteEmployee(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"employee_salaries": "employee_id", "schedule_availability": "employee_id"}) {
+	if store.HasDependencies(id, map[string]string{"employee_salaries": "employee_id", "schedule_availability": "employee_id", "employee_vacations": "employee_id", "employee_salary_preparations": "employee_id"}) {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete employee: has related records"})
 	}
 

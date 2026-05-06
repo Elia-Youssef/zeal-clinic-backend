@@ -127,11 +127,15 @@ func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 func GetProcedureDropdown(params ListParams) ([]DropdownItem, error) {
 	where := ""
 	var args []any
-	if fc, fa := params.FilterClause("name"); fc != "" {
+	if fc, fa := params.FilterClause("p.name", "c.name", "pc.name"); fc != "" {
 		where = " WHERE " + fc
 		args = fa
 	}
-	query := `SELECT id, name FROM procedures` + where + ` ORDER BY name` + params.PaginationClause()
+	query := `SELECT p.id, p.name, COALESCE(c.name, ''), COALESCE(pc.name, '')
+		FROM procedures p
+		LEFT JOIN procedure_categories c ON c.id = p.category_id
+		LEFT JOIN procedure_categories pc ON pc.id = c.parent_id` + where +
+		` ORDER BY p.name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err
@@ -140,8 +144,14 @@ func GetProcedureDropdown(params ListParams) ([]DropdownItem, error) {
 	var items []DropdownItem
 	for rows.Next() {
 		var item DropdownItem
-		if err := rows.Scan(&item.ID, &item.Name); err != nil {
+		var catName, parentName string
+		if err := rows.Scan(&item.ID, &item.Name, &catName, &parentName); err != nil {
 			continue
+		}
+		if parentName != "" {
+			item.Name = parentName + ", " + catName + ", " + item.Name
+		} else if catName != "" {
+			item.Name = catName + ", " + item.Name
 		}
 		items = append(items, item)
 	}

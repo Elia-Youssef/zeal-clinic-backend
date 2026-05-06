@@ -33,13 +33,15 @@ func GetProcedureByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: proc})
 }
 
-func GetProcedurePatientProcedures(c echo.Context) error {
-	items := store.PatientProcedureList{}
-	if err := items.GetByProcedure(c.Param("id")); err != nil {
-		log.Println("Error: [GetProcedurePatientProcedures] failed to fetch patient procedures:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch patient procedures"})
+func GetProcedureAppointments(c echo.Context) error {
+	params := parseListParams(c)
+	apts := store.AppointmentList{}
+	total, err := apts.GetByProcedureID(c.Param("id"), params)
+	if err != nil {
+		log.Println("Error: [GetProcedureAppointments] failed to fetch appointments:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch appointments"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: apts, Total: total}})
 }
 
 func GetProcedureDropdown(c echo.Context) error {
@@ -90,7 +92,7 @@ func UpdateProcedure(c echo.Context) error {
 
 func DeleteProcedure(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"patient_procedures": "procedure_id"}) {
+	if store.HasDependencies(id, map[string]string{"appointment_procedures": "procedure_id"}) {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete procedure: has related records"})
 	}
 

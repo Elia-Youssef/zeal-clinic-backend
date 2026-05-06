@@ -43,7 +43,6 @@ func seedDemo(ctx context.Context, tx *sql.Tx) error {
 		{"prescriptions", seedPrescriptions},
 		{"discounts", seedDiscounts},
 		{"appointments & invoices", seedAppointmentsAndInvoices},
-		{"patient procedures", seedPatientProcedures},
 		{"bookings", seedBookings},
 		{"notifications", seedNotifications},
 	}
@@ -202,9 +201,9 @@ func seedSchedules(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	for _, empID := range c.employeeIDs {
 		for day := 1; day <= 5; day++ {
 			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO schedule_availability (id, employee_id, day_of_week, start_time, end_time, effective_date, created_at)
-				 VALUES (?,?,?,?,?,?,?)`,
-				newID(), empID, day, "09:00", "18:00", c.today, c.now,
+				`INSERT INTO schedule_availability (id, employee_id, day_of_week, start_time, end_time, start_date, created_at, updated_at)
+				 VALUES (?,?,?,?,?,?,?,?)`,
+				newID(), empID, day, "09:00", "18:00", c.today, c.now, c.now,
 			); err != nil {
 				return err
 			}
@@ -372,70 +371,34 @@ func seedDiscounts(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	startStr := dateOffset(-15)
 	endStr := dateOffset(30)
 
-	// Offer: 20% off any Botox procedure.
-	offerID := newID()
+	// Offer: 20% off, applied invoice-wide.
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO discounts (id, name, description, discount_type, value_type, value, max_usages, current_usages, start_date, end_date, is_active, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,NULL,0,?,?,1,?,?)`,
-		offerID, "Spring Botox -20%", "20% off any Botox procedure",
+		`INSERT INTO discounts (id, name, description, discount_type, value_type, value, start_date, end_date, is_active, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?,?,?,1,?,?)`,
+		newID(), "Spring -20%", "20% off any invoice",
 		"offer", "percentage", 20.0, startStr, endStr, c.now, c.now,
 	); err != nil {
 		return err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM procedures WHERE name LIKE 'Botox%'`)
-	if err != nil {
-		return err
-	}
-	var botoxIDs []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return err
-		}
-		botoxIDs = append(botoxIDs, id)
-	}
-	rows.Close()
-	for _, pid := range botoxIDs {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO discount_items (id, discount_id, item_type, item_id, created_at) VALUES (?,?,?,?,?)`,
-			newID(), offerID, "procedure", pid, c.now,
-		); err != nil {
-			return err
-		}
-	}
 
-	// Voucher: $50 off, 5 codes (one used to demo current_usages).
-	voucherID := newID()
+	// Offer: $50 off, applied invoice-wide.
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO discounts (id, name, description, discount_type, value_type, value, max_usages, current_usages, start_date, end_date, is_active, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,1,?,?)`,
-		voucherID, "$50 off Skin Boosters", "Single-use vouchers, $50 off any skin booster",
-		"voucher", "fixed", 50.0, 5, 1, startStr, endStr, c.now, c.now,
+		`INSERT INTO discounts (id, name, description, discount_type, value_type, value, start_date, end_date, is_active, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?,?,?,1,?,?)`,
+		newID(), "$50 off", "Flat $50 off any invoice",
+		"offer", "fixed", 50.0, startStr, endStr, c.now, c.now,
 	); err != nil {
 		return err
 	}
-	codes := []struct {
-		code string
-		used bool
-	}{
-		{"SB-DEMO-001", true},
-		{"SB-DEMO-002", false},
-		{"SB-DEMO-003", false},
-		{"SB-DEMO-004", false},
-		{"SB-DEMO-005", false},
-	}
-	for _, v := range codes {
-		used := 0
-		if v.used {
-			used = 1
-		}
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO vouchers (id, discount_id, code, is_used, created_at) VALUES (?,?,?,?,?)`,
-			newID(), voucherID, v.code, used, c.now,
-		); err != nil {
-			return err
-		}
+
+	// Demo gift card with a code (unredeemed).
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO discounts (id, name, description, discount_type, value_type, value, code, is_active, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?,?,1,?,?)`,
+		newID(), "Demo Gift Card $100", "Redeemable gift card",
+		"gift", "fixed", 100.0, "GIFT-DEMO-001", c.now, c.now,
+	); err != nil {
+		return err
 	}
 	return nil
 }
@@ -514,6 +477,13 @@ func seedAppointmentsAndInvoices(ctx context.Context, tx *sql.Tx, c *demoCtx) er
 				amount: price, finalAmount: final,
 				discountID: discountID, discountValue: discountValue,
 			})
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO appointment_procedures (id, patient_id, procedure_id, appointment_id, notes, created_at, updated_at)
+				 VALUES (?,?,?,?,?,?,?)`,
+				newID(), patientID, procID, aptID, "", c.now, c.now,
+			); err != nil {
+				return err
+			}
 		}
 		for _, name := range a.productNames {
 			pid := c.products[name]
@@ -639,28 +609,6 @@ func botoxOffer(ctx context.Context, tx *sql.Tx) (string, float64) {
 		return "", 0
 	}
 	return id, value
-}
-
-// Patient procedures
-
-func seedPatientProcedures(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
-	if len(c.patientIDs) == 0 {
-		return nil
-	}
-	procID := c.procedures["Face + Plasma (3 sessions)"]
-	if procID == "" {
-		return nil
-	}
-
-	// Patient 0 (Nour): an in-progress Morpheus8 face course.
-	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO patient_procedures (id, patient_id, procedure_id, status, notes, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?)`,
-		newID(), c.patientIDs[0], procID, "in-progress", "Morpheus8 face course", c.now, c.now,
-	); err != nil {
-		return err
-	}
-	return nil
 }
 
 // Bookings + notifications

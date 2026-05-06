@@ -10,28 +10,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func GetAllScheduleAvailability(c echo.Context) error {
-	employeeID := c.QueryParam("employeeId")
-	sa := &store.ScheduleAvailability{}
-	var items []store.ScheduleAvailability
-	var total int
-	var err error
-	if employeeID != "" {
-		items, err = sa.GetByEmployee(employeeID)
-		total = len(items)
-	} else {
-		params := parseListParams(c)
-		items, total, err = sa.GetAll(params)
-	}
-	if err != nil {
-		log.Println("Error: GetAllScheduleAvailability failed to fetch schedule availability:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch schedule availability"})
-	}
-	if items == nil {
-		items = []store.ScheduleAvailability{}
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
-}
+// schedule_availability is a write-only resource from the API surface; reads
+// for the UI go through GetEmployeeSchedule.
 
 func CreateScheduleAvailability(c echo.Context) error {
 	var sa store.ScheduleAvailability
@@ -43,7 +23,6 @@ func CreateScheduleAvailability(c echo.Context) error {
 		log.Println("Error: CreateScheduleAvailability validation failed:", err)
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
-	sa.CreatedAt = store.DateNow()
 	if err := sa.Create(); err != nil {
 		log.Println("Error: CreateScheduleAvailability failed to create schedule availability:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create schedule availability"})

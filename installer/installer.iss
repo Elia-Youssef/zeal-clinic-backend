@@ -11,7 +11,7 @@
 #define AppPublisher  "Zeal Clinic"
 #define AppURL        ""
 #define AppExeName    "ZealClinic.exe"
-#define AppPort       "8080"
+#define AppPort       "55555"
 
 [Setup]
 AppId={{99045ACA-9054-42EB-A841-883400FBF09A}

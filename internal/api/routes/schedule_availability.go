@@ -7,8 +7,7 @@ import (
 )
 
 func SetupScheduleAvailabilityRoutes(api *echo.Group) {
-	api.GET("/schedule-availability", handlers.GetAllScheduleAvailability, scope("team:read"))
-	api.POST("/schedule-availability", handlers.CreateScheduleAvailability, scope("team:write"))
-	api.PUT("/schedule-availability/:id", handlers.UpdateScheduleAvailability, scope("team:write"))
-	api.DELETE("/schedule-availability/:id", handlers.DeleteScheduleAvailability, scope("team:write"))
+	api.POST("/schedule-availability", handlers.CreateScheduleAvailability, scope("schedule:write"), cache("employee-schedules", "analytics"))
+	api.PUT("/schedule-availability/:id", handlers.UpdateScheduleAvailability, scope("schedule:write"), cache("employee-schedules", "analytics"))
+	api.DELETE("/schedule-availability/:id", handlers.DeleteScheduleAvailability, scope("schedule:delete"), cache("employee-schedules", "analytics"))
 }

@@ -143,6 +143,17 @@ func GetEmployeeDropdown(params ListParams) ([]DropdownItem, error) {
 	return items, rows.Err()
 }
 
+// EmployeeIDForUser returns the employee row id linked to a user, or
+// ErrNotFound if the user has no employee record.
+func EmployeeIDForUser(userID string) (string, error) {
+	var id string
+	err := RDB.QueryRow(`SELECT id FROM employees WHERE user_id = ?`, userID).Scan(&id)
+	if err == sql.ErrNoRows {
+		return "", ErrNotFound
+	}
+	return id, err
+}
+
 func (m *Employee) GetByID(id string) error {
 	err := m.ScanRow(RDB.QueryRow(`SELECT `+employeeColumns+` FROM employees WHERE id = ?`, id))
 	if err != nil {

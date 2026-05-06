@@ -15,13 +15,16 @@ type InvoiceItem struct {
 	FinalAmount float64 `json:"finalAmount"`
 	Notes       string  `json:"notes"`
 	CreatedAt   Date    `json:"createdAt"`
-	/* Transient */
-	ItemName            string  `json:"itemName"`
-	DiscountID          string  `json:"discountId,omitempty"`
-	DiscountValue       float64 `json:"discountValue,omitempty"`
-	DiscountName        string  `json:"discountName,omitempty"`
-	DiscountDescription string  `json:"discountDescription,omitempty"`
-	VoucherCode         string  `json:"voucherCode,omitempty"`
+
+	// Gift-line inputs (write-only on Invoice.Create when ItemType == "gift").
+	// Either GiftPatientID or GiftCode must be set; the gift's redeemable value
+	// equals Amount (gross, ignoring quantity). After Create, ItemID points at
+	// the resulting Discount row.
+	GiftPatientID *string `json:"giftPatientId,omitempty"`
+	GiftCode      *string `json:"giftCode,omitempty"`
+
+	// Transient join
+	ItemName string `json:"itemName"`
 }
 
 const invoiceItemColumnsNoId = `invoice_id, item_type, item_id, quantity, amount, final_amount, notes, created_at`
@@ -68,17 +71,11 @@ func (ii *InvoiceItemList) GetByInvoice(invoiceID string) error {
 			RDB.QueryRow(`SELECT name FROM products WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
 		case "procedure":
 			RDB.QueryRow(`SELECT name FROM procedures WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
-		case "discount":
+		case "gift":
 			RDB.QueryRow(`SELECT name FROM discounts WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
 		default:
 			(*ii)[idx].ItemName = "Other"
 		}
-		RDB.QueryRow(`SELECT iid.discount_id, iid.discount_value, d.name
-			FROM invoice_item_discounts iid
-			JOIN discounts d ON d.id = iid.discount_id
-			WHERE iid.invoice_item_id = ?
-			ORDER BY iid.created_at LIMIT 1`, i.ID).
-			Scan(&(*ii)[idx].DiscountID, &(*ii)[idx].DiscountValue, &(*ii)[idx].DiscountName)
 	}
 	return nil
 }

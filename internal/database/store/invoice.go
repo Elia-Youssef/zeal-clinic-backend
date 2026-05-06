@@ -22,6 +22,11 @@ type Invoice struct {
 	FromBalanceID string  `json:"fromBalanceId"`
 	ToBalanceID   string  `json:"toBalanceId"`
 	Amount        float64 `json:"amount"`
+	// DiscountID points to an "offer" Discount applied invoice-wide.
+	// DiscountValue is the resolved monetary discount (computed from the
+	// discount's value_type/value at create time, capped at Amount).
+	DiscountID    string  `json:"discountId,omitempty"`
+	DiscountValue float64 `json:"discountValue"`
 	FinalAmount   float64 `json:"finalAmount"`
 	CurrencyID    string  `json:"currencyId"`
 	Notes         string  `json:"notes"`
@@ -37,7 +42,7 @@ type Invoice struct {
 	ToEntityName   string `json:"toEntityName,omitempty"`
 }
 
-const invoiceColumnsNoId = `invoice_number, from_balance_id, to_balance_id, amount, final_amount, currency_id, notes, created_by, created_at, updated_at`
+const invoiceColumnsNoId = `invoice_number, from_balance_id, to_balance_id, amount, discount_id, discount_value, final_amount, currency_id, notes, created_by, created_at, updated_at`
 const invoiceColumns = `id, ` + invoiceColumnsNoId
 
 type InvoiceList []Invoice
@@ -46,7 +51,8 @@ func (m *Invoice) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil Invoice row")
 	}
-	return row.Scan(&m.ID, &m.InvoiceNumber, &m.FromBalanceID, &m.ToBalanceID, &m.Amount, &m.FinalAmount, &m.CurrencyID,
+	return row.Scan(&m.ID, &m.InvoiceNumber, &m.FromBalanceID, &m.ToBalanceID, &m.Amount,
+		&m.DiscountID, &m.DiscountValue, &m.FinalAmount, &m.CurrencyID,
 		&m.Notes, &m.CreatedBy, &m.CreatedAt, &m.UpdatedAt)
 }
 
@@ -57,7 +63,8 @@ func (l *InvoiceList) ScanRows(rows *sql.Rows) error {
 	*l = InvoiceList{}
 	for rows.Next() {
 		var item Invoice
-		err := rows.Scan(&item.ID, &item.InvoiceNumber, &item.FromBalanceID, &item.ToBalanceID, &item.Amount, &item.FinalAmount, &item.CurrencyID,
+		err := rows.Scan(&item.ID, &item.InvoiceNumber, &item.FromBalanceID, &item.ToBalanceID, &item.Amount,
+			&item.DiscountID, &item.DiscountValue, &item.FinalAmount, &item.CurrencyID,
 			&item.Notes, &item.CreatedBy, &item.CreatedAt, &item.UpdatedAt)
 		if err != nil {
 			continue
@@ -150,89 +157,67 @@ func (inv *Invoice) Create() error {
 	inv.CreatedAt = now
 	inv.UpdatedAt = now
 
-	// Resolve per-item discount values; compute line final amounts and invoice totals.
-	var total, finalTotal float64
-	hasDiscount := false
-	for i := range inv.Items {
-		item := &inv.Items[i]
-		// A "discount" item with no item_id is a gift card sale: auto-create a
-		// fixed-value, single-use gift discount and link it as the line's item.
-		// The line amount doubles as the gift's redeemable value.
-		if item.ItemType == "discount" && item.ItemID == "" {
-			maxUsages := 1
-			gift := Discount{
-				Name:         item.DiscountName,
-				Description:  item.DiscountDescription,
-				DiscountType: "gift",
-				ValueType:    "fixed",
-				Value:        item.Amount,
-				MaxUsages:    &maxUsages,
-				IsActive:     1,
-			}
-			if item.VoucherCode != "" {
-				gift.Vouchers = VoucherList{{Code: item.VoucherCode}}
-			}
-			if err := gift.CreateWithTx(tx); err != nil {
-				return fmt.Errorf("create gift discount: %w", err)
-			}
-			item.ItemID = gift.ID
-		}
-		item.FinalAmount = item.Amount
-		if item.DiscountID != "" {
-			var valueType string
-			var value float64
-			if err := tx.QueryRow(`SELECT value_type, value FROM discounts WHERE id = ?`, item.DiscountID).Scan(&valueType, &value); err != nil {
-				return fmt.Errorf("discount %s: %w", item.DiscountID, err)
-			}
-			var dv float64
-			if valueType == "percentage" {
-				dv = item.Amount * value / 100
-			} else {
-				dv = value
-			}
-			if dv > item.Amount {
-				dv = item.Amount
-			}
-			item.DiscountValue = dv
-			item.FinalAmount = item.Amount - dv
-			hasDiscount = true
-		}
-		total += item.Amount
-		finalTotal += item.FinalAmount
-	}
-	inv.Amount = total
-	inv.FinalAmount = finalTotal
-
-	if _, err := tx.Exec(`INSERT INTO invoices (`+invoiceColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		inv.ID, inv.InvoiceNumber, inv.FromBalanceID, inv.ToBalanceID, inv.Amount, inv.FinalAmount, inv.CurrencyID,
-		inv.Notes, inv.CreatedBy, inv.CreatedAt, inv.UpdatedAt); err != nil {
-		return err
-	}
-
+	// 1) Materialize each line. Gift lines create a Discount row up front so
+	//    the line's item_id can point at it. Sum line amounts into Amount.
+	var total float64
 	for i := range inv.Items {
 		item := &inv.Items[i]
 		item.ID = uuid.Must(uuid.NewV7()).String()
 		item.InvoiceID = inv.ID
 		item.CreatedAt = now
+		item.FinalAmount = item.Amount
 
+		if item.ItemType == "gift" {
+			gift, err := createGiftFromLine(tx, item, now)
+			if err != nil {
+				return err
+			}
+			item.ItemID = gift.ID
+		}
+		total += item.Amount
+	}
+	inv.Amount = total
+
+	// 2) Resolve invoice-level offer discount (if any). Caps at Amount.
+	if inv.DiscountID != "" {
+		var dType, vType string
+		var value float64
+		if err := tx.QueryRow(`SELECT discount_type, value_type, value FROM discounts WHERE id = ?`, inv.DiscountID).Scan(&dType, &vType, &value); err != nil {
+			return fmt.Errorf("discount %s: %w", inv.DiscountID, err)
+		}
+		if dType != "offer" {
+			return fmt.Errorf("invoice discount must be of type 'offer', got %q", dType)
+		}
+		var dv float64
+		if vType == "percentage" {
+			dv = inv.Amount * value / 100
+		} else {
+			dv = value
+		}
+		if dv > inv.Amount {
+			dv = inv.Amount
+		}
+		inv.DiscountValue = dv
+	}
+	inv.FinalAmount = inv.Amount - inv.DiscountValue
+
+	// 3) Insert invoice + items.
+	if _, err := tx.Exec(`INSERT INTO invoices (`+invoiceColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		inv.ID, inv.InvoiceNumber, inv.FromBalanceID, inv.ToBalanceID, inv.Amount,
+		inv.DiscountID, inv.DiscountValue, inv.FinalAmount, inv.CurrencyID,
+		inv.Notes, inv.CreatedBy, inv.CreatedAt, inv.UpdatedAt); err != nil {
+		return err
+	}
+	for i := range inv.Items {
+		item := &inv.Items[i]
 		if _, err := tx.Exec(`INSERT INTO invoice_items (`+invoiceItemColumns+`) VALUES (?,?,?,?,?,?,?,?,?)`,
 			item.ID, item.InvoiceID, item.ItemType, item.ItemID,
 			item.Quantity, item.Amount, item.FinalAmount, item.Notes, item.CreatedAt); err != nil {
 			return err
 		}
-
-		if item.DiscountID != "" {
-			if _, err := tx.Exec(`INSERT INTO invoice_item_discounts (`+invoiceItemDiscountColumns+`) VALUES (?,?,?,?,?)`,
-				uuid.Must(uuid.NewV7()).String(), item.ID, item.DiscountID, item.DiscountValue, now); err != nil {
-				return err
-			}
-			if _, err := tx.Exec(`UPDATE discounts SET current_usages = current_usages + 1, updated_at = ? WHERE id = ?`, now, item.DiscountID); err != nil {
-				return err
-			}
-		}
 	}
 
-	// Adjust product stock based on direction relative to self.
+	// 4) Adjust product stock based on direction relative to self.
 	for _, item := range inv.Items {
 		if item.ItemType != "product" || item.ItemID == "" {
 			continue
@@ -251,7 +236,7 @@ func (inv *Invoice) Create() error {
 		}
 	}
 
-	// Record the double-entry charge for what's actually owed (discounted total).
+	// 5) Charge transaction for what's actually owed (final, post-discount).
 	bt := BalanceTransaction{
 		FromBalanceID:   inv.FromBalanceID,
 		ToBalanceID:     inv.ToBalanceID,
@@ -263,14 +248,166 @@ func (inv *Invoice) Create() error {
 		Description:     fmt.Sprintf("Invoice #%d", inv.InvoiceNumber),
 		CreatedBy:       inv.CreatedBy,
 	}
-	if hasDiscount {
+	if inv.DiscountID != "" {
 		bt.TransactionMethod = "discount"
 	}
 	if err := bt.CreateWithTx(tx); err != nil {
 		return fmt.Errorf("create transaction: %w", err)
 	}
 
+	// 6) Auto-apply each gift that was assigned to a specific patient at
+	//    creation. Direction = patient to self with type=adjustment so the
+	//    recipient's balance moves toward credit (negative) and total_in/out
+	//    is untouched (no real cash flowed).
+	for _, item := range inv.Items {
+		if item.ItemType != "gift" || item.GiftPatientID == nil || *item.GiftPatientID == "" {
+			continue
+		}
+		if err := applyGiftToPatientWithTx(tx, *item.GiftPatientID, inv.CurrencyID, item.Amount,
+			item.ItemID, "invoice", inv.ID,
+			fmt.Sprintf("Gift card credit (Invoice #%d)", inv.InvoiceNumber), inv.CreatedBy); err != nil {
+			return fmt.Errorf("apply gift: %w", err)
+		}
+	}
+
 	return tx.Commit()
+}
+
+// createGiftFromLine creates a gift Discount row from an invoice line. The
+// line's Amount is the gift's redeemable value. Notes copy into description.
+func createGiftFromLine(tx *sql.Tx, item *InvoiceItem, now Date) (*Discount, error) {
+	hasPatient := item.GiftPatientID != nil && *item.GiftPatientID != ""
+	hasCode := item.GiftCode != nil && *item.GiftCode != ""
+	if hasPatient == hasCode {
+		return nil, errors.New("gift line must have exactly one of giftPatientId or giftCode")
+	}
+	name := "Gift Card"
+	if item.Notes != "" {
+		name = item.Notes
+	}
+	gift := &Discount{
+		Name:         name,
+		Description:  item.Notes,
+		DiscountType: "gift",
+		ValueType:    "fixed",
+		Value:        item.Amount,
+		PatientID:    item.GiftPatientID,
+		Code:         item.GiftCode,
+		IsActive:     1,
+	}
+	if err := gift.CreateWithTx(tx); err != nil {
+		return nil, fmt.Errorf("create gift discount: %w", err)
+	}
+	return gift, nil
+}
+
+// applyGiftToPatientWithTx records the credit application for a gift on a
+// patient's balance and marks the gift redeemed. sourceType/sourceID link the
+// transaction to whatever triggered the apply (the originating invoice when
+// the gift had a patient_id at creation, or the discount itself when redeemed
+// later via code).
+func applyGiftToPatientWithTx(tx *sql.Tx, patientID, currencyID string, amount float64,
+	giftID, sourceType, sourceID, description, createdBy string) error {
+	patientBalance, err := resolvePatientBalanceWithTx(tx, patientID, currencyID)
+	if err != nil {
+		return err
+	}
+	selfBalanceID, err := selfBalanceIDForCurrency(tx, currencyID)
+	if err != nil {
+		return err
+	}
+	bt := BalanceTransaction{
+		FromBalanceID:     patientBalance.ID,
+		ToBalanceID:       selfBalanceID,
+		Amount:            amount,
+		CurrencyID:        currencyID,
+		TransactionType:   "adjustment",
+		TransactionMethod: "discount",
+		SourceType:        sourceType,
+		SourceID:          sourceID,
+		Description:       description,
+		CreatedBy:         createdBy,
+	}
+	if err := bt.CreateWithTx(tx); err != nil {
+		return err
+	}
+	gift := Discount{ID: giftID}
+	return gift.MarkRedeemedWithTx(tx)
+}
+
+// ApplyGiftByCode redeems a gift by its code, crediting the given patient's
+// balance. Returns the updated discount.
+func ApplyGiftByCode(code, patientID, currencyID, createdBy string) (*Discount, error) {
+	if code == "" || patientID == "" || currencyID == "" {
+		return nil, errors.New("code, patientId and currencyId are required")
+	}
+	tx, err := DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var gift Discount
+	row := tx.QueryRow(`SELECT `+discountColumns+` FROM discounts WHERE code = ?`, code)
+	if err := gift.ScanRow(row); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if gift.DiscountType != "gift" {
+		return nil, errors.New("not a gift discount")
+	}
+	if gift.RedeemedAt != nil {
+		return nil, errors.New("gift already redeemed")
+	}
+	if gift.IsActive == 0 {
+		return nil, errors.New("gift is inactive")
+	}
+
+	if err := applyGiftToPatientWithTx(tx, patientID, currencyID, gift.Value,
+		gift.ID, "discount", gift.ID,
+		fmt.Sprintf("Redeemed gift card %q", gift.Name), createdBy); err != nil {
+		return nil, err
+	}
+
+	if _, err := tx.Exec(`UPDATE discounts SET patient_id = ?, updated_at = ? WHERE id = ?`,
+		patientID, DateNow(), gift.ID); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	pid := patientID
+	gift.PatientID = &pid
+	return &gift, nil
+}
+
+func resolvePatientBalanceWithTx(tx *sql.Tx, patientID, currencyID string) (*Balance, error) {
+	var firstName, lastName string
+	if err := tx.QueryRow(`SELECT first_name, last_name FROM patients WHERE id = ?`, patientID).Scan(&firstName, &lastName); err != nil {
+		return nil, fmt.Errorf("patient %s: %w", patientID, err)
+	}
+	now := DateNow()
+	id := uuid.Must(uuid.NewV7()).String()
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO balances (`+balanceColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		id, "patient", patientID, firstName+" "+lastName, currencyID, 0, 0, 0, now, now); err != nil {
+		return nil, err
+	}
+	var b Balance
+	if err := b.ScanRow(tx.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = 'patient' AND entity_id = ? AND currency_id = ?`, patientID, currencyID)); err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+func selfBalanceIDForCurrency(tx *sql.Tx, currencyID string) (string, error) {
+	var id string
+	if err := tx.QueryRow(`SELECT id FROM balances WHERE entity_type = 'self' AND currency_id = ? LIMIT 1`, currencyID).Scan(&id); err != nil {
+		return "", fmt.Errorf("self balance for currency %s: %w", currencyID, err)
+	}
+	return id, nil
 }
 
 func (inv *Invoice) Update(updates map[string]any) error {
@@ -303,7 +440,8 @@ func (inv *Invoice) Update(updates map[string]any) error {
 
 func (inv *InvoiceList) GetClientInvoices(patientID string) error {
 	query := `SELECT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
-		i.amount, i.final_amount, i.currency_id, i.notes, i.created_by, i.created_at, i.updated_at
+		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
+		i.notes, i.created_by, i.created_at, i.updated_at
 		FROM invoices i
 		JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE tb.entity_type = 'patient'`
@@ -333,7 +471,8 @@ func (inv *InvoiceList) GetClientInvoices(patientID string) error {
 
 func (inv *InvoiceList) GetSupplierInvoices(supplierID string) error {
 	query := `SELECT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
-		i.amount, i.final_amount, i.currency_id, i.notes, i.created_by, i.created_at, i.updated_at
+		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
+		i.notes, i.created_by, i.created_at, i.updated_at
 		FROM invoices i
 		JOIN balances fb ON fb.id = i.from_balance_id
 		WHERE fb.entity_type = 'supplier'`
@@ -382,7 +521,8 @@ func (inv *InvoiceList) GetAllByType(entityType string, params ListParams) (int,
 	}
 
 	query := `SELECT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
-		i.amount, i.final_amount, i.currency_id, i.notes, i.created_by, i.created_at, i.updated_at` +
+		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
+		i.notes, i.created_by, i.created_at, i.updated_at` +
 		baseFrom + where + ` ORDER BY i.created_at DESC` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
@@ -407,7 +547,8 @@ func (inv *InvoiceList) GetAllByType(entityType string, params ListParams) (int,
 
 func (inv *InvoiceList) GetByItem(itemID, itemType string) error {
 	query := `SELECT DISTINCT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
-		i.amount, i.final_amount, i.currency_id, i.notes, i.created_by, i.created_at, i.updated_at
+		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
+		i.notes, i.created_by, i.created_at, i.updated_at
 		FROM invoices i
 		JOIN invoice_items ii ON ii.invoice_id = i.id
 		WHERE ii.item_id = ? AND ii.item_type = ?
@@ -434,9 +575,11 @@ func (inv *InvoiceList) GetByItem(itemID, itemType string) error {
 	return nil
 }
 
-// Delete reverses every side effect of Invoice.Create (product stock, discount
-// usages, and the charge balance transaction), then removes the invoice. Items
-// and item-discount rows cascade via FK.
+// Delete reverses every side effect of Invoice.Create (product stock, the
+// charge transaction, any auto-applied gift transactions), then removes the
+// invoice and any gift discounts it created. Refuses if a gift was already
+// redeemed (via code) outside this invoice's flow, since the redemption tx
+// would be left dangling.
 func (inv *Invoice) Delete() error {
 	tx, err := DB.Begin()
 	if err != nil {
@@ -457,7 +600,7 @@ func (inv *Invoice) Delete() error {
 	fromEntityType := bal.GetEntityType(fromBalance, tx)
 	toEntityType := bal.GetEntityType(toBalance, tx)
 
-	// Reverse product stock and discount usages by walking the items.
+	// Walk items to reverse stock and identify gift discounts to delete.
 	rows, err := tx.Query(`SELECT id, item_type, item_id, quantity FROM invoice_items WHERE invoice_id = ?`, inv.ID)
 	if err != nil {
 		return err
@@ -477,6 +620,7 @@ func (inv *Invoice) Delete() error {
 	}
 	rows.Close()
 
+	var giftIDs []string
 	for _, it := range items {
 		if it.itemType == "product" && it.itemID != "" {
 			var delta int
@@ -492,15 +636,26 @@ func (inv *Invoice) Delete() error {
 				}
 			}
 		}
-		// Reverse discount usages applied via this invoice item.
-		if _, err := tx.Exec(`UPDATE discounts SET current_usages = current_usages - 1, updated_at = ?
-			WHERE id IN (SELECT discount_id FROM invoice_item_discounts WHERE invoice_item_id = ?)
-			AND current_usages > 0`, DateNow(), it.id); err != nil {
-			return fmt.Errorf("reverse discount usages: %w", err)
+		if it.itemType == "gift" && it.itemID != "" {
+			giftIDs = append(giftIDs, it.itemID)
 		}
 	}
 
-	// Reverse and delete every balance transaction sourced from this invoice.
+	// Refuse delete if any gift created here has a redemption tx that wasn't
+	// also sourced from this invoice (i.e. a code-based redemption).
+	for _, gid := range giftIDs {
+		var n int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM balance_transactions
+			WHERE source_type = 'discount' AND source_id = ?`, gid).Scan(&n); err != nil {
+			return err
+		}
+		if n > 0 {
+			return fmt.Errorf("cannot delete invoice: gift card has been redeemed")
+		}
+	}
+
+	// Reverse and delete every balance transaction sourced from this invoice
+	// (the charge plus any auto-applied gifts).
 	chargeRows, err := tx.Query(`SELECT id, from_balance_id, to_balance_id, amount, transaction_type FROM balance_transactions
 		WHERE source_type = 'invoice' AND source_id = ?`, inv.ID)
 	if err != nil {
@@ -519,6 +674,13 @@ func (inv *Invoice) Delete() error {
 	for i := range charges {
 		if err := charges[i].reverseAndDeleteWithTx(tx); err != nil {
 			return fmt.Errorf("reverse charge transaction: %w", err)
+		}
+	}
+
+	// Drop gift discount rows. Items cascade with the invoice.
+	for _, gid := range giftIDs {
+		if _, err := tx.Exec(`DELETE FROM discounts WHERE id = ?`, gid); err != nil {
+			return fmt.Errorf("delete gift discount: %w", err)
 		}
 	}
 

@@ -182,15 +182,14 @@ CREATE TABLE IF NOT EXISTS patient_medicines (
 );
 
 -- ============================================================
--- PATIENT PROCEDURES
+-- APPOINTMENT PROCEDURES
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS patient_procedures (
+CREATE TABLE IF NOT EXISTS appointment_procedures (
     id                      TEXT PRIMARY KEY,
     patient_id              TEXT NOT NULL REFERENCES patients(id),
     procedure_id            TEXT NOT NULL REFERENCES procedures(id),
-    appointment_id          TEXT DEFAULT NULL,
-    status                  TEXT NOT NULL DEFAULT 'planned' CHECK(status IN ('planned','in-progress','completed')),
+    appointment_id          TEXT NOT NULL REFERENCES appointments(id),
     notes                   TEXT NOT NULL DEFAULT '',
     created_at              TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
@@ -225,6 +224,28 @@ CREATE TABLE IF NOT EXISTS employee_salaries (
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS employee_salary_preparations (
+    id              TEXT PRIMARY KEY,
+    employee_id     TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    period_start    TEXT NOT NULL,
+    period_end      TEXT NOT NULL,
+    salary_id       TEXT NOT NULL DEFAULT '',
+    transaction_id  TEXT NOT NULL DEFAULT '',
+    currency_id     TEXT NOT NULL DEFAULT '',
+    base_salary     REAL NOT NULL DEFAULT 0,
+    adjustment      REAL NOT NULL DEFAULT 0,
+    prepared_amount REAL NOT NULL DEFAULT 0,
+    notes           TEXT NOT NULL DEFAULT '',
+    created_by      TEXT NOT NULL DEFAULT '',
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(employee_id, period_start, period_end)
+);
+
+CREATE INDEX IF NOT EXISTS idx_employee_salary_preparations_period
+    ON employee_salary_preparations(period_start, period_end);
+CREATE INDEX IF NOT EXISTS idx_employee_salary_preparations_employee
+    ON employee_salary_preparations(employee_id);
 
 -- ============================================================
 -- APPOINTMENTS
@@ -279,9 +300,48 @@ CREATE TABLE IF NOT EXISTS schedule_availability (
     day_of_week    INTEGER NOT NULL CHECK(day_of_week BETWEEN 0 AND 6),
     start_time     TEXT NOT NULL,
     end_time       TEXT NOT NULL,
-    effective_date TEXT NOT NULL DEFAULT '',
-    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    start_date     TEXT NOT NULL DEFAULT '',
+    end_date       TEXT NOT NULL DEFAULT '',
+    is_active      INTEGER NOT NULL DEFAULT 1,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_schedule_availability_employee_day_start
+    ON schedule_availability(employee_id, day_of_week, start_date);
+CREATE INDEX IF NOT EXISTS idx_schedule_availability_active
+    ON schedule_availability(employee_id, is_active);
+
+CREATE TABLE IF NOT EXISTS holidays (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date   TEXT NOT NULL,
+    notes      TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_holidays_range ON holidays(start_date, end_date);
+
+CREATE TABLE IF NOT EXISTS employee_vacations (
+    id          TEXT PRIMARY KEY,
+    employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    start_date  TEXT NOT NULL,
+    end_date    TEXT NOT NULL,
+    start_time  TEXT NOT NULL DEFAULT '',
+    end_time    TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','rejected')),
+    notes       TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_employee_vacations_employee_range
+    ON employee_vacations(employee_id, start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_employee_vacations_status
+    ON employee_vacations(status);
 
 -- ============================================================
 -- PRESCRIPTIONS
@@ -412,6 +472,8 @@ CREATE TABLE IF NOT EXISTS invoices (
     from_balance_id TEXT NOT NULL DEFAULT '' REFERENCES balances(id),
     to_balance_id   TEXT NOT NULL DEFAULT '' REFERENCES balances(id),
     amount          REAL NOT NULL DEFAULT 0,
+    discount_id     TEXT NOT NULL DEFAULT '',
+    discount_value  REAL NOT NULL DEFAULT 0,
     final_amount    REAL NOT NULL DEFAULT 0,
     currency_id     TEXT NOT NULL DEFAULT '',
     notes           TEXT NOT NULL DEFAULT '',
@@ -423,7 +485,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 CREATE TABLE IF NOT EXISTS invoice_items (
     id           TEXT PRIMARY KEY,
     invoice_id   TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-    item_type    TEXT NOT NULL DEFAULT 'other' CHECK(item_type IN ('product', 'procedure', 'discount', 'other')),
+    item_type    TEXT NOT NULL DEFAULT 'other' CHECK(item_type IN ('product', 'procedure', 'gift', 'other')),
     item_id      TEXT NOT NULL DEFAULT '',
     quantity     INTEGER NOT NULL DEFAULT 1,
     amount       REAL NOT NULL DEFAULT 0,
@@ -484,15 +546,22 @@ CREATE TABLE IF NOT EXISTS lebanon_cities (
 -- DISCOUNTS
 -- ============================================================
 
+-- Offer discounts: applied directly on an invoice (invoice.discount_id),
+-- reduce its final amount.
+-- Gift discounts: created only via an invoice line (item_type='gift'). Have
+-- either patient_id (gift assigned to a specific patient; credit applied at
+-- creation) or code (redeemed later by anyone, via invoice or standalone).
+-- redeemed_at marks single-use gifts as consumed.
 CREATE TABLE IF NOT EXISTS discounts (
     id              TEXT PRIMARY KEY,
     name            TEXT NOT NULL,
     description     TEXT NOT NULL DEFAULT '',
-    discount_type   TEXT NOT NULL CHECK(discount_type IN ('offer','voucher','gift')),
+    discount_type   TEXT NOT NULL CHECK(discount_type IN ('offer','gift')),
     value_type      TEXT NOT NULL DEFAULT 'percentage' CHECK(value_type IN ('percentage','fixed')),
     value           REAL NOT NULL DEFAULT 0,
-    max_usages      INTEGER DEFAULT NULL,
-    current_usages  INTEGER NOT NULL DEFAULT 0,
+    patient_id      TEXT DEFAULT NULL,
+    code            TEXT DEFAULT NULL UNIQUE,
+    redeemed_at     TEXT DEFAULT NULL,
     start_date      TEXT DEFAULT NULL,
     end_date        TEXT DEFAULT NULL,
     is_active       INTEGER NOT NULL DEFAULT 1,
@@ -500,38 +569,10 @@ CREATE TABLE IF NOT EXISTS discounts (
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS discount_items (
-    id          TEXT PRIMARY KEY,
-    discount_id TEXT NOT NULL REFERENCES discounts(id) ON DELETE CASCADE,
-    item_type   TEXT NOT NULL CHECK(item_type IN ('procedure','product')),
-    item_id     TEXT NOT NULL,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(discount_id, item_type, item_id)
-);
-
-CREATE TABLE IF NOT EXISTS vouchers (
-    id          TEXT PRIMARY KEY,
-    discount_id TEXT NOT NULL REFERENCES discounts(id) ON DELETE CASCADE,
-    code        TEXT NOT NULL UNIQUE,
-    is_used     INTEGER NOT NULL DEFAULT 0,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS invoice_item_discounts (
-    id              TEXT PRIMARY KEY,
-    invoice_item_id TEXT NOT NULL REFERENCES invoice_items(id) ON DELETE CASCADE,
-    discount_id     TEXT NOT NULL REFERENCES discounts(id),
-    discount_value  REAL NOT NULL DEFAULT 0,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS invoice_item_discounts;
-DROP TABLE IF EXISTS vouchers;
-DROP TABLE IF EXISTS discount_items;
 DROP TABLE IF EXISTS discounts;
 DROP TABLE IF EXISTS lebanon_cities;
 DROP TABLE IF EXISTS countries;
@@ -549,12 +590,15 @@ DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS product_categories;
 DROP TABLE IF EXISTS prescription_medicines;
 DROP TABLE IF EXISTS prescriptions;
+DROP TABLE IF EXISTS employee_vacations;
+DROP TABLE IF EXISTS holidays;
 DROP TABLE IF EXISTS schedule_availability;
 DROP TABLE IF EXISTS bookings;
 DROP TABLE IF EXISTS appointments;
+DROP TABLE IF EXISTS employee_salary_preparations;
 DROP TABLE IF EXISTS employee_salaries;
 DROP TABLE IF EXISTS employees;
-DROP TABLE IF EXISTS patient_procedures;
+DROP TABLE IF EXISTS appointment_procedures;
 DROP TABLE IF EXISTS patient_medicines;
 DROP TABLE IF EXISTS patient_allergies;
 DROP TABLE IF EXISTS patients;
