@@ -24,12 +24,11 @@ func GenerateToken(user store.User, scopes []string) (TokenResult, error) {
 	expiresAt := now.Add(cfg.JWTLifetime)
 
 	claims := jwt.MapClaims{
-		"sub":    user.ID,
-		"role":   user.Role,
-		"scopes": scopes,
-		"exp":    expiresAt.Unix(),
-		"iat":    now.Unix(),
-		"iss":    "clinic-api",
+		"sub":  user.ID,
+		"role": user.Role,
+		"exp":  expiresAt.Unix(),
+		"iat":  now.Unix(),
+		"iss":  "clinic-api",
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

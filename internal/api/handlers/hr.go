@@ -52,7 +52,7 @@ func GetEmployeeSchedule(c echo.Context) error {
 		log.Println("Error: GetEmployeeSchedule vacations:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch vacations"})
 	}
-	holidays, err := store.HolidaysOverlappingWeek(weekStart, weekEnd)
+	holidays, err := store.HolidaysOverlappingRange(weekStart, weekEnd)
 	if err != nil {
 		log.Println("Error: GetEmployeeSchedule holidays:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch holidays"})

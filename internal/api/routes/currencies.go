@@ -7,9 +7,9 @@ import (
 )
 
 func SetupCurrencyRoutes(api *echo.Group) {
-	api.GET("/currencies", handlers.GetAllCurrencies, scope("transactions:read"), cache("currencies"))
-	api.GET("/currencies/dropdown", handlers.GetCurrencyDropdown, scope("transactions:read"), cache("currencies"))
-	api.POST("/currencies", handlers.CreateCurrency, scope("transactions:write"), cache("currencies"))
-	api.PUT("/currencies/:id", handlers.UpdateCurrency, scope("transactions:write"), cache("currencies"))
-	api.DELETE("/currencies/:id", handlers.DeleteCurrency, scope("transactions:delete"), cache("currencies"))
+	api.GET("/currencies", handlers.GetAllCurrencies, scope("currencies:read"), cache("currencies"))
+	api.GET("/currencies/dropdown", handlers.GetCurrencyDropdown, scope("currencies:read"), cache("currencies"))
+	api.POST("/currencies", handlers.CreateCurrency, scope("currencies:write"), cache("currencies"))
+	api.PUT("/currencies/:id", handlers.UpdateCurrency, scope("currencies:write"), cache("currencies"))
+	api.DELETE("/currencies/:id", handlers.DeleteCurrency, scope("currencies:delete"), cache("currencies"))
 }

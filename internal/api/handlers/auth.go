@@ -103,6 +103,22 @@ func Verify(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
 
+func Me(c echo.Context) error {
+	user, ok := c.Get("user").(store.User)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Not Authorized"})
+	}
+	scopes, _ := c.Get("scopes").([]string)
+	return c.JSON(http.StatusOK, httpx.Response{
+		Success: true,
+		Data: map[string]any{
+			"user":   user.DisplayName,
+			"role":   user.Role,
+			"scopes": scopes,
+		},
+	})
+}
+
 func Logout(c echo.Context) error {
 	auth := c.Request().Header.Get("Authorization")
 	if tokenStr, ok := strings.CutPrefix(auth, "Bearer "); ok {

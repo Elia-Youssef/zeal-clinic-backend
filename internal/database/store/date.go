@@ -14,15 +14,22 @@ const (
 type Date string
 
 func DateNow() Date {
-	return Date(time.Now().Format(DateTimeFormat))
+	return Date(time.Now().UTC().Format(DateTimeFormat))
 }
 
 func DateToday() Date {
-	return Date(time.Now().Format(DateFormat))
+	return Date(time.Now().UTC().Format(DateFormat))
 }
 
 func DateFrom(t time.Time) Date {
-	return Date(t.Format(DateTimeFormat))
+	return Date(t.UTC().Format(DateTimeFormat))
+}
+
+// DateOffsetDays returns today's UTC calendar date shifted by n days as a
+// YYYY-MM-DD Date. Negative n is in the past. Use this anywhere you'd otherwise
+// reach for time.Now().UTC().AddDate(0, 0, n).Format("2006-01-02").
+func DateOffsetDays(n int) Date {
+	return Date(time.Now().UTC().AddDate(0, 0, n).Format(DateFormat))
 }
 
 func (d Date) String() string {
@@ -65,7 +72,9 @@ func (d Date) After(other Date) bool {
 func WeekRange(d Date) (Date, Date) {
 	t, err := d.Time()
 	if err != nil || t.IsZero() {
-		t = time.Now()
+		t = time.Now().UTC()
+	} else {
+		t = t.UTC()
 	}
 	start := t.AddDate(0, 0, -int(t.Weekday()))
 	end := start.AddDate(0, 0, 6)
@@ -77,9 +86,11 @@ func WeekRange(d Date) (Date, Date) {
 func MonthRange(d Date) (Date, Date) {
 	t, err := d.Time()
 	if err != nil || t.IsZero() {
-		t = time.Now()
+		t = time.Now().UTC()
+	} else {
+		t = t.UTC()
 	}
-	start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+	start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 1, -1)
 	return Date(start.Format(DateFormat)), Date(end.Format(DateFormat))
 }

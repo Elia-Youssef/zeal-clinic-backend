@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -128,14 +127,7 @@ func GetAnalyticsSeries(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "metric query parameter is required"})
 	}
 
-	from := c.QueryParam("from")
-	to := c.QueryParam("to")
-	if to == "" {
-		to = time.Now().Format("2006-01-02")
-	}
-	if from == "" {
-		from = time.Now().AddDate(0, 0, -29).Format("2006-01-02")
-	}
+	from, to := defaultDateRange(c.QueryParam("from"), c.QueryParam("to"), 29)
 
 	groupBy := c.QueryParam("groupBy")
 	if groupBy == "" {

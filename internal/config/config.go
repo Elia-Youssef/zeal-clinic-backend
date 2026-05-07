@@ -13,9 +13,10 @@ import (
 const appDataDirName = "Zeal Clinic"
 
 type Config struct {
-	Port        string
-	JWTSecret   string
-	JWTLifetime time.Duration
+	Port            string
+	JWTSecret       string
+	JWTLifetime     time.Duration
+	DBEncryptionKey string
 }
 
 var current *Config
@@ -30,9 +31,14 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
-		Port:        getEnv("PORT", "55555"),
-		JWTSecret:   getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release"),
-		JWTLifetime: parseDuration(getEnv("JWT_LIFETIME", "14h")),
+		Port:            getEnv("PORT", "55555"),
+		JWTSecret:       getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release"),
+		JWTLifetime:     parseDuration(getEnv("JWT_LIFETIME", "14h")),
+		DBEncryptionKey: getEnv("DB_ENCRYPTION_KEY", ""),
+	}
+
+	if cfg.DBEncryptionKey == "" {
+		log.Fatal("[config] DB_ENCRYPTION_KEY is required (64 hex chars / 32 bytes)")
 	}
 
 	current = cfg

@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/realtime"
 	"errors"
 	"log"
 	"net/http"
@@ -61,5 +62,16 @@ func UpdateRole(c echo.Context) error {
 		log.Println("Error: [UpdateRole] failed to update role:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update role"})
 	}
+
+	if _, scopesChanged := updates["scopes"]; scopesChanged {
+		if ids, err := store.GetActiveUserIDsByRole(role.Name); err == nil {
+			for _, uid := range ids {
+				realtime.SendTo(uid, realtime.Event{Type: "scopes_changed"})
+			}
+		} else {
+			log.Println("Error: [UpdateRole] failed to fetch users for scope notification:", err)
+		}
+	}
+
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: role})
 }

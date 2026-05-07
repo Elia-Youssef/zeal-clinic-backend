@@ -7,11 +7,13 @@ import (
 )
 
 func SetupSupplierInvoiceRoutes(api *echo.Group) {
-	api.GET("/suppliers/:id/invoices", handlers.GetSupplierInvoices, scope("transactions:read"), cache("supplier-invoices"))
+	api.GET("/suppliers/:id/invoices", handlers.GetSupplierInvoices, scope("invoices:read"), cache("supplier-invoices"))
 	// Create posts a balance transaction and increments product stock.
-	api.POST("/supplier-invoices", handlers.CreateSupplierInvoice, scope("transactions:write"),
+	api.POST("/supplier-invoices", handlers.CreateSupplierInvoice, scope("invoices:write"),
 		cache("supplier-invoices", "invoices", "balances", "products", "supplier-payments", "analytics"))
-	api.PUT("/supplier-invoices/:id", handlers.UpdateSupplierInvoice, scope("transactions:write"), cache("supplier-invoices", "invoices", "analytics"))
-	api.DELETE("/supplier-invoices/:id", handlers.DeleteSupplierInvoice, scope("transactions:delete"),
+	api.PUT("/supplier-invoices/:id", handlers.UpdateSupplierInvoice, scope("invoices:write"), cache("supplier-invoices", "invoices", "analytics"))
+	api.PUT("/supplier-invoices/:id/items/:itemId", handlers.UpdateSupplierInvoiceItem, scope("invoices:write"),
+		cache("supplier-invoices", "invoices", "balances", "supplier-payments", "analytics"))
+	api.DELETE("/supplier-invoices/:id", handlers.DeleteSupplierInvoice, scope("invoices:delete"),
 		cache("supplier-invoices", "invoices", "balances", "products", "supplier-payments", "analytics"))
 }

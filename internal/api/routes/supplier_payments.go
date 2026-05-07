@@ -7,9 +7,9 @@ import (
 )
 
 func SetupSupplierPaymentRoutes(api *echo.Group) {
-	api.GET("/suppliers/:id/payments", handlers.GetSupplierPayments, scope("transactions:read"), cache("supplier-payments"))
-	api.POST("/supplier-payments", handlers.CreateSupplierPayment, scope("transactions:write"), cache("supplier-payments", "balances", "analytics"))
-	api.DELETE("/supplier-payments/:id", handlers.DeleteBalanceTransaction, scope("transactions:delete"), cache("supplier-payments", "balances", "analytics"))
-	api.POST("/supplier-adjustments", handlers.CreateSupplierAdjustment, scope("transactions:write"), cache("supplier-payments", "balances", "analytics"))
-	api.POST("/supplier-write-offs", handlers.CreateSupplierWriteOff, scope("transactions:write"), cache("supplier-payments", "balances", "analytics"))
+	api.GET("/suppliers/:id/payments", handlers.GetSupplierPayments, scope("payments:read"), cache("supplier-payments"))
+	api.POST("/supplier-payments", handlers.CreateSupplierPayment, scope("payments:write"), cache("supplier-payments", "balances", "analytics"))
+	api.DELETE("/supplier-payments/:id", handlers.DeleteBalanceTransaction, scope("payments:delete"), cache("supplier-payments", "balances", "analytics"))
+	api.POST("/supplier-adjustments", handlers.CreateSupplierAdjustment, scope("payments:write"), cache("supplier-payments", "balances", "analytics"))
+	api.POST("/supplier-write-offs", handlers.CreateSupplierWriteOff, scope("payments:write"), cache("supplier-payments", "balances", "analytics"))
 }

@@ -5,7 +5,6 @@ import (
 	"clinic-api/internal/database/store"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -56,16 +55,21 @@ func GetExpensesReport(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: rows})
 }
 
-// parseRange reads from/to query params, defaulting to the last 30 days when
-// either is missing, matching the analytics handler convention.
+// parseRange reads from/to query params, defaulting to the last 30 days (UTC)
+// when either is missing, matching the analytics handler convention.
 func parseRange(c echo.Context) (string, string) {
-	from := c.QueryParam("from")
-	to := c.QueryParam("to")
+	return defaultDateRange(c.QueryParam("from"), c.QueryParam("to"), 29)
+}
+
+// defaultDateRange fills missing from/to bounds with a UTC window ending today
+// and stretching `daysBack` days into the past. Empty inputs are filled; non-
+// empty inputs are passed through untouched.
+func defaultDateRange(from, to string, daysBack int) (string, string) {
 	if to == "" {
-		to = time.Now().Format("2006-01-02")
+		to = string(store.DateToday())
 	}
 	if from == "" {
-		from = time.Now().AddDate(0, 0, -29).Format("2006-01-02")
+		from = string(store.DateOffsetDays(-daysBack))
 	}
 	return from, to
 }

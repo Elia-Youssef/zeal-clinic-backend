@@ -137,6 +137,29 @@ func UpdateSupplierInvoice(c echo.Context) error {
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
 }
 
+// UpdateSupplierInvoiceItem sets a line item's amount and recomputes invoice
+// totals + the charge balance transaction. Used to fill in or correct a price
+// after the supplier invoice was recorded with a placeholder.
+func UpdateSupplierInvoiceItem(c echo.Context) error {
+	var req struct {
+		Amount float64 `json:"amount"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: msg})
+	}
+	inv := store.Invoice{ID: c.Param("id")}
+	if err := inv.UpdateItemAmount(c.Param("itemId"), req.Amount); errors.Is(err, store.ErrNotFound) {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "invoice or item not found"})
+	} else if err != nil {
+		log.Println("Error: UpdateSupplierInvoiceItem:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update invoice item"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
+}
+
 func DeleteSupplierInvoice(c echo.Context) error {
 	id := c.Param("id")
 	inv := store.Invoice{ID: id}

@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/auth"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/realtime"
 	"errors"
 	"log"
 	"net/http"
@@ -99,6 +100,10 @@ func UpdateUser(c echo.Context) error {
 			log.Println("Error: [UpdateUser] failed to update password:", err)
 			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update password"})
 		}
+	}
+
+	if _, roleChanged := updates["role"]; roleChanged {
+		realtime.SendTo(user.ID, realtime.Event{Type: "scopes_changed"})
 	}
 
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: user})

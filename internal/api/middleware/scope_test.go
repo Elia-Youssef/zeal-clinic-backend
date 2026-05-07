@@ -80,11 +80,11 @@ func TestRequireScope_EmptyScopesSlice(t *testing.T) {
 }
 
 func TestRequireScope_MissingRequired(t *testing.T) {
-	code, body := scopeRequest(t, []string{"patients:read", "team:read"}, "transactions:write")
+	code, body := scopeRequest(t, []string{"patients:read", "users:read"}, "payments:write")
 	if code != http.StatusForbidden {
 		t.Errorf("code = %d", code)
 	}
-	if !strings.Contains(body, "missing required scope: transactions:write") {
+	if !strings.Contains(body, "missing required scope: payments:write") {
 		t.Errorf("body = %s", body)
 	}
 }

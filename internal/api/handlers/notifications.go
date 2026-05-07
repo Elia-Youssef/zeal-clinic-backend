@@ -84,7 +84,7 @@ func SendTestNotification(c echo.Context) error {
 	n := store.Notification{
 		UserID:      userID,
 		Title:       "Test notification",
-		Description: "Sent at " + time.Now().Format("15:04:05"),
+		Description: "Sent at " + time.Now().UTC().Format("15:04:05"),
 		Action:      "test",
 	}
 	if err := n.Create(); err != nil {

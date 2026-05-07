@@ -7,7 +7,7 @@ import (
 )
 
 func SetupProcedureAllergyConflictRoutes(api *echo.Group) {
-	api.GET("/procedures/:procedureId/allergy-conflicts", handlers.GetProcedureAllergyConflicts, scope("services:read"))
-	api.POST("/procedures/:procedureId/allergy-conflicts", handlers.AddProcedureAllergyConflict, scope("services:write"))
-	api.DELETE("/procedure-allergy-conflicts/:id", handlers.RemoveProcedureAllergyConflict, scope("services:write"))
+	api.GET("/procedures/:procedureId/allergy-conflicts", handlers.GetProcedureAllergyConflicts, scope("procedure-allergy-conflicts:read"))
+	api.POST("/procedures/:procedureId/allergy-conflicts", handlers.AddProcedureAllergyConflict, scope("procedure-allergy-conflicts:write"))
+	api.DELETE("/procedure-allergy-conflicts/:id", handlers.RemoveProcedureAllergyConflict, scope("procedure-allergy-conflicts:write"))
 }

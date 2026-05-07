@@ -9,15 +9,18 @@ import (
 )
 
 // withCleanEnv saves and clears the env keys we touch, then restores them.
+// DB_ENCRYPTION_KEY is reset to a dummy value rather than unset, since Load()
+// log.Fatals when it's empty and these tests aren't exercising that branch.
 func withCleanEnv(t *testing.T) {
 	t.Helper()
-	keys := []string{"PORT", "JWT_SECRET", "JWT_LIFETIME"}
+	keys := []string{"PORT", "JWT_SECRET", "JWT_LIFETIME", "DB_ENCRYPTION_KEY"}
 	saved := make(map[string]string, len(keys))
 	had := make(map[string]bool, len(keys))
 	for _, k := range keys {
 		saved[k], had[k] = os.LookupEnv(k)
 		os.Unsetenv(k)
 	}
+	os.Setenv("DB_ENCRYPTION_KEY", "00000000000000000000000000000000000000000000000000000000000000ff")
 	t.Cleanup(func() {
 		for _, k := range keys {
 			if had[k] {

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -23,7 +24,19 @@ func GetAllAppointments(c echo.Context) error {
 		log.Println("Error: GetAllAppointments failed to fetch appointments:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch appointments"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: apts, Total: total}})
+	holidays, err := store.HolidaysOverlappingRange(store.Date(date), store.Date(date))
+	if err != nil {
+		log.Println("Error: GetAllAppointments failed to fetch holidays:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch holidays"})
+	}
+	if holidays == nil {
+		holidays = store.HolidayList{}
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]any{
+		"items":    apts,
+		"total":    total,
+		"holidays": holidays,
+	}})
 }
 
 func GetAppointmentCountPerRoom(c echo.Context) error {
@@ -31,12 +44,37 @@ func GetAppointmentCountPerRoom(c echo.Context) error {
 	if date == "" {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "date query parameter is required"})
 	}
-	items, err := store.GetAppointmentCountPerRoom(date)
+	t, err := time.Parse(store.DateFormat, date)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid date format"})
+	}
+	offset := int(t.Weekday() - time.Monday)
+	if offset < 0 {
+		offset = 6
+	}
+	weekStart := store.Date(t.AddDate(0, 0, -offset).Format(store.DateFormat))
+	weekEnd := store.Date(t.AddDate(0, 0, -offset+6).Format(store.DateFormat))
+
+	items, err := store.GetAppointmentCountPerRoom(weekStart, weekEnd)
 	if err != nil {
 		log.Println("Error: [GetAppointmentCountPerRoom] failed to fetch counts:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch appointment counts"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+	holidays, err := store.HolidaysOverlappingRange(weekStart, weekEnd)
+	if err != nil {
+		log.Println("Error: [GetAppointmentCountPerRoom] failed to fetch holidays:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch holidays"})
+	}
+	if items == nil {
+		items = []store.RoomDayCount{}
+	}
+	if holidays == nil {
+		holidays = store.HolidayList{}
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]any{
+		"rooms":    items,
+		"holidays": holidays,
+	}})
 }
 
 func GetPatientAppointments(c echo.Context) error {

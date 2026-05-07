@@ -7,12 +7,12 @@ import (
 )
 
 func SetupDiscountRoutes(api *echo.Group) {
-	api.GET("/discounts", handlers.GetAllDiscounts, scope("services:read"), cache("discounts"))
-	api.GET("/discounts/:id", handlers.GetDiscountByID, scope("services:read"), cache("discounts"))
-	api.POST("/discounts", handlers.CreateDiscount, scope("services:write"), cache("discounts"))
-	api.PUT("/discounts/:id", handlers.UpdateDiscount, scope("services:write"), cache("discounts"))
-	api.DELETE("/discounts/:id", handlers.DeleteDiscount, scope("services:delete"), cache("discounts"))
+	api.GET("/discounts", handlers.GetAllDiscounts, scope("discounts:read"), cache("discounts"))
+	api.GET("/discounts/:id", handlers.GetDiscountByID, scope("discounts:read"), cache("discounts"))
+	api.POST("/discounts", handlers.CreateDiscount, scope("discounts:write"), cache("discounts"))
+	api.PUT("/discounts/:id", handlers.UpdateDiscount, scope("discounts:write"), cache("discounts"))
+	api.DELETE("/discounts/:id", handlers.DeleteDiscount, scope("discounts:delete"), cache("discounts"))
 	// Standalone gift-card redemption: credits a patient's balance.
-	api.POST("/gift-cards/redeem", handlers.RedeemGiftCode, scope("transactions:write"),
+	api.POST("/gift-cards/redeem", handlers.RedeemGiftCode, scope("discounts:write"),
 		cache("discounts", "balances", "client-payments"))
 }

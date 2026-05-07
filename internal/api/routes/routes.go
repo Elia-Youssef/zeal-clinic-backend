@@ -4,3 +4,4 @@ import mw "clinic-api/internal/api/middleware"
 
 var scope = mw.RequireScope
 var cache = mw.CacheMiddleware
+var cacheF = mw.CacheMiddlewareForce

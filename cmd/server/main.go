@@ -11,8 +11,7 @@ import (
 	"clinic-api/internal/config"
 	"clinic-api/internal/database"
 	"clinic-api/internal/monitor"
-
-	// "clinic-api/internal/systray"
+	"clinic-api/internal/systray"
 
 	"github.com/labstack/echo/v4"
 )
@@ -96,11 +95,11 @@ func main() {
 	}
 
 	// start the server; if it exits on its own, tear down the tray too
-	// go func() {
-	// 	server.Start(e, cfg)
-	// 	systray.Quit()
-	// }()
+	go func() {
+		server.Start(e, cfg)
+		systray.Quit()
+	}()
 
 	// block on tray; Quit triggers graceful shutdown via the adapter
-	// systray.Run(&trayServer{e: e, port: cfg.Port})
+	systray.Run(&trayServer{e: e, port: cfg.Port})
 }

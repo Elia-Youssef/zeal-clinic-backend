@@ -7,8 +7,8 @@ import (
 )
 
 func SetupPrescriptionRoutes(api *echo.Group) {
-	api.GET("/patients/:patientId/prescriptions", handlers.GetPrescriptionsByPatient, scope("patients:read"))
-	api.POST("/prescriptions", handlers.CreatePrescription, scope("patients:write"))
-	api.PUT("/prescriptions/:id", handlers.UpdatePrescription, scope("patients:write"))
-	api.DELETE("/prescriptions/:id", handlers.DeletePrescription, scope("patients:delete"))
+	api.GET("/patients/:patientId/prescriptions", handlers.GetPrescriptionsByPatient, scope("prescriptions:read"))
+	api.POST("/prescriptions", handlers.CreatePrescription, scope("prescriptions:write"))
+	api.PUT("/prescriptions/:id", handlers.UpdatePrescription, scope("prescriptions:write"))
+	api.DELETE("/prescriptions/:id", handlers.DeletePrescription, scope("prescriptions:delete"))
 }

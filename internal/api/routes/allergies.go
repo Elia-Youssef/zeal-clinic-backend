@@ -7,9 +7,9 @@ import (
 )
 
 func SetupAllergyRoutes(api *echo.Group) {
-	api.GET("/allergies", handlers.GetAllAllergies, scope("patients:read"), cache("allergies"))
-	api.GET("/allergies/dropdown", handlers.GetAllergyDropdown, scope("patients:read"), cache("allergies"))
-	api.POST("/allergies", handlers.CreateAllergy, scope("patients:write"), cache("allergies"))
-	api.PUT("/allergies/:id", handlers.UpdateAllergy, scope("patients:write"), cache("allergies"))
-	api.DELETE("/allergies/:id", handlers.DeleteAllergy, scope("patients:delete"), cache("allergies"))
+	api.GET("/allergies", handlers.GetAllAllergies, scope("allergies:read"), cache("allergies"))
+	api.GET("/allergies/dropdown", handlers.GetAllergyDropdown, scope("allergies:read"), cache("allergies"))
+	api.POST("/allergies", handlers.CreateAllergy, scope("allergies:write"), cache("allergies"))
+	api.PUT("/allergies/:id", handlers.UpdateAllergy, scope("allergies:write"), cache("allergies"))
+	api.DELETE("/allergies/:id", handlers.DeleteAllergy, scope("allergies:delete"), cache("allergies"))
 }

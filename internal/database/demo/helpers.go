@@ -5,23 +5,23 @@ import (
 	"database/sql"
 	"time"
 
+	"clinic-api/internal/database/store"
+
 	"github.com/google/uuid"
 )
 
 func newID() string { return uuid.Must(uuid.NewV7()).String() }
 
-func nowStr() string   { return time.Now().Format(time.RFC3339) }
-func todayStr() string { return time.Now().Format("2006-01-02") }
+func nowStr() string   { return string(store.DateNow()) }
+func todayStr() string { return string(store.DateToday()) }
 
-func dateOffset(days int) string {
-	return time.Now().AddDate(0, 0, days).Format("2006-01-02")
-}
+func dateOffset(days int) string { return string(store.DateOffsetDays(days)) }
 
-// timeAt returns an RFC3339 timestamp at `days` from today, at the given hour
-// and minute in the local timezone.
+// timeAt returns an RFC3339 UTC timestamp at `days` from today, at the given
+// hour and minute.
 func timeAt(days, hour, minute int) string {
-	now := time.Now()
-	return time.Date(now.Year(), now.Month(), now.Day()+days, hour, minute, 0, 0, time.Local).
+	now := time.Now().UTC()
+	return time.Date(now.Year(), now.Month(), now.Day()+days, hour, minute, 0, 0, time.UTC).
 		Format(time.RFC3339)
 }
 

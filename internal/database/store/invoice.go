@@ -410,6 +410,114 @@ func selfBalanceIDForCurrency(tx *sql.Tx, currencyID string) (string, error) {
 	return id, nil
 }
 
+// UpdateItemAmount sets a single invoice item's amount, recomputes the
+// invoice total (re-applying any invoice-level discount the same way Create
+// does), and replaces the charge balance transaction with one reflecting the
+// new final amount. Other transactions sourced from this invoice (gift
+// auto-applies, supplier payments) are untouched.
+func (inv *Invoice) UpdateItemAmount(itemID string, amount float64) error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var (
+		invoiceNumber              int
+		discountID, currencyID     string
+		fromBalanceID, toBalanceID string
+		createdBy                  string
+	)
+	err = tx.QueryRow(`SELECT invoice_number, discount_id, currency_id,
+		from_balance_id, to_balance_id, created_by
+		FROM invoices WHERE id = ?`, inv.ID).
+		Scan(&invoiceNumber, &discountID, &currencyID,
+			&fromBalanceID, &toBalanceID, &createdBy)
+	if err == sql.ErrNoRows {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+
+	res, err := tx.Exec(`UPDATE invoice_items
+		SET amount = ?, final_amount = ?
+		WHERE id = ? AND invoice_id = ?`, amount, amount, itemID, inv.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+
+	var newAmount float64
+	if err := tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM invoice_items WHERE invoice_id = ?`, inv.ID).Scan(&newAmount); err != nil {
+		return err
+	}
+
+	var newDiscountValue float64
+	if discountID != "" {
+		var dType, vType string
+		var value float64
+		if err := tx.QueryRow(`SELECT discount_type, value_type, value FROM discounts WHERE id = ?`, discountID).Scan(&dType, &vType, &value); err != nil {
+			return fmt.Errorf("discount %s: %w", discountID, err)
+		}
+		if vType == "percentage" {
+			newDiscountValue = newAmount * value / 100
+		} else {
+			newDiscountValue = value
+		}
+		if newDiscountValue > newAmount {
+			newDiscountValue = newAmount
+		}
+	}
+	newFinalAmount := newAmount - newDiscountValue
+
+	now := DateNow()
+	if _, err := tx.Exec(`UPDATE invoices SET amount = ?, discount_value = ?, final_amount = ?, updated_at = ? WHERE id = ?`,
+		newAmount, newDiscountValue, newFinalAmount, now, inv.ID); err != nil {
+		return err
+	}
+
+	// Reverse + recreate the charge transaction. Gift auto-apply rows are
+	// transaction_type='adjustment' so they're excluded by the filter.
+	var oldCharge BalanceTransaction
+	err = tx.QueryRow(`SELECT `+balanceTransactionColumns+` FROM balance_transactions
+		WHERE source_type = 'invoice' AND source_id = ? AND transaction_type = 'charge'
+		LIMIT 1`, inv.ID).
+		Scan(&oldCharge.ID, &oldCharge.FromBalanceID, &oldCharge.ToBalanceID, &oldCharge.Amount, &oldCharge.CurrencyID,
+			&oldCharge.TransactionType, &oldCharge.TransactionMethod, &oldCharge.SourceType, &oldCharge.SourceID,
+			&oldCharge.Description, &oldCharge.CreatedBy, &oldCharge.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("load charge transaction: %w", err)
+	}
+	if err := oldCharge.reverseAndDeleteWithTx(tx); err != nil {
+		return fmt.Errorf("reverse charge transaction: %w", err)
+	}
+
+	newCharge := BalanceTransaction{
+		FromBalanceID:   fromBalanceID,
+		ToBalanceID:     toBalanceID,
+		Amount:          newFinalAmount,
+		CurrencyID:      currencyID,
+		TransactionType: "charge",
+		SourceType:      "invoice",
+		SourceID:        inv.ID,
+		Description:     fmt.Sprintf("Invoice #%d", invoiceNumber),
+		CreatedBy:       createdBy,
+	}
+	if discountID != "" {
+		newCharge.TransactionMethod = "discount"
+	}
+	if err := newCharge.CreateWithTx(tx); err != nil {
+		return fmt.Errorf("create charge transaction: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return inv.GetByID(inv.ID)
+}
+
 func (inv *Invoice) Update(updates map[string]any) error {
 	cols := map[string]string{
 		"notes": "notes",

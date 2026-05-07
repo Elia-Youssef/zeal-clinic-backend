@@ -7,12 +7,12 @@ import (
 )
 
 func SetupEmployeeRoutes(api *echo.Group) {
-	api.GET("/employees", handlers.GetAllEmployees, scope("team:read"), cache("employees"))
-	api.GET("/employees/dropdown", handlers.GetEmployeeDropdown, scope("team:read"), cache("employees"))
-	api.GET("/employees/:id", handlers.GetEmployeeByID, scope("team:read"), cache("employees"))
-	api.GET("/employees/:id/actions", handlers.GetEmployeeActions, scope("team:read"))
+	api.GET("/employees", handlers.GetAllEmployees, scope("employees:read"), cache("employees"))
+	api.GET("/employees/dropdown", handlers.GetEmployeeDropdown, scope("employees:read"), cache("employees"))
+	api.GET("/employees/:id", handlers.GetEmployeeByID, scope("employees:read"), cache("employees"))
+	api.GET("/employees/:id/actions", handlers.GetEmployeeActions, scope("employees:read"))
 	// CreateEmployee can also create a linked user account.
-	api.POST("/employees", handlers.CreateEmployee, scope("team:write"), cache("employees", "users"))
-	api.PUT("/employees/:id", handlers.UpdateEmployee, scope("team:write"), cache("employees"))
-	api.DELETE("/employees/:id", handlers.DeleteEmployee, scope("team:delete"), cache("employees"))
+	api.POST("/employees", handlers.CreateEmployee, scope("employees:write"), cache("employees", "users"))
+	api.PUT("/employees/:id", handlers.UpdateEmployee, scope("employees:write"), cache("employees"))
+	api.DELETE("/employees/:id", handlers.DeleteEmployee, scope("employees:delete"), cache("employees"))
 }

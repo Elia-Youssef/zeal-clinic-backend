@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -210,20 +209,7 @@ type RoomDayCount struct {
 	Days     map[string]int `json:"days"`
 }
 
-func GetAppointmentCountPerRoom(date string) ([]RoomDayCount, error) {
-	t, err := time.Parse("2006-01-02", date)
-	if err != nil {
-		return nil, fmt.Errorf("invalid date format: %w", err)
-	}
-
-	weekday := t.Weekday()
-	offset := int(weekday - time.Monday)
-	if offset < 0 {
-		offset = 6
-	}
-	weekStart := t.AddDate(0, 0, -offset)
-	weekEnd := weekStart.AddDate(0, 0, 6)
-
+func GetAppointmentCountPerRoom(weekStart, weekEnd Date) ([]RoomDayCount, error) {
 	query := `SELECT r.id, r.name, DATE(a.start_time) as day, COUNT(a.id) as count
 		FROM rooms r
 		LEFT JOIN appointments a ON a.room_id = r.id
@@ -231,7 +217,7 @@ func GetAppointmentCountPerRoom(date string) ([]RoomDayCount, error) {
 			AND a.status != 'Cancelled'
 		GROUP BY r.id, r.name, DATE(a.start_time)
 		ORDER BY r.name, day`
-	rows, err := RDB.Query(query, weekStart.Format("2006-01-02"), weekEnd.Format("2006-01-02"))
+	rows, err := RDB.Query(query, weekStart, weekEnd)
 	if err != nil {
 		return nil, err
 	}

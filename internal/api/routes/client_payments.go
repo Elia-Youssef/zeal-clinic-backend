@@ -7,10 +7,10 @@ import (
 )
 
 func SetupClientPaymentRoutes(api *echo.Group) {
-	api.GET("/patients/:id/payments", handlers.GetClientPayments, scope("transactions:read"), cache("client-payments"))
-	api.POST("/client-payments", handlers.CreateClientPayment, scope("transactions:write"), cache("client-payments", "balances", "analytics"))
-	api.DELETE("/client-payments/:id", handlers.DeleteBalanceTransaction, scope("transactions:delete"), cache("client-payments", "balances", "analytics"))
-	api.POST("/client-refunds", handlers.CreateClientRefund, scope("transactions:write"), cache("client-payments", "balances", "analytics"))
-	api.POST("/client-adjustments", handlers.CreateClientAdjustment, scope("transactions:write"), cache("client-payments", "balances", "analytics"))
-	api.POST("/client-write-offs", handlers.CreateClientWriteOff, scope("transactions:write"), cache("client-payments", "balances", "analytics"))
+	api.GET("/patients/:id/payments", handlers.GetClientPayments, scope("payments:read"), cache("client-payments"))
+	api.POST("/client-payments", handlers.CreateClientPayment, scope("payments:write"), cache("client-payments", "balances", "analytics"))
+	api.DELETE("/client-payments/:id", handlers.DeleteBalanceTransaction, scope("payments:delete"), cache("client-payments", "balances", "analytics"))
+	api.POST("/client-refunds", handlers.CreateClientRefund, scope("payments:write"), cache("client-payments", "balances", "analytics"))
+	api.POST("/client-adjustments", handlers.CreateClientAdjustment, scope("payments:write"), cache("client-payments", "balances", "analytics"))
+	api.POST("/client-write-offs", handlers.CreateClientWriteOff, scope("payments:write"), cache("client-payments", "balances", "analytics"))
 }

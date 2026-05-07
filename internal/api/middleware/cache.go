@@ -21,6 +21,18 @@ var (
 )
 
 func CacheMiddleware(keys ...string) echo.MiddlewareFunc {
+	return cacheMiddleware(false, keys...)
+}
+
+// CacheMiddlewareForce caches GET responses keyed by full request URI even
+// when the route has path params or a "filter" query. Use for endpoints
+// whose URL variation is bounded (e.g. per-employee weekly schedule keyed by
+// id + date). Non-GET requests still invalidate the listed keys.
+func CacheMiddlewareForce(keys ...string) echo.MiddlewareFunc {
+	return cacheMiddleware(true, keys...)
+}
+
+func cacheMiddleware(force bool, keys ...string) echo.MiddlewareFunc {
 	if len(keys) == 0 {
 		panic("CacheMiddleware requires at least one cache key")
 	}
@@ -36,7 +48,7 @@ func CacheMiddleware(keys ...string) echo.MiddlewareFunc {
 			}
 
 			url := c.Request().URL.RequestURI()
-			if strings.Contains(url, "filter") || len(c.ParamNames()) > 0 {
+			if !force && (strings.Contains(url, "filter") || len(c.ParamNames()) > 0) {
 				return next(c)
 			}
 

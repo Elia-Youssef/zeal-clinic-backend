@@ -7,5 +7,5 @@ import (
 )
 
 func SetupAuditRoutes(api *echo.Group) {
-	api.GET("/audit-log", handlers.GetAllAuditLogs, scope("roles:read"))
+	api.GET("/audit-log", handlers.GetAllAuditLogs, scope("audit:read"))
 }

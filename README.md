@@ -114,6 +114,7 @@ The SQLite database is not configurable via env var. It lives at `%PROGRAMDATA%\
 - `internal/auth` — Argon2id password hashing, JWT creation/parsing
 - `internal/realtime` — in-memory SSE hub used by `/api/events`
 - `internal/monitor` — periodic background actions (discount expiry, prescription expiry, appointment reminders, low-stock alerts)
+- `internal/pdf` — Maroto-backed PDF generation for invoices and the revenue/expense reports; files are served via Echo's `/files/*` static handler
 - `internal/config`, `internal/browser`, `internal/systray`, `internal/validation` — supporting glue
 - `client` — `//go:embed all:dist` of the Vite build
 - `installer` — Inno Setup script and assets

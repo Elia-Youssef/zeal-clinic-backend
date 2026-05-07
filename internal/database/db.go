@@ -10,7 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/ncruces/go-sqlite3/driver"
+	_ "github.com/ncruces/go-sqlite3/vfs/adiantum"
 )
 
 func Open(pathOverride string) (*sql.DB, error) {
@@ -19,7 +20,7 @@ func Open(pathOverride string) (*sql.DB, error) {
 		path = defaultDBPath()
 	}
 	dbPath := resolveSQLitePath(path)
-	dsn := dbPath + "?_foreign_keys=1&_journal_mode=WAL&_busy_timeout=5000"
+	dsn := buildDSN(dbPath, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 
 	// Write connection: single conn, serialises all writes.
 	db, err := sql.Open("sqlite3", dsn)
@@ -52,6 +53,24 @@ func Open(pathOverride string) (*sql.DB, error) {
 
 	log.Println("Database initialized at", dbPath)
 	return db, nil
+}
+
+// buildDSN composes a file: URI for the ncruces sqlite driver with the
+// adiantum VFS for at-rest encryption. hexKey must be 64 hex chars (32 bytes).
+// PRAGMA order matters per ncruces docs: busy_timeout before journal_mode.
+// Format follows ncruces' own examples ("file:" + slash-converted path)
+// rather than RFC-style "file:///C:/...", because ncruces' VFS Abs()-resolves
+// the path verbatim and won't strip the leading slash on Windows.
+func buildDSN(dbPath, hexKey string) string {
+	if dbPath == ":memory:" || strings.HasPrefix(strings.ToLower(dbPath), "file:") {
+		return dbPath
+	}
+	return "file:" + filepath.ToSlash(dbPath) +
+		"?vfs=adiantum" +
+		"&hexkey=" + hexKey +
+		"&_pragma=busy_timeout(5000)" +
+		"&_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(1)"
 }
 
 // defaultDBPath picks where clinic.db lives when launched: %PROGRAMDATA%\Zeal Clinic\clinic.db

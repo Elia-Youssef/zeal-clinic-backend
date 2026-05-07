@@ -174,6 +174,23 @@ func (u *User) Update(updates map[string]any) error {
 	return u.GetByID(u.ID)
 }
 
+func GetActiveUserIDsByRole(role string) ([]string, error) {
+	rows, err := RDB.Query(`SELECT id FROM users WHERE role = ? AND is_active = 1`, role)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func (u *User) UpdatePassword(passwordHash string) error {
 	_, err := DB.Exec("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?", passwordHash, DateNow(), u.ID)
 	return err

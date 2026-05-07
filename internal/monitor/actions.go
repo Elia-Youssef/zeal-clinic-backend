@@ -3,7 +3,6 @@ package monitor
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"clinic-api/internal/api/middleware"
 	"clinic-api/internal/database/store"
@@ -103,11 +102,12 @@ func SendAppointmentReminders() error {
 		}
 
 		desc := r.patientName
-		if t, err := time.Parse("2006-01-02T15:04:05", r.startTime); err == nil {
+		if t, err := store.Date(r.startTime).Time(); err == nil {
+			hm := t.UTC().Format("15:04")
 			if r.patientName != "" {
-				desc = r.patientName + " at " + t.Format("15:04")
+				desc = r.patientName + " at " + hm
 			} else {
-				desc = "at " + t.Format("15:04")
+				desc = "at " + hm
 			}
 		}
 

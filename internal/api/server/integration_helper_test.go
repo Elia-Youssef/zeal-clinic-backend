@@ -20,9 +20,21 @@ import (
 	"clinic-api/internal/database/store"
 
 	"github.com/labstack/echo/v4"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/ncruces/go-sqlite3/driver"
+	_ "github.com/ncruces/go-sqlite3/vfs/adiantum"
 	"github.com/pressly/goose/v3"
 )
+
+const testHexKey = "00000000000000000000000000000000000000000000000000000000000000ff"
+
+func testDSN(dbPath string) string {
+	return "file:" + filepath.ToSlash(dbPath) +
+		"?vfs=adiantum" +
+		"&hexkey=" + testHexKey +
+		"&_pragma=busy_timeout(5000)" +
+		"&_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(1)"
+}
 
 // DB harness
 
@@ -53,7 +65,7 @@ func setupTestEnv(t *testing.T) {
 
 	id := dbCounter.Add(1)
 	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("test-%d.db", id))
-	dsn := dbPath + "?_foreign_keys=1&_journal_mode=WAL&_busy_timeout=5000"
+	dsn := testDSN(dbPath)
 
 	w, err := sql.Open("sqlite3", dsn)
 	if err != nil {

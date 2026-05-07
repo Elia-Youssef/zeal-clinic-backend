@@ -79,12 +79,12 @@ func (l *HolidayList) GetAll(params ListParams) (int, error) {
 	return total, rows.Err()
 }
 
-// HolidaysOverlappingWeek returns holidays whose date range intersects the
-// given week. Used by the unified weekly schedule endpoint.
-func HolidaysOverlappingWeek(weekStart, weekEnd Date) (HolidayList, error) {
+// HolidaysOverlappingRange returns holidays whose date range intersects
+// [start, end]. Pass the same date for both bounds to query a single day.
+func HolidaysOverlappingRange(start, end Date) (HolidayList, error) {
 	rows, err := RDB.Query(`SELECT `+holidayColumns+` FROM holidays
 		WHERE end_date >= ? AND start_date <= ?
-		ORDER BY start_date`, weekStart, weekEnd)
+		ORDER BY start_date`, start, end)
 	if err != nil {
 		return nil, err
 	}
