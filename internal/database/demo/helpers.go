@@ -122,9 +122,9 @@ func createBalance(ctx context.Context, tx *sql.Tx, c *demoCtx, entityType, enti
 	return id, nil
 }
 
-// recordTransaction inserts a balance_transactions row and updates both
-// balances in lockstep. Charges and adjustments don't bump total_in/total_out
-// because those track money actually exchanged.
+// recordTransaction inserts a balance_transactions row and rebuilds the
+// affected cached balance fields. Charges and adjustments don't bump
+// total_in/total_out, which track money actually exchanged.
 func recordTransaction(ctx context.Context, tx *sql.Tx, c *demoCtx, fromID, toID string, amount float64, txType, method, desc, at string) error {
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO balance_transactions (id, from_balance_id, to_balance_id, amount, currency_id, transaction_type, transaction_method, description, created_by, created_at)
@@ -133,21 +133,5 @@ func recordTransaction(ctx context.Context, tx *sql.Tx, c *demoCtx, fromID, toID
 	); err != nil {
 		return err
 	}
-	flowDelta := amount
-	if txType == "charge" || txType == "adjustment" {
-		flowDelta = 0
-	}
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE balances SET amount = amount - ?, total_out = total_out + ?, updated_at = ? WHERE id = ?`,
-		amount, flowDelta, at, fromID,
-	); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE balances SET amount = amount + ?, total_in = total_in + ?, updated_at = ? WHERE id = ?`,
-		amount, flowDelta, at, toID,
-	); err != nil {
-		return err
-	}
-	return nil
+	return store.RecalculateBalancesWithTx(tx, fromID, toID)
 }

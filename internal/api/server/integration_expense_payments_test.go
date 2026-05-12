@@ -51,8 +51,8 @@ func TestExpensePayment_CreateTwoWayBalancesNetToZero(t *testing.T) {
 	}
 
 	var pay struct {
-		ID       string `json:"id"`
-		Amount   float64
+		ID            string `json:"id"`
+		Amount        float64
 		FromBalanceID string `json:"fromBalanceId"`
 		ToBalanceID   string `json:"toBalanceId"`
 	}
@@ -128,8 +128,11 @@ func TestExpensePayment_DeleteRemovesPair(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete: %d body=%s", rec.Code, rec.Body.String())
 	}
-	if n := countTableRows(t, "balance_transactions", ""); n != 0 {
-		t.Errorf("expected 0 tx rows after delete (pair removed), got %d", n)
+	if n := countTableRows(t, "balance_transactions", "voided_at = ''"); n != 0 {
+		t.Errorf("expected 0 active tx rows after delete (pair voided), got %d", n)
+	}
+	if n := countTableRows(t, "balance_transactions", "voided_at != ''"); n != 2 {
+		t.Errorf("expected 2 voided tx rows after delete, got %d", n)
 	}
 }
 

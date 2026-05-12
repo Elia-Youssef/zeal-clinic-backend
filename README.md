@@ -91,11 +91,14 @@ The installer:
 
 All via env vars (read from `.env` if present — optional):
 
-| Variable       | Default                 |
-|----------------|-------------------------|
-| `PORT`         | `55555`                  |
-| `JWT_SECRET`   | `dev-only-clinic-jwt-secret-not-for-release`  |
-| `JWT_LIFETIME` | `14h`                   |
+| Variable        | Default                  | Notes                                                                |
+|-----------------|--------------------------|----------------------------------------------------------------------|
+| `PORT`          | `55555`                  |                                                                      |
+| `JWT_SECRET`    | `dev-only-clinic-jwt-secret-not-for-release`   | Change before shipping.                                              |
+| `JWT_LIFETIME`  | `14h`                    |                                                                      |
+| `DB_ENCRYPTION_KEY` | — (required)         | 64 hex chars / 32 bytes.                                             |
+| `PEER_URL`      | — (empty)                | Cloud base URL on the local clinic server; empty on cloud.           |
+| `SYNC_SECRET`   | — (empty)                | Shared secret for `/api/sync/*`. When empty, sync routes don't mount. |
 
 The SQLite database is not configurable via env var. It lives at `%PROGRAMDATA%\Zeal Clinic\clinic.db` when that folder exists (installed layout), `./dist/clinic.db` under `--dev`, otherwise `clinic.db` in cwd. `.env` is loaded from cwd first, then from the directory containing the executable — so installed deployments can be reconfigured by editing `.env` next to `ZealClinic.exe`.
 
@@ -113,6 +116,8 @@ The SQLite database is not configurable via env var. It lives at `%PROGRAMDATA%\
 - `internal/database/store` — typed models and SQL operations (the data layer)
 - `internal/auth` — Argon2id password hashing, JWT creation/parsing
 - `internal/realtime` — in-memory SSE hub used by `/api/events`
+- `internal/sync` — local↔cloud database replication. Outbox-pattern triggers collapse `(table, row_id, op)` into `sync_log` (one row per PK at any time). The local engine pulls from the cloud, applies with local-wins LWW, then pushes by fetching live rows. Bursts of HTTP writes are coalesced through a ~1.5s debounce; cloud→local wake-ups arrive over SSE; the monitor's 60s tick is the safety-net poke.
+- `internal/buildmode` — build-tag-driven `const Cloud` so any module can branch on "am I the cloud binary?" without round-tripping through env vars.
 - `internal/monitor` — periodic background actions (discount expiry, prescription expiry, appointment reminders, low-stock alerts)
 - `internal/pdf` — Maroto-backed PDF generation for invoices and the revenue/expense reports; files are served via Echo's `/files/*` static handler
 - `internal/config`, `internal/browser`, `internal/systray`, `internal/validation` — supporting glue

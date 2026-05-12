@@ -746,6 +746,7 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 		JOIN balances tb ON tb.id = bt.to_balance_id
 		WHERE fb.entity_type = 'self'
 		AND tb.entity_type = 'expense'
+		AND bt.voided_at = ''
 		AND bt.transaction_type = 'payment'
 		AND date(bt.created_at) BETWEEN date(?) AND date(?)`
 	payArgs := []any{p.From, p.To}

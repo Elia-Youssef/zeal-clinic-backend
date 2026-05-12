@@ -1,6 +1,10 @@
 .env
-dist/
+tmp/
+build/local/output/
+build/cloud/output/
+client/dist/
 *.exe
 *.db
 *.db-*
 *.pdf
+.vscode

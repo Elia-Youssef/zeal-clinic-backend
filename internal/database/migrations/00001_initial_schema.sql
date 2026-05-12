@@ -266,31 +266,6 @@ CREATE TABLE IF NOT EXISTS appointments (
 );
 
 -- ============================================================
--- TEMP APPOINTMENTS (external reservations, verified by staff)
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS bookings (
-    id               TEXT PRIMARY KEY,
-    client_name      TEXT NOT NULL,
-    client_phone     TEXT NOT NULL,
-    client_email     TEXT NOT NULL DEFAULT '',
-    is_new_client    INTEGER NOT NULL DEFAULT 1,
-    referral_source  TEXT NOT NULL DEFAULT '',
-    service_category TEXT NOT NULL,
-    service_name     TEXT NOT NULL,
-    preferred_date   TEXT NOT NULL,
-    preferred_time   TEXT NOT NULL,
-    duration_minutes INTEGER NOT NULL DEFAULT 60,
-    status           TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','cancelled')),
-    appointment_id   TEXT NOT NULL DEFAULT '',
-    patient_id       TEXT NOT NULL DEFAULT '',
-    room_id          TEXT NOT NULL DEFAULT '',
-    notes            TEXT NOT NULL DEFAULT '',
-    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
--- ============================================================
 -- SCHEDULE AVAILABILITY
 -- ============================================================
 
@@ -462,9 +437,11 @@ CREATE TABLE IF NOT EXISTS balance_transactions (
     source_id           TEXT NOT NULL DEFAULT '',
     description         TEXT NOT NULL DEFAULT '',
     created_by          TEXT NOT NULL DEFAULT '',
-    created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    voided_at           TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_balance_transactions_source ON balance_transactions(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_balance_transactions_voided_at ON balance_transactions(voided_at);
 
 CREATE TABLE IF NOT EXISTS invoices (
     id              TEXT PRIMARY KEY,
@@ -549,7 +526,7 @@ CREATE TABLE IF NOT EXISTS lebanon_cities (
 -- Offer discounts: applied directly on an invoice (invoice.discount_id),
 -- reduce its final amount.
 -- Gift discounts: created only via an invoice line (item_type='gift'). Have
--- either patient_id (gift assigned to a specific patient; credit applied at
+-- either patient_id (gift assigned to a specific patient - credit applied at
 -- creation) or code (redeemed later by anyone, via invoice or standalone).
 -- redeemed_at marks single-use gifts as consumed.
 CREATE TABLE IF NOT EXISTS discounts (
@@ -569,10 +546,71 @@ CREATE TABLE IF NOT EXISTS discounts (
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- ============================================================
+-- SYNC (cloud <-> local replication)
+-- ============================================================
+
+-- sync_log is the transactional outbox written by AFTER triggers on every
+-- business table. Each row records the *intent* of a mutation - (table, id,
+-- op) - without capturing the row payload itself. The sync engine reads the
+-- live row at push time and ships the current state, so triggers don't have
+-- to be rebuilt when columns change. Every row here is locally-authored by
+-- construction: the _sync_applying temp-table guard suppresses logging
+-- during applies of remote changes. Origin is tagged at marshal time from
+-- SERVER_ID, not stored in the row.
+CREATE TABLE IF NOT EXISTS sync_log (
+    seq        INTEGER PRIMARY KEY AUTOINCREMENT,
+    table_name TEXT NOT NULL,
+    row_id     TEXT NOT NULL,
+    op         TEXT NOT NULL CHECK(op IN ('insert','update','delete')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sync_log_table_row ON sync_log(table_name, row_id);
+
+-- sync_state tracks per-peer cursors. last_pushed_seq is the highest local
+-- seq the peer has ACK'd; last_pulled_seq is the highest peer seq we have
+-- applied.
+CREATE TABLE IF NOT EXISTS sync_state (
+    peer             TEXT PRIMARY KEY,
+    last_pushed_seq  INTEGER NOT NULL DEFAULT 0,
+    last_pulled_seq  INTEGER NOT NULL DEFAULT 0,
+    updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- sync_conflicts logs rows where local won over a conflicting remote write,
+-- so staff can review later. Cloud is authoritative for nothing - it only
+-- ever writes here when it sees its own writes lose, which can't happen on
+-- the local side (local always wins by design).
+CREATE TABLE IF NOT EXISTS sync_conflicts (
+    id           TEXT PRIMARY KEY,
+    table_name   TEXT NOT NULL,
+    row_id       TEXT NOT NULL,
+    local_json   TEXT NOT NULL DEFAULT '',
+    remote_json  TEXT NOT NULL DEFAULT '',
+    resolution   TEXT NOT NULL DEFAULT 'local_wins',
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_created_at ON sync_conflicts(created_at);
+
+-- _sync_applying is the single-row guard flag the per-table AFTER triggers
+-- consult: while sync.Apply is replaying remote changes it raises the flag,
+-- and every trigger's WHEN clause skips logging while it's raised. The
+-- per-table triggers themselves are built in 00012_sync_triggers.go from
+-- internal/sync.SyncedTables so we have one source of truth for what gets
+-- replicated.
+CREATE TABLE IF NOT EXISTS _sync_applying (
+    rowid    INTEGER PRIMARY KEY CHECK(rowid = 1),
+    applying INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO _sync_applying(rowid, applying) VALUES (1, 0);
+
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
+DROP TABLE IF EXISTS sync_conflicts;
+DROP TABLE IF EXISTS sync_state;
+DROP TABLE IF EXISTS sync_log;
 DROP TABLE IF EXISTS discounts;
 DROP TABLE IF EXISTS lebanon_cities;
 DROP TABLE IF EXISTS countries;
@@ -593,7 +631,6 @@ DROP TABLE IF EXISTS prescriptions;
 DROP TABLE IF EXISTS employee_vacations;
 DROP TABLE IF EXISTS holidays;
 DROP TABLE IF EXISTS schedule_availability;
-DROP TABLE IF EXISTS bookings;
 DROP TABLE IF EXISTS appointments;
 DROP TABLE IF EXISTS employee_salary_preparations;
 DROP TABLE IF EXISTS employee_salaries;
@@ -615,3 +652,4 @@ DROP TABLE IF EXISTS tokens;
 DROP TABLE IF EXISTS roles;
 DROP TABLE IF EXISTS users;
 -- +goose StatementEnd
+

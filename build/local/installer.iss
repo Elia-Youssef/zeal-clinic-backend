@@ -1,10 +1,10 @@
 ; Inno Setup installer for Zeal Clinic.
 ;
-; Build the binary first, next to this script:
-;     go build -trimpath -ldflags "-s -w" -o installer\ZealClinic.exe .\cmd\server
+; Build the binary first (writes to build\local\output\ZealClinic.exe):
+;     go build -trimpath -ldflags "-s -w" -o build\local\output\ZealClinic.exe .\cmd\server
 ;
-; Then compile the installer (produces installer\output\ZealClinicSetup-<ver>.exe):
-;     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
+; Then compile the installer (produces build\local\output\ZealClinicSetup-<ver>.exe):
+;     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" build\local\installer.iss
 
 #define AppName       "Zeal Clinic"
 #define AppVersion    "0.1.0"
@@ -48,7 +48,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "ZealClinic.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "output\ZealClinic.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; Ship .env next to the exe. Overwritten on upgrade (same as the exe).
 Source: ".env"; DestDir: "{app}"; Flags: ignoreversion uninsneveruninstall

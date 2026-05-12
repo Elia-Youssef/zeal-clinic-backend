@@ -400,7 +400,7 @@ func TestInvoice_Delete_ReversesStockAndCharge(t *testing.T) {
 		t.Fatalf("stock after create = %d want 5", stockAfterCreate)
 	}
 
-	// Delete: stock should restore, charge tx removed.
+	// Delete: stock should restore, charge tx voided.
 	if err := inv.Delete(); err != nil {
 		t.Fatal(err)
 	}
@@ -408,8 +408,11 @@ func TestInvoice_Delete_ReversesStockAndCharge(t *testing.T) {
 	if got := productQuantity(t, prod.ID); got != 8 {
 		t.Errorf("stock after delete = %d want 8 (restored)", got)
 	}
-	if n := countRows(t, "balance_transactions", "source_type='invoice' AND source_id=?", inv.ID); n != 0 {
-		t.Errorf("charge tx leaked, got %d", n)
+	if n := countRows(t, "balance_transactions", "source_type='invoice' AND source_id=? AND voided_at = ''", inv.ID); n != 0 {
+		t.Errorf("active charge tx leaked, got %d", n)
+	}
+	if n := countRows(t, "balance_transactions", "source_type='invoice' AND source_id=? AND voided_at != ''", inv.ID); n != 1 {
+		t.Errorf("voided charge tx missing, got %d", n)
 	}
 	// Patient balance restored to ~0.
 	pAfter := fetchBalance(t, pb.ID)

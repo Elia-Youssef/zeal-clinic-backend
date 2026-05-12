@@ -8,6 +8,7 @@ import (
 
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/realtime"
+	"clinic-api/internal/sync"
 
 	"github.com/labstack/echo/v4"
 )
@@ -33,6 +34,9 @@ func StreamEvents(c echo.Context) error {
 	defer client.Close()
 
 	if err := writeSSE(res, realtime.Event{Type: "hello"}); err != nil {
+		return nil
+	}
+	if err := writeSSE(res, realtime.Event{Type: "cloud_connection", Data: sync.IsCloudConnected()}); err != nil {
 		return nil
 	}
 

@@ -253,31 +253,6 @@ Table appointments {
 }
 
 // ============================================================
-// BOOKINGS (external reservations)
-// ============================================================
-
-Table bookings {
-  id string [pk]
-  client_name string
-  client_phone string
-  client_email string
-  is_new_client bool
-  referral_source string
-  service_category string
-  service_name string
-  preferred_date date
-  preferred_time string
-  duration_minutes int
-  status string [note: 'pending | confirmed | cancelled']
-  appointment_id string [ref: > appointments.id]
-  patient_id string [ref: > patients.id]
-  room_id string [ref: > rooms.id]
-  notes string
-  created_at datetime
-  updated_at datetime
-}
-
-// ============================================================
 // SCHEDULE AVAILABILITY
 // ============================================================
 
@@ -429,9 +404,9 @@ Table balances {
   entity_id string [note: 'Polymorphic FK to patients/employees/suppliers/expenses']
   entity_name string
   currency_id string [ref: > currencies.id]
-  amount float
-  total_in float
-  total_out float
+  amount float [note: 'Cached projection from active balance_transactions']
+  total_in float [note: 'Cached cash-flow projection from active balance_transactions']
+  total_out float [note: 'Cached cash-flow projection from active balance_transactions']
   created_at datetime
   updated_at datetime
 
@@ -453,6 +428,7 @@ Table balance_transactions {
   description string
   created_by string
   created_at datetime
+  voided_at datetime [note: "Empty string means active; voided rows are ignored by projections and lists"]
 }
 
 Table invoices {

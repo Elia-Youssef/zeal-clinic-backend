@@ -65,24 +65,28 @@ func buildDSN(dbPath, hexKey string) string {
 	if dbPath == ":memory:" || strings.HasPrefix(strings.ToLower(dbPath), "file:") {
 		return dbPath
 	}
+	// return "file:" + filepath.ToSlash(dbPath) +
+	// 	"?vfs=adiantum" +
+	// 	"&hexkey=" + hexKey +
+	// 	"&_pragma=busy_timeout(5000)" +
+	// 	"&_pragma=journal_mode(WAL)" +
+	// 	"&_pragma=foreign_keys(1)"
 	return "file:" + filepath.ToSlash(dbPath) +
-		"?vfs=adiantum" +
-		"&hexkey=" + hexKey +
-		"&_pragma=busy_timeout(5000)" +
+		"?_pragma=busy_timeout(5000)" +
 		"&_pragma=journal_mode(WAL)" +
 		"&_pragma=foreign_keys(1)"
 }
 
 // defaultDBPath picks where clinic.db lives when launched: %PROGRAMDATA%\Zeal Clinic\clinic.db
 // if that directory exists (installed layout; the Inno Setup script creates it), otherwise
-// clinic.db relative to cwd (dev fallback).
+// ./tmp/clinic.db relative to cwd (dev + cloud fallback).
 func defaultDBPath() string {
 	if dir := config.SharedDataDir(); dir != "" {
 		if info, err := os.Stat(dir); err == nil && info.IsDir() {
 			return filepath.Join(dir, "clinic.db")
 		}
 	}
-	return "clinic.db"
+	return "./tmp/clinic.db"
 }
 
 func resolveSQLitePath(rawPath string) string {

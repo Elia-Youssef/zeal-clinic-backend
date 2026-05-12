@@ -43,7 +43,6 @@ func seedDemo(ctx context.Context, tx *sql.Tx) error {
 		{"prescriptions", seedPrescriptions},
 		{"discounts", seedDiscounts},
 		{"appointments & invoices", seedAppointmentsAndInvoices},
-		{"bookings", seedBookings},
 		{"notifications", seedNotifications},
 	}
 	for _, s := range steps {
@@ -611,37 +610,7 @@ func botoxOffer(ctx context.Context, tx *sql.Tx) (string, float64) {
 	return id, value
 }
 
-// Bookings + notifications
-
-func seedBookings(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
-	bookings := []struct {
-		name, phone, email, source, category, service, date, atTime string
-		duration                                                    int
-		isNew                                                       bool
-		status                                                      string
-	}{
-		{"Aya Daher", "+1 555 0190", "aya.d@example.com", "Instagram", "Face", "Lips Filler",
-			dateOffset(1), "11:00", 45, true, "pending"},
-		{"Hadi Trad", "+1 555 0191", "hadi.t@example.com", "Friend referral", "Botox", "Botox Full",
-			dateOffset(7), "15:00", 60, false, "confirmed"},
-	}
-	for _, b := range bookings {
-		isNew := 0
-		if b.isNew {
-			isNew = 1
-		}
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO bookings (id, client_name, client_phone, client_email, is_new_client, referral_source,
-				service_category, service_name, preferred_date, preferred_time, duration_minutes, status, notes, created_at, updated_at)
-			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-			newID(), b.name, b.phone, b.email, isNew, b.source, b.category, b.service,
-			b.date, b.atTime, b.duration, b.status, "", c.now, c.now,
-		); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+// Notifications
 
 func seedNotifications(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	notifications := []struct {
@@ -649,7 +618,6 @@ func seedNotifications(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 		read                       bool
 	}{
 		{"Low stock: Botox Vial 100u", "Quantity 8 has dropped near min threshold.", "/inventory", false},
-		{"New booking received", "Aya Daher requested an appointment.", "/bookings", false},
 		{"Appointment scheduled", "Yasmina Daou is scheduled for today at 16:00.", "/appointments", true},
 	}
 	for _, n := range notifications {

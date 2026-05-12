@@ -513,7 +513,16 @@ func syncAppointmentProcedures(tx DBTX, appointmentID, patientID string, procedu
 }
 
 func (a *Appointment) Delete() error {
-	res, err := DB.Exec("DELETE FROM appointments WHERE id = ?", a.ID)
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM appointment_procedures WHERE appointment_id = ?`, a.ID); err != nil {
+		return err
+	}
+	res, err := tx.Exec(`DELETE FROM appointments WHERE id = ?`, a.ID)
 	if err != nil {
 		return err
 	}
@@ -521,5 +530,5 @@ func (a *Appointment) Delete() error {
 	if n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	return tx.Commit()
 }

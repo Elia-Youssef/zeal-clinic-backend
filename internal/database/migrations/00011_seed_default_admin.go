@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/google/uuid"
 	"github.com/pressly/goose/v3"
 )
 
@@ -26,7 +25,7 @@ func upSeedDefaultAdmin(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO users (id, username, password_hash, display_name, role, is_active)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
-		uuid.New().String(), "admin", "", "Admin", "super-admin", 1,
+		"b10829b3-19a0-4813-8e1c-df6f5990737b", "admin", "", "Admin", "super-admin", 1,
 	)
 	return err
 }

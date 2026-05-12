@@ -478,20 +478,21 @@ func (inv *Invoice) UpdateItemAmount(itemID string, amount float64) error {
 		return err
 	}
 
-	// Reverse + recreate the charge transaction. Gift auto-apply rows are
+	// Void + recreate the charge transaction. Gift auto-apply rows are
 	// transaction_type='adjustment' so they're excluded by the filter.
 	var oldCharge BalanceTransaction
 	err = tx.QueryRow(`SELECT `+balanceTransactionColumns+` FROM balance_transactions
 		WHERE source_type = 'invoice' AND source_id = ? AND transaction_type = 'charge'
+		AND voided_at = ''
 		LIMIT 1`, inv.ID).
 		Scan(&oldCharge.ID, &oldCharge.FromBalanceID, &oldCharge.ToBalanceID, &oldCharge.Amount, &oldCharge.CurrencyID,
 			&oldCharge.TransactionType, &oldCharge.TransactionMethod, &oldCharge.SourceType, &oldCharge.SourceID,
-			&oldCharge.Description, &oldCharge.CreatedBy, &oldCharge.CreatedAt)
+			&oldCharge.Description, &oldCharge.CreatedBy, &oldCharge.CreatedAt, &oldCharge.VoidedAt)
 	if err != nil {
 		return fmt.Errorf("load charge transaction: %w", err)
 	}
-	if err := oldCharge.reverseAndDeleteWithTx(tx); err != nil {
-		return fmt.Errorf("reverse charge transaction: %w", err)
+	if err := oldCharge.voidAndRecalculateWithTx(tx); err != nil {
+		return fmt.Errorf("void charge transaction: %w", err)
 	}
 
 	newCharge := BalanceTransaction{
@@ -754,7 +755,7 @@ func (inv *Invoice) Delete() error {
 	for _, gid := range giftIDs {
 		var n int
 		if err := tx.QueryRow(`SELECT COUNT(*) FROM balance_transactions
-			WHERE source_type = 'discount' AND source_id = ?`, gid).Scan(&n); err != nil {
+			WHERE source_type = 'discount' AND source_id = ? AND voided_at = ''`, gid).Scan(&n); err != nil {
 			return err
 		}
 		if n > 0 {
@@ -762,10 +763,10 @@ func (inv *Invoice) Delete() error {
 		}
 	}
 
-	// Reverse and delete every balance transaction sourced from this invoice
-	// (the charge plus any auto-applied gifts).
+	// Void every balance transaction sourced from this invoice (the charge
+	// plus any auto-applied gifts).
 	chargeRows, err := tx.Query(`SELECT id, from_balance_id, to_balance_id, amount, transaction_type FROM balance_transactions
-		WHERE source_type = 'invoice' AND source_id = ?`, inv.ID)
+		WHERE source_type = 'invoice' AND source_id = ? AND voided_at = ''`, inv.ID)
 	if err != nil {
 		return err
 	}
@@ -780,8 +781,8 @@ func (inv *Invoice) Delete() error {
 	}
 	chargeRows.Close()
 	for i := range charges {
-		if err := charges[i].reverseAndDeleteWithTx(tx); err != nil {
-			return fmt.Errorf("reverse charge transaction: %w", err)
+		if err := charges[i].voidAndRecalculateWithTx(tx); err != nil {
+			return fmt.Errorf("void charge transaction: %w", err)
 		}
 	}
 

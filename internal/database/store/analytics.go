@@ -55,6 +55,7 @@ func (a *Analytics) RevenueThisMonth() (float64, error) {
 		FROM balance_transactions bt
 		JOIN balances tb ON tb.id = bt.to_balance_id
 		WHERE tb.entity_type = 'self'
+		AND bt.voided_at = ''
 		AND bt.transaction_type = 'payment'
 		AND strftime('%Y-%m', bt.created_at) = strftime('%Y-%m', 'now')
 	`).Scan(&v)
@@ -71,6 +72,7 @@ func (a *Analytics) ExpensesThisMonth() (float64, error) {
 		FROM balance_transactions bt
 		JOIN balances fb ON fb.id = bt.from_balance_id
 		WHERE fb.entity_type = 'self'
+		AND bt.voided_at = ''
 		AND bt.transaction_type = 'payment'
 		AND strftime('%Y-%m', bt.created_at) = strftime('%Y-%m', 'now')
 	`).Scan(&v)
@@ -163,12 +165,14 @@ func (a *Analytics) RecentTransactions(limit int) (BalanceTransactionList, error
 		limit = 5
 	}
 	rows, err := RDB.Query(`SELECT bt.id, bt.from_balance_id, bt.to_balance_id, bt.amount, bt.currency_id,
-		bt.transaction_type, bt.transaction_method, bt.description, bt.created_by, bt.created_at,
+		bt.transaction_type, bt.transaction_method, bt.source_type, bt.source_id,
+		bt.description, bt.created_by, bt.created_at, bt.voided_at,
 		fb.entity_name, tb.entity_name
 		FROM balance_transactions bt
 		JOIN balances fb ON fb.id = bt.from_balance_id
 		JOIN balances tb ON tb.id = bt.to_balance_id
 		WHERE tb.entity_type = 'self'
+		AND bt.voided_at = ''
 		ORDER BY bt.created_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -249,6 +253,7 @@ func (a *Analytics) Series(p SeriesParams) ([]SeriesPoint, error) {
 			FROM balance_transactions bt
 			JOIN balances tb ON tb.id = bt.to_balance_id
 			WHERE tb.entity_type = 'self'
+			AND bt.voided_at = ''
 			AND bt.transaction_type = 'payment'
 			AND date(bt.created_at) BETWEEN date(?) AND date(?)
 			GROUP BY bucket ORDER BY bucket`, fmt.Sprintf(bucketExpr, "bt.created_at"))

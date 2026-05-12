@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	syncpkg "clinic-api/internal/sync"
 )
 
 // Action is a named unit of periodic work the Monitor runs on every tick.
@@ -73,6 +75,10 @@ func (m *Monitor) tick() {
 	for _, a := range actions {
 		m.runAction(a)
 	}
+	// Monitor actions write outside the HTTP path, so the sync middleware
+	// doesn't see them. PollLog only acts when sync_log actually advanced:
+	// quiet ticks stay quiet, no unconditional pull/push.
+	syncpkg.PollLog()
 }
 
 func (m *Monitor) runAction(a Action) {

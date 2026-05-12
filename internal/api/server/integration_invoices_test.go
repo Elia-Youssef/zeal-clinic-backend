@@ -83,7 +83,7 @@ func TestClientInvoice_CreateAndDeleteReversesCharge(t *testing.T) {
 
 	// Charge tx persisted.
 	if n := countTableRows(t, "balance_transactions",
-		"source_type = 'invoice' AND source_id = ?", inv.ID); n != 1 {
+		"source_type = 'invoice' AND source_id = ? AND voided_at = ''", inv.ID); n != 1 {
 		t.Errorf("expected 1 charge tx, got %d", n)
 	}
 
@@ -100,8 +100,12 @@ func TestClientInvoice_CreateAndDeleteReversesCharge(t *testing.T) {
 		t.Errorf("self amount after delete should be 0, got %v", fetchBalanceAmount(t, inv.FromBalanceID))
 	}
 	if n := countTableRows(t, "balance_transactions",
-		"source_type = 'invoice' AND source_id = ?", inv.ID); n != 0 {
-		t.Errorf("charge tx should be gone, got %d", n)
+		"source_type = 'invoice' AND source_id = ? AND voided_at = ''", inv.ID); n != 0 {
+		t.Errorf("active charge tx should be gone, got %d", n)
+	}
+	if n := countTableRows(t, "balance_transactions",
+		"source_type = 'invoice' AND source_id = ? AND voided_at != ''", inv.ID); n != 1 {
+		t.Errorf("voided charge tx missing, got %d", n)
 	}
 	if n := countTableRows(t, "invoices", "id = ?", inv.ID); n != 0 {
 		t.Errorf("invoice still exists")

@@ -17,6 +17,12 @@ type Config struct {
 	JWTSecret       string
 	JWTLifetime     time.Duration
 	DBEncryptionKey string
+
+	// Sync (see internal/sync). PeerURL drives the outbound sync (set on
+	// local, empty on cloud); SyncSecret authenticates /api/sync/* between
+	// peers.
+	PeerURL    string
+	SyncSecret string
 }
 
 var current *Config
@@ -35,6 +41,8 @@ func Load() *Config {
 		JWTSecret:       getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release"),
 		JWTLifetime:     parseDuration(getEnv("JWT_LIFETIME", "14h")),
 		DBEncryptionKey: getEnv("DB_ENCRYPTION_KEY", ""),
+		PeerURL:         getEnv("PEER_URL", ""),
+		SyncSecret:      getEnv("SYNC_SECRET", ""),
 	}
 
 	if cfg.DBEncryptionKey == "" {

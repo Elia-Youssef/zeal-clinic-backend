@@ -412,8 +412,11 @@ func TestBalanceTransaction_Delete_ReversesPaymentOnly(t *testing.T) {
 	if !approxEqual(from.TotalOut, 0) || !approxEqual(to.TotalIn, 0) {
 		t.Errorf("flow totals not reversed; from.TotalOut=%v to.TotalIn=%v", from.TotalOut, to.TotalIn)
 	}
-	if n := countRows(t, "balance_transactions", ""); n != 0 {
-		t.Errorf("expected 0 tx rows after delete, got %d", n)
+	if n := countRows(t, "balance_transactions", "voided_at = ''"); n != 0 {
+		t.Errorf("expected 0 active tx rows after delete, got %d", n)
+	}
+	if n := countRows(t, "balance_transactions", "voided_at != ''"); n != 1 {
+		t.Errorf("expected 1 voided tx row after delete, got %d", n)
 	}
 }
 
@@ -438,8 +441,11 @@ func TestBalanceTransaction_Delete_TwoWayRemovesPair(t *testing.T) {
 	if err := bt.Delete(); err != nil {
 		t.Fatal(err)
 	}
-	if n := countRows(t, "balance_transactions", ""); n != 0 {
-		t.Errorf("expected 0 tx rows after pair delete, got %d", n)
+	if n := countRows(t, "balance_transactions", "voided_at = ''"); n != 0 {
+		t.Errorf("expected 0 active tx rows after pair delete, got %d", n)
+	}
+	if n := countRows(t, "balance_transactions", "voided_at != ''"); n != 2 {
+		t.Errorf("expected 2 voided tx rows after pair delete, got %d", n)
 	}
 	selfAfter := fetchBalance(t, self.ID)
 	expAfter := fetchBalance(t, exp.ID)

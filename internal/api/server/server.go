@@ -6,7 +6,9 @@ import (
 	mw "clinic-api/internal/api/middleware"
 	"clinic-api/internal/api/routes"
 	"clinic-api/internal/config"
+	"clinic-api/internal/database/store"
 	"clinic-api/internal/pdf"
+	syncpkg "clinic-api/internal/sync"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -21,6 +23,9 @@ func CreateServer() *echo.Echo {
 	}))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+	// Pokes the sync engine after any write request. Debounced: bursts of
+	// writes coalesce into one fan-out ~1.5s later.
+	e.Use(syncpkg.Middleware())
 
 	// Health
 	e.GET("/health", func(c echo.Context) error {
@@ -40,6 +45,18 @@ func CreateServer() *echo.Echo {
 	for _, register := range protectedRouteRegistrars {
 		register(api)
 	}
+
+	// Sync (machine-to-machine, gated by SYNC_SECRET)
+	// Mounted regardless of mode so both peers can serve push/pull when
+	// asked. The middleware enforces the shared secret; if SYNC_SECRET is
+	// unset, RegisterRoutes is a no-op.
+	cfg := config.Current()
+	syncAPI := &syncpkg.API{
+		DB:     store.DB,
+		Secret: cfg.SyncSecret,
+	}
+	syncAPI.RegisterRoutes(e)
+
 	// Generated PDFs (served from local tmp dir)
 	e.Static("/files", pdf.TmpDir())
 

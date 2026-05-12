@@ -843,19 +843,14 @@ func (p *EmployeeSalaryPreparation) SetAdjustment(adjustment float64) error {
 
 	if delta != 0 && current.TransactionID != "" {
 		var fromID, toID string
-		if err := tx.QueryRow(`SELECT from_balance_id, to_balance_id FROM balance_transactions WHERE id = ?`, current.TransactionID).
+		if err := tx.QueryRow(`SELECT from_balance_id, to_balance_id FROM balance_transactions WHERE id = ? AND voided_at = ''`, current.TransactionID).
 			Scan(&fromID, &toID); err != nil {
 			return err
 		}
-		now := DateNow()
-		// transaction_type is "charge", so total_in / total_out are not touched.
-		if _, err := tx.Exec(`UPDATE balance_transactions SET amount = ? WHERE id = ?`, newAmount, current.TransactionID); err != nil {
+		if _, err := tx.Exec(`UPDATE balance_transactions SET amount = ? WHERE id = ? AND voided_at = ''`, newAmount, current.TransactionID); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(`UPDATE balances SET amount = amount - ?, updated_at = ? WHERE id = ?`, delta, now, fromID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(`UPDATE balances SET amount = amount + ?, updated_at = ? WHERE id = ?`, delta, now, toID); err != nil {
+		if err := RecalculateBalancesWithTx(tx, fromID, toID); err != nil {
 			return err
 		}
 	}

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/google/uuid"
 	"github.com/pressly/goose/v3"
 )
 
@@ -18,15 +17,18 @@ func upSeedCountries(ctx context.Context, tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
-	var names []string
-	if err := json.Unmarshal(data, &names); err != nil {
+	var entries []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(data, &entries); err != nil {
 		return err
 	}
 
-	for _, name := range names {
+	for _, e := range entries {
 		if _, err := tx.ExecContext(ctx,
 			`INSERT OR IGNORE INTO countries (id, name) VALUES (?, ?)`,
-			uuid.Must(uuid.NewV7()).String(), name,
+			e.ID, e.Name,
 		); err != nil {
 			return err
 		}

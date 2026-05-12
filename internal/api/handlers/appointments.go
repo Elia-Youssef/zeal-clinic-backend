@@ -136,10 +136,6 @@ func UpdateAppointment(c echo.Context) error {
 
 func DeleteAppointment(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"bookings": "appointment_id"}) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete appointment: has related records"})
-	}
-
 	apt := store.Appointment{ID: id}
 	if err := apt.Delete(); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
