@@ -98,7 +98,18 @@ func (m *EmployeeList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + employeeColumns + ` FROM employees` + where + ` ORDER BY id` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"firstName":      "first_name",
+		"lastName":       "last_name",
+		"role":           "role",
+		"contact":        "contact",
+		"email":          "email",
+		"dateOfBirth":    "date_of_birth",
+		"employmentType": "employment_type",
+		"createdAt":      "created_at",
+		"updatedAt":      "updated_at",
+	}, "id")
+	query := `SELECT ` + employeeColumns + ` FROM employees` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

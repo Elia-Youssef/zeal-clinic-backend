@@ -73,7 +73,15 @@ func (cur *CurrencyList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + currencyColumns + ` FROM currencies` + where + ` ORDER BY code` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"code":         "code",
+		"name":         "name",
+		"symbol":       "symbol",
+		"exchangeRate": "exchange_rate",
+		"createdAt":    "created_at",
+		"updatedAt":    "updated_at",
+	}, "code")
+	query := `SELECT ` + currencyColumns + ` FROM currencies` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

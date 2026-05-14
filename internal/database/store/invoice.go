@@ -629,10 +629,21 @@ func (inv *InvoiceList) GetAllByType(entityType string, params ListParams) (int,
 		return 0, err
 	}
 
+	order := params.OrderClause(map[string]string{
+		"invoiceNumber":  "i.invoice_number",
+		"amount":         "i.amount",
+		"discountValue":  "i.discount_value",
+		"finalAmount":    "i.final_amount",
+		"currencyId":     "i.currency_id",
+		"createdAt":      "i.created_at",
+		"updatedAt":      "i.updated_at",
+		"fromEntityName": "fb.entity_name",
+		"toEntityName":   "tb.entity_name",
+	}, "i.created_at DESC")
 	query := `SELECT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
 		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
 		i.notes, i.created_by, i.created_at, i.updated_at` +
-		baseFrom + where + ` ORDER BY i.created_at DESC` + params.PaginationClause()
+		baseFrom + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

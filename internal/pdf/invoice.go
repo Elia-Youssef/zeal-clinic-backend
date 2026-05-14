@@ -19,7 +19,6 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/props"
 )
 
-// logoBytes is the embedded zeal.png loaded once on first invoice render.
 var logoBytes []byte
 
 func loadLogo() []byte {
@@ -32,15 +31,13 @@ func loadLogo() []byte {
 	return logoBytes
 }
 
-// GenerateInvoice renders the given invoice to a PDF in the tmp directory and
-// returns the absolute file path.
+// GenerateInvoice writes an invoice PDF and returns its absolute path.
 func GenerateInvoice(inv *store.Invoice) (string, error) {
 	if inv == nil || inv.ID == "" {
 		return "", fmt.Errorf("invoice is empty")
 	}
 	curLabel := invoiceCurrency(inv.CurrencyID)
 
-	// Patient lookup (client invoices have a patient on the to-side).
 	var patient store.Patient
 	if inv.ToEntityID != "" {
 		_ = patient.GetByID(inv.ToEntityID)
@@ -66,7 +63,6 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 		Build()
 	m := maroto.New(cfg)
 
-	// Logo (top center, embedded zeal.png).
 	if logo := loadLogo(); len(logo) > 0 {
 		m.AddRow(36,
 			image.NewFromBytesCol(24, logo, extension.Png, props.Rect{Percent: 86, Center: true}),
@@ -76,7 +72,6 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 	}
 	m.AddRow(5)
 
-	// Header: two boxes (patient info on left, invoice info on right).
 	leftRows := []invoiceInfoRow{
 		{"Patient", patientName},
 		{"Address", patientAddress},
@@ -95,7 +90,6 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 		addInvoiceInfoRow(m, i, len(leftRows)-1, leftRows[i], rightRows[i], labelTxt, valueTxt)
 	}
 
-	// Items table.
 	m.AddRow(7)
 	headerTxt := props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center, Top: 1.4}
 	m.AddRow(8,
@@ -139,7 +133,6 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 		)
 	}
 
-	// Amount in words + totals box.
 	words := curLabel + " " + numberToWords(int64(inv.FinalAmount)) + " Only."
 
 	m.AddRow(8,
@@ -159,19 +152,6 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 		cellCol(4, "Net", props.Text{Size: 9, Style: fontstyle.Bold, Left: 1, Top: 1.4}, border.Left|border.Top|border.Bottom),
 		cellCol(3, money(inv.FinalAmount), props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1.4}, border.Right|border.Top|border.Bottom),
 	)
-	// if cur.ExchangeRate > 0 && curLabel != "LBP" {
-	// 	m.AddRow(8,
-	// 		text.NewCol(17, "", props.Text{}),
-	// 		cellCol(4, "Equivalent LBP", props.Text{Size: 8.3, Style: fontstyle.Bold, Left: 1, Top: 1.4}, border.Left|border.Bottom),
-	// 		cellCol(3, money(inv.FinalAmount*cur.ExchangeRate), props.Text{Size: 8.3, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1.4}, border.Right|border.Bottom),
-	// 	)
-	// } else {
-	// 	m.AddRow(1,
-	// 		text.NewCol(17, "", props.Text{}),
-	// 		cellCol(7, "", props.Text{}, border.Left|border.Right|border.Bottom),
-	// 	)
-	// }
-
 	return save(m, "invoice")
 }
 
@@ -181,16 +161,6 @@ type invoiceInfoRow struct {
 }
 
 func invoiceCurrency(currencyID string) string {
-	// cur := store.Currency{}
-	// if currencyID == "" || cur.GetByID(currencyID) != nil {
-	// 	return cur, "USD"
-	// }
-	// if cur.Code != "" {
-	// 	return cur, cur.Code
-	// }
-	// if cur.Symbol != "" {
-	// 	return cur, cur.Symbol
-	// }
 	return "USD"
 }
 
@@ -301,7 +271,6 @@ func compactNonEmpty(parts ...string) []string {
 	return out
 }
 
-// save runs the maroto document and writes it to a unique tmp path.
 func save(m core.Maroto, name string) (string, error) {
 	doc, err := m.Generate()
 	if err != nil {

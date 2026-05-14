@@ -68,7 +68,11 @@ func (r *RoleList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + roleColumns + ` FROM roles` + where + ` ORDER BY name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name":  "name",
+		"label": "label",
+	}, "name")
+	query := `SELECT ` + roleColumns + ` FROM roles` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

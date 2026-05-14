@@ -72,7 +72,15 @@ func (e *AuditLogEntryList) GetByUserName(userName string, params ListParams) (i
 		return 0, err
 	}
 
-	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + ` ORDER BY created_at DESC` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"userName":   "user_name",
+		"userRole":   "user_role",
+		"action":     "action",
+		"entityType": "entity_type",
+		"entityId":   "entity_id",
+		"createdAt":  "created_at",
+	}, "created_at DESC")
+	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err
@@ -109,7 +117,15 @@ func (e *AuditLogEntryList) GetAll(entityType, entityID, action string, params L
 		return 0, err
 	}
 
-	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + ` ORDER BY created_at DESC` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"userName":   "user_name",
+		"userRole":   "user_role",
+		"action":     "action",
+		"entityType": "entity_type",
+		"entityId":   "entity_id",
+		"createdAt":  "created_at",
+	}, "created_at DESC")
+	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

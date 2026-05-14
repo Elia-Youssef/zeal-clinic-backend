@@ -17,25 +17,18 @@ import (
 func CreateServer() *echo.Echo {
 	e := echo.New()
 
-	// Middleware
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "${time_rfc3339} | ${status} | ${latency_human} | ${method} ${uri}\n",
 	}))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
-	// Pokes the sync engine after any write request. Debounced: bursts of
-	// writes coalesce into one fan-out ~1.5s later.
 	e.Use(syncpkg.Middleware())
 
-	// Health
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	// Public routes (no auth)
 	authGroup := e.Group("/api")
-
-	// Protected routes (auth required)
 	api := e.Group("/api")
 	api.Use(mw.AuthMiddleware)
 	api.Use(mw.AuditLogger())
@@ -46,10 +39,6 @@ func CreateServer() *echo.Echo {
 		register(api)
 	}
 
-	// Sync (machine-to-machine, gated by SYNC_SECRET)
-	// Mounted regardless of mode so both peers can serve push/pull when
-	// asked. The middleware enforces the shared secret; if SYNC_SECRET is
-	// unset, RegisterRoutes is a no-op.
 	cfg := config.Current()
 	syncAPI := &syncpkg.API{
 		DB:     store.DB,
@@ -57,10 +46,7 @@ func CreateServer() *echo.Echo {
 	}
 	syncAPI.RegisterRoutes(e)
 
-	// Generated PDFs (served from local tmp dir)
 	e.Static("/files", pdf.TmpDir())
-
-	// SPA (Vite build embedded from client/dist)
 	e.GET("/*", spaHandler())
 
 	return e

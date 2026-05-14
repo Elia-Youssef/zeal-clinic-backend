@@ -103,7 +103,16 @@ func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := procedureSelect + where + ` ORDER BY p.name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name":       "p.name",
+		"typeId":     "p.type_id",
+		"categoryId": "p.category_id",
+		"price":      "COALESCE(pp.price, 0)",
+		"isActive":   "p.is_active",
+		"createdAt":  "p.created_at",
+		"updatedAt":  "p.updated_at",
+	}, "p.name")
+	query := procedureSelect + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

@@ -75,6 +75,37 @@ func TestListParams_FilterClause(t *testing.T) {
 	})
 }
 
+func TestListParams_OrderClause(t *testing.T) {
+	allowed := map[string]string{
+		"name":      "name",
+		"createdAt": "created_at",
+	}
+
+	cases := []struct {
+		name     string
+		lp       ListParams
+		fallback string
+		want     string
+	}{
+		{"empty sort uses fallback", ListParams{}, "name ASC", " ORDER BY name ASC"},
+		{"empty sort and empty fallback returns empty", ListParams{}, "", ""},
+		{"unknown sort uses fallback", ListParams{Sort: "ssn"}, "name ASC", " ORDER BY name ASC"},
+		{"known sort default ASC", ListParams{Sort: "name"}, "id", " ORDER BY name ASC"},
+		{"known sort with desc", ListParams{Sort: "createdAt", Order: "desc"}, "id", " ORDER BY created_at DESC"},
+		{"known sort with DESC uppercase", ListParams{Sort: "createdAt", Order: "DESC"}, "id", " ORDER BY created_at DESC"},
+		{"order without sort uses fallback", ListParams{Order: "desc"}, "id", " ORDER BY id"},
+		{"unknown order falls back to ASC", ListParams{Sort: "name", Order: "sideways"}, "id", " ORDER BY name ASC"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.lp.OrderClause(allowed, tc.fallback)
+			if got != tc.want {
+				t.Errorf("got %q want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestListParams_PaginationClause(t *testing.T) {
 	cases := []struct {
 		name    string

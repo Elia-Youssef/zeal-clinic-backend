@@ -68,7 +68,13 @@ func (l *ExpenseList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + expenseColumns + ` FROM expenses` + where + ` ORDER BY name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name":      "name",
+		"notes":     "notes",
+		"createdAt": "created_at",
+		"updatedAt": "updated_at",
+	}, "name")
+	query := `SELECT ` + expenseColumns + ` FROM expenses` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

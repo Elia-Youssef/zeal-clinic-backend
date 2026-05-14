@@ -25,8 +25,6 @@ func tmpPath(name string) string {
 	return filepath.Join(TmpDir(), fmt.Sprintf("%s.pdf", name))
 }
 
-// money formats a float as a string with comma thousand-separators and two
-// decimal places, e.g. 143200000 becomes "143,200,000.00".
 func money(v float64) string {
 	neg := v < 0
 	if neg {
@@ -60,8 +58,6 @@ func money(v float64) string {
 	return out
 }
 
-// numberToWords renders a non-negative integer as English words, e.g.
-// 1600 becomes "One Thousand Six Hundred". Used on invoices.
 func numberToWords(n int64) string {
 	if n == 0 {
 		return "Zero"

@@ -22,7 +22,6 @@ func Open(pathOverride string) (*sql.DB, error) {
 	dbPath := resolveSQLitePath(path)
 	dsn := buildDSN(dbPath, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 
-	// Write connection: single conn, serialises all writes.
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open write db: %w", err)
@@ -37,7 +36,6 @@ func Open(pathOverride string) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 
-	// Read connection: multiple conns, concurrent reads via WAL.
 	rdb, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open read db: %w", err)
@@ -55,31 +53,20 @@ func Open(pathOverride string) (*sql.DB, error) {
 	return db, nil
 }
 
-// buildDSN composes a file: URI for the ncruces sqlite driver with the
-// adiantum VFS for at-rest encryption. hexKey must be 64 hex chars (32 bytes).
-// PRAGMA order matters per ncruces docs: busy_timeout before journal_mode.
-// Format follows ncruces' own examples ("file:" + slash-converted path)
-// rather than RFC-style "file:///C:/...", because ncruces' VFS Abs()-resolves
-// the path verbatim and won't strip the leading slash on Windows.
+// buildDSN returns the encrypted SQLite URI. hexKey must be 64 hex chars.
 func buildDSN(dbPath, hexKey string) string {
 	if dbPath == ":memory:" || strings.HasPrefix(strings.ToLower(dbPath), "file:") {
 		return dbPath
 	}
-	// return "file:" + filepath.ToSlash(dbPath) +
-	// 	"?vfs=adiantum" +
-	// 	"&hexkey=" + hexKey +
-	// 	"&_pragma=busy_timeout(5000)" +
-	// 	"&_pragma=journal_mode(WAL)" +
-	// 	"&_pragma=foreign_keys(1)"
 	return "file:" + filepath.ToSlash(dbPath) +
-		"?_pragma=busy_timeout(5000)" +
+		"?vfs=adiantum" +
+		"&hexkey=" + hexKey +
+		"&_pragma=busy_timeout(5000)" +
 		"&_pragma=journal_mode(WAL)" +
 		"&_pragma=foreign_keys(1)"
 }
 
-// defaultDBPath picks where clinic.db lives when launched: %PROGRAMDATA%\Zeal Clinic\clinic.db
-// if that directory exists (installed layout; the Inno Setup script creates it), otherwise
-// ./tmp/clinic.db relative to cwd (dev + cloud fallback).
+// defaultDBPath uses ProgramData when installed, otherwise ./tmp/clinic.db.
 func defaultDBPath() string {
 	if dir := config.SharedDataDir(); dir != "" {
 		if info, err := os.Stat(dir); err == nil && info.IsDir() {

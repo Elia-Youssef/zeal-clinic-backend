@@ -28,6 +28,28 @@ func (lp ListParams) FilterClause(columns ...string) (string, []any) {
 	return "(" + strings.Join(conditions, " OR ") + ")", args
 }
 
+// OrderClause returns a SQL " ORDER BY ..." suffix. If Sort is set and matches
+// an entry in allowed, it sorts by that column with direction from Order
+// (default ASC). Otherwise it falls back to fallback (a raw SQL fragment); if
+// fallback is empty no ORDER BY is emitted. The allowed map whitelists sort
+// inputs to prevent SQL injection: keys are accepted Sort values, values are
+// SQL column expressions.
+func (lp ListParams) OrderClause(allowed map[string]string, fallback string) string {
+	if lp.Sort != "" {
+		if col, ok := allowed[lp.Sort]; ok {
+			dir := "ASC"
+			if strings.EqualFold(lp.Order, "desc") {
+				dir = "DESC"
+			}
+			return " ORDER BY " + col + " " + dir
+		}
+	}
+	if fallback == "" {
+		return ""
+	}
+	return " ORDER BY " + fallback
+}
+
 // PaginationClause returns a SQL LIMIT/OFFSET suffix.
 func (lp ListParams) PaginationClause() string {
 	if lp.Limit <= 0 {

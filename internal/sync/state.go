@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// GetState loads cursors for the named peer, lazily initialising the row.
+// GetState loads or creates peer cursors.
 func GetState(db *sql.DB, peer string) (lastPushedSeq, lastPulledSeq int64, err error) {
 	row := db.QueryRow(
 		`SELECT last_pushed_seq, last_pulled_seq FROM sync_state WHERE peer = ?`,
@@ -24,7 +24,7 @@ func GetState(db *sql.DB, peer string) (lastPushedSeq, lastPulledSeq int64, err 
 	return
 }
 
-// SetLastPushed advances the local cursor for what the peer has ACK'd.
+// SetLastPushed advances the acknowledged push cursor.
 func SetLastPushed(db *sql.DB, peer string, seq int64) error {
 	_, err := db.Exec(
 		`UPDATE sync_state SET last_pushed_seq = ?, updated_at = datetime('now') WHERE peer = ?`,
@@ -33,7 +33,7 @@ func SetLastPushed(db *sql.DB, peer string, seq int64) error {
 	return err
 }
 
-// SetLastPulled advances the local cursor for what we've applied from peer.
+// SetLastPulled advances the applied pull cursor.
 func SetLastPulled(db *sql.DB, peer string, seq int64) error {
 	_, err := db.Exec(
 		`UPDATE sync_state SET last_pulled_seq = ?, updated_at = datetime('now') WHERE peer = ?`,
@@ -54,10 +54,7 @@ func MaxLogSeq(db *sql.DB) (int64, error) {
 	return n.Int64, nil
 }
 
-// LoadBatch returns sync_log rows with seq > since, up to limit rows in
-// seq order. Every row in sync_log is locally-authored by construction
-// (the apply path's _sync_applying guard suppresses re-logging), so no
-// origin filter is needed.
+// LoadBatch returns sync_log rows after since.
 func LoadBatch(db *sql.DB, since int64, limit int) ([]LogEntry, error) {
 	rows, err := db.Query(
 		`SELECT seq, table_name, row_id, op, created_at
@@ -82,8 +79,7 @@ func LoadBatch(db *sql.DB, since int64, limit int) ([]LogEntry, error) {
 	return out, rows.Err()
 }
 
-// PruneOutgoing deletes sync_log rows that the peer has already confirmed
-// receiving (seq <= confirmedSeq).
+// PruneOutgoing removes rows acknowledged by the peer.
 func PruneOutgoing(db *sql.DB, confirmedSeq int64) (int64, error) {
 	if confirmedSeq <= 0 {
 		return 0, nil

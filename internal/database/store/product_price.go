@@ -54,7 +54,12 @@ func (l *ProductPriceList) GetByProduct(productID string, params ListParams) (in
 		return 0, err
 	}
 
-	rows, err := RDB.Query(`SELECT `+productPriceColumns+` FROM product_prices WHERE product_id = ? ORDER BY is_active DESC, created_at DESC`+params.PaginationClause(), productID)
+	order := params.OrderClause(map[string]string{
+		"price":     "price",
+		"isActive":  "is_active",
+		"createdAt": "created_at",
+	}, "is_active DESC, created_at DESC")
+	rows, err := RDB.Query(`SELECT `+productPriceColumns+` FROM product_prices WHERE product_id = ?`+order+params.PaginationClause(), productID)
 	if err != nil {
 		return 0, err
 	}

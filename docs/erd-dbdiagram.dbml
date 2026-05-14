@@ -512,3 +512,45 @@ Table lebanon_cities {
   governorate string
   district string
 }
+
+// ============================================================
+// SYNC
+// ============================================================
+
+Table sync_log {
+  seq int [pk, increment]
+  table_name string
+  row_id string
+  op string [note: 'insert | update | delete']
+  created_at datetime
+
+  indexes {
+    (table_name, row_id)
+  }
+}
+
+Table sync_state {
+  peer string [pk]
+  last_pushed_seq int
+  last_pulled_seq int
+  updated_at datetime
+}
+
+Table sync_conflicts {
+  id string [pk]
+  table_name string
+  row_id string
+  local_json string
+  remote_json string
+  resolution string [note: 'local_wins | no_delete']
+  created_at datetime
+
+  indexes {
+    created_at
+  }
+}
+
+Table _sync_applying {
+  rowid int [pk, note: 'single guard row']
+  applying bool
+}

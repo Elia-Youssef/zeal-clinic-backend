@@ -3,7 +3,6 @@ package pdf
 import (
 	"clinic-api/internal/database/store"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/johnfercher/maroto/v2"
@@ -18,8 +17,7 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/props"
 )
 
-// GenerateRevenueReport renders a revenue report to a PDF in the tmp directory
-// and returns the absolute file path.
+// GenerateRevenueReport writes a revenue report PDF and returns its path.
 func GenerateRevenueReport(report *store.RevenueReport, from, to, currencyID string) (string, error) {
 	if report == nil {
 		return "", fmt.Errorf("report is empty")
@@ -70,8 +68,7 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to, currencyID str
 	return save(m, "revenue-"+from+"-"+to)
 }
 
-// GenerateExpensesReport renders an expenses report to a PDF in the tmp
-// directory and returns the absolute file path.
+// GenerateExpensesReport writes an expenses report PDF and returns its path.
 func GenerateExpensesReport(rows []store.ExpenseRow, from, to, currencyID string) (string, error) {
 	curLabel := currencyLabel(currencyID)
 
@@ -126,7 +123,6 @@ func GenerateExpensesReport(rows []store.ExpenseRow, from, to, currencyID string
 }
 
 func revenueReportHeaderRows(report *store.RevenueReport, from, to, curLabel string) []core.Row {
-	// title := revenueReportTitle(report.Level)
 	sheet := revenueReportSheet(report.Level)
 	if curLabel != "" {
 		sheet += "  " + curLabel
@@ -135,9 +131,6 @@ func revenueReportHeaderRows(report *store.RevenueReport, from, to, curLabel str
 	headerTxt := props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center, Top: 1.3}
 
 	return []core.Row{
-		// row.New(10).Add(
-		// 	text.NewCol(100, "Dr. JULIAN VANCE 2024", props.Text{Size: 12, Style: fontstyle.BoldItalic, Left: 2}),
-		// ),
 		row.New(7).Add(
 			text.NewCol(10, "Sheet", props.Text{Size: 9, Style: fontstyle.Bold}),
 			text.NewCol(20, sheet, props.Text{Size: 9}),
@@ -190,17 +183,6 @@ func expensesReportHeaderRows(from, to, curLabel string) []core.Row {
 	}
 }
 
-func revenueReportTitle(level string) string {
-	switch level {
-	case "product", "product-category":
-		return "SALES PER PRODUCT"
-	case "kind":
-		return "SALES SUMMARY"
-	default:
-		return "SALES PER SERVICE"
-	}
-}
-
 func revenueReportSheet(level string) string {
 	switch level {
 	case "product", "product-category":
@@ -229,17 +211,6 @@ func revenueReportAccumulate(level string) string {
 	}
 }
 
-func reportCodeHeader(level string) string {
-	switch level {
-	case "product", "product-category":
-		return "Product Code"
-	case "kind":
-		return "Code"
-	default:
-		return "Procedure Code"
-	}
-}
-
 func reportNameHeader(level string) string {
 	switch level {
 	case "product", "product-category":
@@ -261,46 +232,6 @@ func reportDate(v string) string {
 
 func reportQuantity(v int) string {
 	return fmt.Sprintf("%.2f", float64(v))
-}
-
-func reportCode(g store.RevenueGroup) string {
-	if g.GroupType == "kind" {
-		if strings.EqualFold(g.EntityID, "product") {
-			return "PRD"
-		}
-		if strings.EqualFold(g.EntityID, "procedure") {
-			return "PRC"
-		}
-	}
-	return codeFromName(g.EntityName)
-}
-
-func codeFromName(name string) string {
-	words := strings.FieldsFunc(strings.ToUpper(name), func(r rune) bool {
-		return (r < 'A' || r > 'Z') && (r < '0' || r > '9')
-	})
-	if len(words) == 0 {
-		return ""
-	}
-	if len(words) == 1 {
-		if len(words[0]) > 3 {
-			return words[0][:3]
-		}
-		return words[0]
-	}
-	code := words[0]
-	if len(code) > 2 {
-		code = code[:2]
-	}
-	for _, w := range words[1:] {
-		if len(code) >= 3 {
-			break
-		}
-		if w != "" {
-			code += w[:1]
-		}
-	}
-	return code
 }
 
 func currencyLabel(currencyID string) string {

@@ -24,9 +24,13 @@ type DropdownItem struct {
 	Name string `json:"name"`
 }
 
-// ListParams holds optional pagination and filtering parameters for list queries.
+// ListParams holds optional pagination, filtering, and sorting parameters for
+// list queries. Sort is the requested sort field (typically a JSON field name
+// that each list function maps to a SQL column); Order is "asc" or "desc".
 type ListParams struct {
 	Offset int
 	Limit  int
 	Filter string
+	Sort   string
+	Order  string
 }

@@ -15,36 +15,35 @@ func ProbeHealth() bool {
 	if err != nil {
 		return false
 	}
-	_ = conn.Close()
+	conn.Close()
+
 	client := &http.Client{Timeout: 500 * time.Millisecond}
 	resp, err := client.Get("http://127.0.0.1:" + port + "/health")
 	if err != nil {
 		return false
 	}
-	_ = resp.Body.Close()
+	resp.Body.Close()
+
 	return resp.StatusCode == http.StatusOK
 }
 
 func WaitAndOpen() {
-	url := "http://localhost:" + config.Current().Port
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		if ProbeHealth() {
-			_ = Open(url)
+			Open()
 			return
 		}
 		time.Sleep(150 * time.Millisecond)
 	}
 }
 
-func Open(url string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	default:
-		cmd = exec.Command("xdg-open", url)
+func Open() error {
+	url := "http://localhost:" + config.Current().Port
+
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		return cmd.Start()
 	}
-	return cmd.Start()
+
+	return nil
 }

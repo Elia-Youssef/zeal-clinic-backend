@@ -13,10 +13,7 @@ import (
 
 const pushBatchSize = 500
 
-// push ships local sync_log rows (seq > last_pushed_seq) to the peer in
-// batches. Triggers collapse the log in place (only the latest entry per
-// (table, row_id) ever sits there), so push is straight: load, enrich
-// with live row state, POST, ACK, prune.
+// push sends local sync_log rows after last_pushed_seq.
 func (e *Engine) push(ctx context.Context) error {
 	lastPushed, _, err := GetState(e.db, SyncedPeer)
 	if err != nil {
@@ -74,13 +71,7 @@ func (e *Engine) push(ctx context.Context) error {
 	}
 }
 
-// enrichBatch populates RowJSON and UpdatedAt on each non-delete entry by
-// reading the current row from its source table. Entries whose row is gone
-// (deleted between trigger fire and push) are downgraded to op='delete':
-// shipping the live state means an absent row is, semantically, a delete.
-//
-// Issues one SELECT per table, batching ids into IN(...) lists capped at
-// 500 so we don't blow SQLite's parameter limit.
+// enrichBatch attaches live row JSON; missing rows become deletes.
 func enrichBatch(db *sql.DB, batch []LogEntry) error {
 	byTable := make(map[string][]int) // table -> indices into batch needing fetch
 	for i, e := range batch {
@@ -93,8 +84,6 @@ func enrichBatch(db *sql.DB, batch []LogEntry) error {
 	for table, idxs := range byTable {
 		t, ok := IsSyncedTable(table)
 		if !ok {
-			// Shouldn't happen: only triggers write to sync_log, and they
-			// only fire on synced tables. Skip defensively.
 			continue
 		}
 		const chunk = 500
@@ -126,7 +115,6 @@ func enrichBatch(db *sql.DB, batch []LogEntry) error {
 			for _, i := range window {
 				row, ok := found[batch[i].RowID]
 				if !ok {
-					// Row was deleted between trigger fire and fetch.
 					batch[i].Op = "delete"
 					batch[i].RowJSON = nil
 					batch[i].UpdatedAt = ""
@@ -146,10 +134,7 @@ func enrichBatch(db *sql.DB, batch []LogEntry) error {
 	return nil
 }
 
-// scanRowsByPK reads every row from rs into a map keyed by the value of
-// pkCol. Column types are preserved as the driver returns them so the wire
-// JSON matches what the receiver will see when it applies via
-// INSERT ... ON CONFLICT.
+// scanRowsByPK returns rows keyed by pkCol.
 func scanRowsByPK(rs *sql.Rows, pkCol string) (map[string]map[string]any, error) {
 	cols, err := rs.Columns()
 	if err != nil {
@@ -169,8 +154,6 @@ func scanRowsByPK(rs *sql.Rows, pkCol string) (map[string]map[string]any, error)
 		var key string
 		for i, c := range cols {
 			v := vals[i]
-			// SQLite returns []byte for TEXT/BLOB; normalise TEXT to string so
-			// json.Marshal doesn't base64-encode it.
 			if b, ok := v.([]byte); ok {
 				v = string(b)
 			}

@@ -54,7 +54,12 @@ func (l *ProcedurePriceList) GetByProcedure(procedureID string, params ListParam
 		return 0, err
 	}
 
-	rows, err := RDB.Query(`SELECT `+procedurePriceColumns+` FROM procedure_prices WHERE procedure_id = ? ORDER BY is_active DESC, created_at DESC`+params.PaginationClause(), procedureID)
+	order := params.OrderClause(map[string]string{
+		"price":     "price",
+		"isActive":  "is_active",
+		"createdAt": "created_at",
+	}, "is_active DESC, created_at DESC")
+	rows, err := RDB.Query(`SELECT `+procedurePriceColumns+` FROM procedure_prices WHERE procedure_id = ?`+order+params.PaginationClause(), procedureID)
 	if err != nil {
 		return 0, err
 	}

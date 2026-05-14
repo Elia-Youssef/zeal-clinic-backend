@@ -16,23 +16,11 @@ import (
 //go:embed icon.ico
 var iconData []byte
 
-// Server is what the tray needs to know about the running HTTP server:
-// where it's listening and how to shut it down.
-type Server interface {
-	Port() string
-	Shutdown(ctx context.Context) error
-}
-
-// Run installs the tray icon and blocks until the user picks Quit
-// (or another goroutine calls Quit). Must be called on the main goroutine.
-func Run(srv Server) {
-	url := "http://localhost:" + srv.Port()
-
+func Run(shutdown func(ctx context.Context) error) {
 	trayui.Run(
 		func() {
 			trayui.SetIcon(iconData)
 			trayui.SetTitle("Zeal Clinic")
-			trayui.SetTooltip("Zeal Clinic — running at " + url)
 
 			mOpen := trayui.AddMenuItem("Open Browser", "Open the app in your browser")
 			trayui.AddSeparator()
@@ -42,7 +30,7 @@ func Run(srv Server) {
 				for {
 					select {
 					case <-mOpen.ClickedCh:
-						_ = browser.Open(url)
+						_ = browser.Open()
 					case <-mQuit.ClickedCh:
 						log.Println("[systray] quit requested")
 						trayui.Quit()
@@ -54,7 +42,7 @@ func Run(srv Server) {
 		func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			_ = srv.Shutdown(ctx)
+			shutdown(ctx)
 		},
 	)
 }

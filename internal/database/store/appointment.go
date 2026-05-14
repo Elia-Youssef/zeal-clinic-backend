@@ -184,7 +184,17 @@ func (a *AppointmentList) GetAll(date string, params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := appointmentSelectQuery + where + ` ORDER BY a.start_time` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"patientId":   "a.patient_id",
+		"patientName": "patient_name",
+		"roomId":      "a.room_id",
+		"startTime":   "a.start_time",
+		"endTime":     "a.end_time",
+		"status":      "a.status",
+		"createdAt":   "a.created_at",
+		"updatedAt":   "a.updated_at",
+	}, "a.start_time")
+	query := appointmentSelectQuery + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err
@@ -261,7 +271,17 @@ func (a *AppointmentList) GetByPatientID(patientID string, params ListParams) (i
 		return 0, err
 	}
 
-	query := appointmentSelectQuery + where + ` ORDER BY a.start_time DESC` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"patientId":   "a.patient_id",
+		"patientName": "patient_name",
+		"roomId":      "a.room_id",
+		"startTime":   "a.start_time",
+		"endTime":     "a.end_time",
+		"status":      "a.status",
+		"createdAt":   "a.created_at",
+		"updatedAt":   "a.updated_at",
+	}, "a.start_time DESC")
+	query := appointmentSelectQuery + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err
@@ -293,7 +313,17 @@ func (a *AppointmentList) GetByProcedureID(procedureID string, params ListParams
 		return 0, err
 	}
 
-	query := appointmentSelectQuery + where + ` ORDER BY a.start_time DESC` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"patientId":   "a.patient_id",
+		"patientName": "patient_name",
+		"roomId":      "a.room_id",
+		"startTime":   "a.start_time",
+		"endTime":     "a.end_time",
+		"status":      "a.status",
+		"createdAt":   "a.created_at",
+		"updatedAt":   "a.updated_at",
+	}, "a.start_time DESC")
+	query := appointmentSelectQuery + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

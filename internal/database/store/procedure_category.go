@@ -74,7 +74,13 @@ func (c *ProcedureCategoryList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + procedureCategoryColumns + ` FROM procedure_categories` + where + ` ORDER BY name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name":        "name",
+		"description": "description",
+		"parentId":    "parent_id",
+		"createdAt":   "created_at",
+	}, "name")
+	query := `SELECT ` + procedureCategoryColumns + ` FROM procedure_categories` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

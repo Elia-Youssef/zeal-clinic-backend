@@ -63,7 +63,14 @@ func (l *HolidayList) GetAll(params ListParams) (int, error) {
 	if err := RDB.QueryRow("SELECT COUNT(*) FROM holidays"+where, args...).Scan(&total); err != nil {
 		return 0, err
 	}
-	rows, err := RDB.Query(`SELECT `+holidayColumns+` FROM holidays`+where+` ORDER BY start_date DESC`+params.PaginationClause(), args...)
+	order := params.OrderClause(map[string]string{
+		"name":      "name",
+		"startDate": "start_date",
+		"endDate":   "end_date",
+		"createdAt": "created_at",
+		"updatedAt": "updated_at",
+	}, "start_date DESC")
+	rows, err := RDB.Query(`SELECT `+holidayColumns+` FROM holidays`+where+order+params.PaginationClause(), args...)
 	if err != nil {
 		return 0, err
 	}

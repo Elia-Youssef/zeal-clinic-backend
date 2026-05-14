@@ -17,20 +17,13 @@ type Config struct {
 	JWTSecret       string
 	JWTLifetime     time.Duration
 	DBEncryptionKey string
-
-	// Sync (see internal/sync). PeerURL drives the outbound sync (set on
-	// local, empty on cloud); SyncSecret authenticates /api/sync/* between
-	// peers.
-	PeerURL    string
-	SyncSecret string
+	PeerURL         string
+	SyncSecret      string
 }
 
 var current *Config
 
 func Load() *Config {
-	// Load .env from cwd first (dev), then from the directory containing the
-	// executable (installed layout; the installer drops a generated .env there).
-	// godotenv doesn't overwrite existing env vars, so cwd wins on conflicts.
 	_ = godotenv.Load()
 	if exe, err := os.Executable(); err == nil {
 		_ = godotenv.Load(filepath.Join(filepath.Dir(exe), ".env"))
@@ -53,7 +46,7 @@ func Load() *Config {
 	return cfg
 }
 
-// Current returns the last loaded config. Panics if Load hasn't been called.
+// Current returns the loaded config.
 func Current() *Config {
 	if current == nil {
 		log.Fatal("[config] Current() called before Load()")
@@ -61,8 +54,6 @@ func Current() *Config {
 	return current
 }
 
-// SharedDataDir returns the platform data directory for this app (e.g.
-// %PROGRAMDATA%\Zeal Clinic on Windows), or "" if unavailable.
 func SharedDataDir() string {
 	if runtime.GOOS == "windows" {
 		if pd := os.Getenv("PROGRAMDATA"); pd != "" {
@@ -82,8 +73,8 @@ func getEnv(key, fallback string) string {
 func parseDuration(s string) time.Duration {
 	d, err := time.ParseDuration(s)
 	if err != nil {
-		log.Printf("[config] Invalid JWT_LIFETIME %q, defaulting to 24h", s)
-		return 24 * time.Hour
+		log.Printf("[config] Invalid JWT_LIFETIME %q, defaulting to 14h", s)
+		return 14 * time.Hour
 	}
 	return d
 }

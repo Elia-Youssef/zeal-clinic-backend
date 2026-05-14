@@ -338,10 +338,20 @@ func (bt *BalanceTransactionList) GetEntityPayments(entityType, entityID string,
 		return 0, err
 	}
 
+	order := params.OrderClause(map[string]string{
+		"amount":            "bt.amount",
+		"currencyId":        "bt.currency_id",
+		"transactionType":   "bt.transaction_type",
+		"transactionMethod": "bt.transaction_method",
+		"sourceType":        "bt.source_type",
+		"createdAt":         "bt.created_at",
+		"fromEntityName":    "fb.entity_name",
+		"toEntityName":      "tb.entity_name",
+	}, "bt.created_at DESC")
 	query := `SELECT bt.id, bt.from_balance_id, bt.to_balance_id, bt.amount, bt.currency_id,
 		bt.transaction_type, bt.transaction_method, bt.source_type, bt.source_id,
 		bt.description, bt.created_by, bt.created_at, bt.voided_at,
-		fb.entity_name, tb.entity_name` + baseFrom + ` ORDER BY bt.created_at DESC` + params.PaginationClause()
+		fb.entity_name, tb.entity_name` + baseFrom + order + params.PaginationClause()
 
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
@@ -371,10 +381,20 @@ func (bt *BalanceTransactionList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
+	order := params.OrderClause(map[string]string{
+		"amount":            "bt.amount",
+		"currencyId":        "bt.currency_id",
+		"transactionType":   "bt.transaction_type",
+		"transactionMethod": "bt.transaction_method",
+		"sourceType":        "bt.source_type",
+		"createdAt":         "bt.created_at",
+		"fromEntityName":    "fb.entity_name",
+		"toEntityName":      "tb.entity_name",
+	}, "bt.created_at DESC")
 	query := `SELECT bt.id, bt.from_balance_id, bt.to_balance_id, bt.amount, bt.currency_id,
 		bt.transaction_type, bt.transaction_method, bt.source_type, bt.source_id,
 		bt.description, bt.created_by, bt.created_at, bt.voided_at,
-		fb.entity_name, tb.entity_name` + baseFrom + where + ` ORDER BY bt.created_at DESC` + params.PaginationClause()
+		fb.entity_name, tb.entity_name` + baseFrom + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

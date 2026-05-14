@@ -23,14 +23,28 @@ func makeCtx(t *testing.T, query string) echo.Context {
 
 func TestParseListParams_Empty(t *testing.T) {
 	p := parseListParams(makeCtx(t, ""))
-	if p.Offset != 0 || p.Limit != 0 || p.Filter != "" {
+	if p.Offset != 0 || p.Limit != 0 || p.Filter != "" || p.Sort != "" || p.Order != "" {
 		t.Errorf("got %+v, want zero values", p)
 	}
 }
 
 func TestParseListParams_AllFields(t *testing.T) {
-	p := parseListParams(makeCtx(t, "offset=20&limit=50&filter=abc"))
-	if p.Offset != 20 || p.Limit != 50 || p.Filter != "abc" {
+	p := parseListParams(makeCtx(t, "offset=20&limit=50&filter=abc&sort=name&order=desc"))
+	if p.Offset != 20 || p.Limit != 50 || p.Filter != "abc" || p.Sort != "name" || p.Order != "desc" {
+		t.Errorf("got %+v", p)
+	}
+}
+
+func TestParseListParams_SortWithoutOrder(t *testing.T) {
+	p := parseListParams(makeCtx(t, "sort=createdAt"))
+	if p.Sort != "createdAt" || p.Order != "" {
+		t.Errorf("got %+v", p)
+	}
+}
+
+func TestParseListParams_OrderWithoutSort(t *testing.T) {
+	p := parseListParams(makeCtx(t, "order=desc"))
+	if p.Sort != "" || p.Order != "desc" {
 		t.Errorf("got %+v", p)
 	}
 }
@@ -90,8 +104,8 @@ func TestParseListParams_FloatValuesIgnored(t *testing.T) {
 }
 
 func TestParseListParams_EmptyValuesNotParsed(t *testing.T) {
-	p := parseListParams(makeCtx(t, "offset=&limit=&filter="))
-	if p.Offset != 0 || p.Limit != 0 || p.Filter != "" {
+	p := parseListParams(makeCtx(t, "offset=&limit=&filter=&sort=&order="))
+	if p.Offset != 0 || p.Limit != 0 || p.Filter != "" || p.Sort != "" || p.Order != "" {
 		t.Errorf("got %+v", p)
 	}
 }

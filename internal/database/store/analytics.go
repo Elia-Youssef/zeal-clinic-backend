@@ -8,8 +8,6 @@ import (
 
 type Analytics struct{}
 
-// Simple scalar / tuple analytics
-
 func (a *Analytics) TotalPatients() (int, error) {
 	var n int
 	err := RDB.QueryRow(`SELECT COUNT(*) FROM patients`).Scan(&n)
@@ -29,9 +27,6 @@ type AppointmentCounts struct {
 	ThisMonth int `json:"thisMonth"`
 }
 
-// AppointmentCounts returns today / this-week / this-month scheduled+completed appointments
-// (excludes Cancelled) in a single round trip. The three numbers are always fetched together
-// on the dashboard and read from the same table, so they share one endpoint.
 func (a *Analytics) AppointmentCounts() (AppointmentCounts, error) {
 	var c AppointmentCounts
 	err := RDB.QueryRow(`
@@ -46,8 +41,6 @@ func (a *Analytics) AppointmentCounts() (AppointmentCounts, error) {
 	return c, err
 }
 
-// RevenueThisMonth sums payment transactions received by the clinic this month
-// (transaction_type = 'payment', to_balance.entity_type = 'self').
 func (a *Analytics) RevenueThisMonth() (float64, error) {
 	var v float64
 	err := RDB.QueryRow(`
@@ -62,9 +55,6 @@ func (a *Analytics) RevenueThisMonth() (float64, error) {
 	return v, err
 }
 
-// ExpensesThisMonth sums payment transactions sent by the clinic this month
-// (transaction_type = 'payment', from_balance.entity_type = 'self'). Covers all
-// outflows: employee, supplier, and expense-entity payments alike.
 func (a *Analytics) ExpensesThisMonth() (float64, error) {
 	var v float64
 	err := RDB.QueryRow(`
@@ -79,8 +69,6 @@ func (a *Analytics) ExpensesThisMonth() (float64, error) {
 	return v, err
 }
 
-// OutstandingReceivables sums positive patient balances (patients who owe the clinic).
-// Patient balance goes positive on charge (self-to-patient invoice) and back down on payment.
 func (a *Analytics) OutstandingReceivables() (float64, error) {
 	var v float64
 	err := RDB.QueryRow(`
@@ -90,7 +78,6 @@ func (a *Analytics) OutstandingReceivables() (float64, error) {
 	return v, err
 }
 
-// ProceduresCompletedThisMonth counts procedure line items billed this month.
 func (a *Analytics) ProceduresCompletedThisMonth() (int, error) {
 	var n int
 	err := RDB.QueryRow(`
@@ -134,8 +121,6 @@ func (a *Analytics) CancellationRateThisMonth() (AppointmentCancellationRate, er
 	}
 	return r, nil
 }
-
-// List analytics
 
 func (a *Analytics) RecentAppointmentsToday(limit int) (AppointmentList, error) {
 	if limit <= 0 {
@@ -221,23 +206,18 @@ func (a *Analytics) TopProceduresThisMonth(limit int) ([]TopProcedure, error) {
 	return items, rows.Err()
 }
 
-// Generic time-series skeleton (powers graphs with filters + date ranges)
-
 type SeriesPoint struct {
-	Bucket string  `json:"bucket"` // YYYY-MM-DD for day, YYYY-Www for week, YYYY-MM for month
+	Bucket string  `json:"bucket"`
 	Value  float64 `json:"value"`
 }
 
 type SeriesParams struct {
-	Metric  string // "revenue" | "appointments" | "new-patients" | "procedures-completed"
-	From    string // YYYY-MM-DD (inclusive)
-	To      string // YYYY-MM-DD (inclusive)
-	GroupBy string // "day" | "week" | "month"
+	Metric  string
+	From    string
+	To      string
+	GroupBy string
 }
 
-// Series returns a bucketed time-series for the requested metric.
-// Intended to back a dashboard graph with filters + date ranges; add new metrics
-// by extending the switch below.
 func (a *Analytics) Series(p SeriesParams) ([]SeriesPoint, error) {
 	bucketExpr, err := bucketExpression(p.GroupBy)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -24,11 +25,17 @@ func (s *Supplier) IsValid() error {
 	if msg := validation.Required(s.Name, "Name"); msg != "" {
 		e["name"] = msg
 	}
-	if msg := validation.Phone(s.Contact); msg != "" {
-		e["contact"] = msg
+	for v := range strings.SplitSeq(s.Contact, ",") {
+		if msg := validation.Phone(strings.TrimSpace(v)); msg != "" {
+			e["contact"] = msg
+			break
+		}
 	}
-	if msg := validation.Email(s.Email); msg != "" {
-		e["email"] = msg
+	for v := range strings.SplitSeq(s.Email, ",") {
+		if msg := validation.Email(strings.TrimSpace(v)); msg != "" {
+			e["email"] = msg
+			break
+		}
 	}
 	if len(e) > 0 {
 		return e
@@ -77,7 +84,15 @@ func (l *SupplierList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + supplierColumns + ` FROM suppliers` + where + ` ORDER BY name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name":      "name",
+		"contact":   "contact",
+		"email":     "email",
+		"address":   "address",
+		"createdAt": "created_at",
+		"updatedAt": "updated_at",
+	}, "name")
+	query := `SELECT ` + supplierColumns + ` FROM suppliers` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

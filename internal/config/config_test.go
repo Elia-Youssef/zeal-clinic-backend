@@ -85,14 +85,14 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	}
 }
 
-func TestLoad_BadJWTLifetimeDefaultsTo24h(t *testing.T) {
+func TestLoad_BadJWTLifetimeDefaultsTo14h(t *testing.T) {
 	withCleanEnv(t)
 	inEmptyDir(t)
 	os.Setenv("JWT_LIFETIME", "not-a-duration")
 
 	cfg := Load()
-	if cfg.JWTLifetime != 24*time.Hour {
-		t.Errorf("expected 24h fallback, got %v", cfg.JWTLifetime)
+	if cfg.JWTLifetime != 14*time.Hour {
+		t.Errorf("expected 14h fallback, got %v", cfg.JWTLifetime)
 	}
 }
 
@@ -199,7 +199,7 @@ func TestParseDuration_ValidStrings(t *testing.T) {
 		"500ms": 500 * time.Millisecond,
 		"1s":    time.Second,
 		"5m":    5 * time.Minute,
-		"24h":   24 * time.Hour,
+		"14h":   14 * time.Hour,
 		"1h30m": 90 * time.Minute,
 		"2h45m": 2*time.Hour + 45*time.Minute,
 	}
@@ -212,12 +212,12 @@ func TestParseDuration_ValidStrings(t *testing.T) {
 	}
 }
 
-func TestParseDuration_InvalidDefaultsTo24h(t *testing.T) {
+func TestParseDuration_InvalidDefaultsTo14h(t *testing.T) {
 	cases := []string{"", "abc", "1day", "1.5", "h"}
 	for _, in := range cases {
 		t.Run(in, func(t *testing.T) {
-			if got := parseDuration(in); got != 24*time.Hour {
-				t.Errorf("parseDuration(%q) should default to 24h, got %v", in, got)
+			if got := parseDuration(in); got != 14*time.Hour {
+				t.Errorf("parseDuration(%q) should default to 14h, got %v", in, got)
 			}
 		})
 	}

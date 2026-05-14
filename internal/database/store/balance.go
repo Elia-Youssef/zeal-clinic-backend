@@ -120,7 +120,17 @@ func (b *BalanceList) GetAll(entityType string, params ListParams) (int, error) 
 		return 0, err
 	}
 
-	query := `SELECT ` + balanceColumns + ` FROM balances` + where + ` ORDER BY entity_type, entity_name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"entityType": "entity_type",
+		"entityName": "entity_name",
+		"currencyId": "currency_id",
+		"amount":     "amount",
+		"totalIn":    "total_in",
+		"totalOut":   "total_out",
+		"createdAt":  "created_at",
+		"updatedAt":  "updated_at",
+	}, "entity_type, entity_name")
+	query := `SELECT ` + balanceColumns + ` FROM balances` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

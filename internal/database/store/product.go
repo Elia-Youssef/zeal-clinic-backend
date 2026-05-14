@@ -77,7 +77,15 @@ func (p *ProductList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := productSelect + where + ` ORDER BY p.name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name":         "p.name",
+		"categoryId":   "p.category_id",
+		"quantity":     "p.quantity",
+		"minThreshold": "p.min_threshold",
+		"unitPrice":    "COALESCE(pp.price, 0)",
+		"createdAt":    "p.created_at",
+	}, "p.name")
+	query := productSelect + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

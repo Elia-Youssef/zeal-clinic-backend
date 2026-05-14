@@ -20,5 +20,7 @@ func parseListParams(c echo.Context) store.ListParams {
 		}
 	}
 	params.Filter = c.QueryParam("filter")
+	params.Sort = c.QueryParam("sort")
+	params.Order = c.QueryParam("order")
 	return params
 }

@@ -120,7 +120,17 @@ func (p *PatientList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + patientColumns + ` FROM patients` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"firstName":   "first_name",
+		"lastName":    "last_name",
+		"gender":      "gender",
+		"dateOfBirth": "date_of_birth",
+		"contact":     "contact",
+		"email":       "email",
+		"createdAt":   "created_at",
+		"updatedAt":   "updated_at",
+	}, "first_name, last_name")
+	query := `SELECT ` + patientColumns + ` FROM patients` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

@@ -46,7 +46,12 @@ func (l *LebanonCityList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT id, name, governorate, district FROM lebanon_cities` + where + ` ORDER BY governorate, district, name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name":        "name",
+		"governorate": "governorate",
+		"district":    "district",
+	}, "governorate, district, name")
+	query := `SELECT id, name, governorate, district FROM lebanon_cities` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

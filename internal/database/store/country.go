@@ -44,7 +44,10 @@ func (l *CountryList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT id, name FROM countries` + where + ` ORDER BY name` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name": "name",
+	}, "name")
+	query := `SELECT id, name FROM countries` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

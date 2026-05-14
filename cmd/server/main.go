@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"log"
 	"time"
@@ -15,81 +16,122 @@ import (
 	"clinic-api/internal/monitor"
 	syncpkg "clinic-api/internal/sync"
 	"clinic-api/internal/systray"
-
-	"github.com/labstack/echo/v4"
 )
 
-type trayServer struct {
-	e    *echo.Echo
-	port string
+type appOptions struct {
+	seedOnly  bool
+	demo      bool
+	noBrowser bool
+	dev       bool
+	startup   bool
 }
 
-func (t *trayServer) Port() string                       { return t.port }
-func (t *trayServer) Shutdown(ctx context.Context) error { return t.e.Shutdown(ctx) }
+const (
+	mainDelay    = 8 * time.Second
+	syncDelay    = 2 * time.Second
+	monitorDelay = 4 * time.Second
+	serverDelay  = 2 * time.Second
+)
 
 func main() {
-	seedOnly := flag.Bool("seed-only", false, "Seed and exit; do not start the server (used by the installer)")
-	demo := flag.Bool("demo", false, "Seed the database with a large demo dataset (includes --seed)")
-	noBrowser := flag.Bool("no-browser", false, "Don't auto-open the browser on startup")
-	dev := flag.Bool("dev", false, "Development mode: no tray, no browser, db at ./tmp/clinic.db")
-	flag.Parse()
+	log.Printf("Zeal Clinic %s starting...", buildmode.Version)
 
-	if *dev || buildmode.Cloud {
-		*noBrowser = true
-	}
-
-	// load env vars
+	opts := parseOptions()
 	cfg := config.Load()
 
-	// if it's not a seeding instance, check if an instance is already running.
-	// Skipped in cloud builds: there's no peer process to hand off to and no
-	// browser to open.
-	if !buildmode.Cloud && !*seedOnly && browser.ProbeHealth() {
-		url := "http://localhost:" + cfg.Port
-		log.Printf("[main] Already running at %s — opening browser", url)
-		if !*noBrowser {
-			_ = browser.Open(url)
-		}
+	if !buildmode.Cloud && !opts.seedOnly && alreadyRunning() {
+		handoffToRunningInstance(opts, cfg)
 		return
 	}
 
-	// open the db
+	if opts.startup {
+		time.Sleep(mainDelay)
+	}
+
 	db, err := database.Open("")
 	if err != nil {
 		log.Fatal("Failed to open database:", err)
 	}
 	defer db.Close()
 
-	// seed and quit
-	if *seedOnly {
-		if *demo {
-			if err := database.SeedDemo(db); err != nil {
-				log.Fatal("Failed to seed demo data:", err)
-			}
-		}
-		log.Println("[main] --seed-only complete; exiting")
+	if opts.seedOnly {
+		runSeed(db, opts)
 		return
 	}
 
-	// Wire the sync package's cache-invalidation hook to the HTTP cache
-	// middleware. Sync can't import middleware directly (cycle through
-	// database/store), so the indirection lives in sync as a function var.
+	if opts.startup {
+		time.Sleep(syncDelay)
+	}
+
+	engine, syncCancel := startSync(db, cfg)
+	defer syncCancel()
+	defer engine.Stop()
+
+	if opts.startup {
+		time.Sleep(monitorDelay)
+	}
+
+	mon := startMonitor()
+	defer mon.Stop()
+
+	if opts.startup {
+		time.Sleep(serverDelay)
+	}
+
+	runServer(cfg, opts)
+}
+
+func parseOptions() appOptions {
+	seedOnly := flag.Bool("seed-only", false, "Seed and exit; do not start the server (used by the installer)")
+	demo := flag.Bool("demo", false, "Seed the database with a large demo dataset (includes --seed)")
+	noBrowser := flag.Bool("no-browser", false, "Don't auto-open the browser on startup")
+	dev := flag.Bool("dev", false, "Development mode: no tray, no browser, db at ./tmp/clinic.db")
+	startup := flag.Bool("startup", false, "Windows startup launch: delay heavy services and do not open the browser")
+	flag.Parse()
+
+	opts := appOptions{
+		seedOnly:  *seedOnly,
+		demo:      *demo,
+		noBrowser: *noBrowser,
+		dev:       *dev,
+		startup:   *startup,
+	}
+	if opts.dev || opts.startup || buildmode.Cloud {
+		opts.noBrowser = true
+	}
+	return opts
+}
+
+func handoffToRunningInstance(opts appOptions, cfg *config.Config) {
+	log.Printf("Another instance is already running")
+	if !opts.noBrowser && browser.ProbeHealth() {
+		log.Println("Opening browser")
+		browser.Open()
+	}
+}
+
+func runSeed(db *sql.DB, opts appOptions) {
+	if opts.demo {
+		if err := database.SeedDemo(db); err != nil {
+			log.Fatal("Failed to seed demo data:", err)
+		}
+	}
+	log.Println("--seed-only complete; exiting")
+}
+
+func startSync(db *sql.DB, cfg *config.Config) (*syncpkg.Engine, context.CancelFunc) {
 	syncpkg.InvalidateCache = middleware.InvalidateCache
 
-	// start the sync engine. On local clinic servers PeerURL points to the
-	// cloud; on the cloud it's empty (cloud is passive, local dials in).
-	// Engine.Start runs the apply-guard reset, the sync_log watcher, and
-	// (when PeerURL is set) the outbound loop and SSE listener.
-	syncCtx, syncCancel := context.WithCancel(context.Background())
-	defer syncCancel()
+	ctx, cancel := context.WithCancel(context.Background())
 	engine := syncpkg.New(db, syncpkg.Config{
 		PeerURL: cfg.PeerURL,
 		Secret:  cfg.SyncSecret,
 	})
-	engine.Start(syncCtx)
-	defer engine.Stop()
+	engine.Start(ctx)
+	return engine, cancel
+}
 
-	// start monitoring
+func startMonitor() *monitor.Monitor {
 	mon := monitor.New(1 * time.Minute)
 	mon.Register(
 		monitor.Action{Name: "expire-discounts", Fn: monitor.ExpireDiscounts},
@@ -98,27 +140,27 @@ func main() {
 		monitor.Action{Name: "low-stock-alerts", Fn: monitor.SendLowStockAlerts},
 	)
 	mon.Start()
-	defer mon.Stop()
+	return mon
+}
 
-	// open the browser
-	if !*noBrowser {
+func runServer(cfg *config.Config, opts appOptions) {
+	if !opts.noBrowser {
 		go browser.WaitAndOpen()
 	}
 
 	e := server.CreateServer()
 
-	// dev or cloud: no tray, run server in foreground
-	if *dev || buildmode.Cloud {
+	if opts.dev || buildmode.Cloud {
 		server.Start(e, cfg)
 		return
 	}
 
-	// start the server; if it exits on its own, tear down the tray too
 	go func() {
 		server.Start(e, cfg)
 		systray.Quit()
 	}()
 
-	// block on tray; Quit triggers graceful shutdown via the adapter
-	systray.Run(&trayServer{e: e, port: cfg.Port})
+	systray.Run(func(ctx context.Context) error {
+		return e.Shutdown(ctx)
+	})
 }

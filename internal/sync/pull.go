@@ -13,8 +13,7 @@ import (
 
 const pullBatchSize = 500
 
-// pull fetches rows from peer since last_pulled_seq and applies them. Loops
-// until the peer reports no more rows. Each batch is one DB transaction.
+// pull applies peer rows after last_pulled_seq.
 func (e *Engine) pull(ctx context.Context) error {
 	_, lastPulled, err := GetState(e.db, SyncedPeer)
 	if err != nil {
@@ -53,16 +52,10 @@ func (e *Engine) pull(ctx context.Context) error {
 			return fmt.Errorf("apply pull batch: %w", err)
 		}
 
-		// If any rows actually landed (i.e. weren't fully drowned by LWW or
-		// no_delete conflicts), tell connected frontends to refetch whatever
-		// they're viewing. The event carries no payload; the UI doesn't
-		// scope refreshes by table.
 		if len(pr.Rows) > len(conflicts) {
 			realtime.Broadcast(realtime.Event{Type: "data_changed"})
 		}
 
-		// Even if Apply rejected some rows (local-wins), the cursor still
-		// advances to the last seq we saw; we don't want to re-pull them.
 		cursor := pr.Rows[len(pr.Rows)-1].Seq
 		if applied > cursor {
 			cursor = applied

@@ -111,7 +111,19 @@ func (l *DiscountList) GetAll(params ListParams) (int, error) {
 		return 0, err
 	}
 
-	query := `SELECT ` + discountColumns + ` FROM discounts` + where + ` ORDER BY created_at DESC` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"name":         "name",
+		"description":  "description",
+		"discountType": "discount_type",
+		"valueType":    "value_type",
+		"value":        "value",
+		"startDate":    "start_date",
+		"endDate":      "end_date",
+		"isActive":     "is_active",
+		"createdAt":    "created_at",
+		"updatedAt":    "updated_at",
+	}, "created_at DESC")
+	query := `SELECT ` + discountColumns + ` FROM discounts` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

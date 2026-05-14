@@ -7,7 +7,11 @@
 ;     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" build\local\installer.iss
 
 #define AppName       "Zeal Clinic"
-#define AppVersion    "0.1.0"
+; Version is read from the repo-root VERSION file, the single source of truth
+; shared with the Makefile (ldflags) so the installer and binary stay in sync.
+#define VerHandle     FileOpen("..\..\VERSION")
+#define AppVersion    Trim(FileRead(VerHandle))
+#expr                 FileClose(VerHandle)
 #define AppPublisher  "Zeal Clinic"
 #define AppURL        ""
 #define AppExeName    "ZealClinic.exe"
@@ -46,6 +50,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "startupicon"; Description: "Start {#AppName} automatically when Windows starts"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 Source: "output\ZealClinic.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -62,6 +67,7 @@ Name: "{commonappdata}\{#AppName}"; Permissions: users-modify
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\icon.ico"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
+Name: "{userstartup}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Parameters: "--startup"; IconFilename: "{app}\icon.ico"; Tasks: startupicon
 
 [Run]
 ; Firewall: delete any stale rule from a previous install, then add the current one.

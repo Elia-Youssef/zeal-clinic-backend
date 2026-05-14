@@ -83,7 +83,14 @@ func (nl *NotificationList) GetAll(userID string, params ListParams) (int, error
 		return 0, err
 	}
 
-	query := `SELECT ` + notificationColumns + ` FROM notifications` + where + ` ORDER BY created_at DESC` + params.PaginationClause()
+	order := params.OrderClause(map[string]string{
+		"title":       "title",
+		"description": "description",
+		"action":      "action",
+		"isRead":      "is_read",
+		"createdAt":   "created_at",
+	}, "created_at DESC")
+	query := `SELECT ` + notificationColumns + ` FROM notifications` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err
