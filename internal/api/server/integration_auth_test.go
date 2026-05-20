@@ -284,28 +284,31 @@ func TestLogout_WithoutTokenStillSucceeds(t *testing.T) {
 	}
 }
 
-// TestLogin_RapidRepeatHitsUniqueConstraintBug captures a real production
-// issue: two successful logins for the same user within the same wall-clock
-// second produce identical JWTs (RFC3339-second iat/exp + same other claims),
-// and the tokens.token UNIQUE constraint causes the second one to 500.
-//
-// This test asserts the *current* behavior so a fix later is intentional.
-// The recommended fix is to add a jti claim or use
-// nanosecond precision for iat.
-func TestLogin_RapidRepeatHitsUniqueConstraintBug(t *testing.T) {
+// TestLogin_RapidRepeatSucceeds verifies that two same-second logins succeed
+// without colliding on tokens.token UNIQUE. A jti claim in the JWT ensures
+// two consecutive logins produce distinct tokens.
+func TestLogin_RapidRepeatSucceeds(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 
 	// First login establishes the password.
-	loginAdmin(t, e, "rapid-pw")
+	tok1 := loginAdmin(t, e, "rapid-pw")
 
 	rec := doRequest(t, e, http.MethodPost, "/api/auth/login",
 		asJSON(t, map[string]string{"username": "admin", "password": "rapid-pw"}), "")
-	if rec.Code == http.StatusOK {
-		t.Skip("rapid same-second login no longer collides — bug appears fixed")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on rapid repeat login, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	if rec.Code != http.StatusInternalServerError {
-		t.Errorf("expected 500 from UNIQUE-constraint collision, got %d body=%s", rec.Code, rec.Body.String())
+	var env struct {
+		Data struct {
+			Token string `json:"token"`
+		}
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.Data.Token == "" || env.Data.Token == tok1 {
+		t.Errorf("expected a distinct token on rapid repeat login, got token1=%q token2=%q", tok1, env.Data.Token)
 	}
 }
 

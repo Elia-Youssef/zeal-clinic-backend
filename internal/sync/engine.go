@@ -3,11 +3,14 @@ package sync
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"clinic-api/internal/tracking"
 )
 
 // Engine runs pull-then-push replication when writes, SSE, or PollLog wake it.
@@ -108,9 +111,15 @@ func (e *Engine) run(ctx context.Context) {
 func (e *Engine) cycle(ctx context.Context) {
 	if err := e.pull(ctx); err != nil {
 		log.Printf("[sync] pull error: %v", err)
+		if ctx.Err() == nil {
+			tracking.CaptureError(nil, fmt.Errorf("[sync] pull: %w", err))
+		}
 		return
 	}
 	if err := e.push(ctx); err != nil {
 		log.Printf("[sync] push error: %v", err)
+		if ctx.Err() == nil {
+			tracking.CaptureError(nil, fmt.Errorf("[sync] push: %w", err))
+		}
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"clinic-api/internal/realtime"
+	"clinic-api/internal/tracking"
 )
 
 var sseClient = &http.Client{}
@@ -24,6 +25,11 @@ func setCloudConnected(v bool) {
 		return
 	}
 	realtime.Broadcast(realtime.Event{Type: "cloud_connection", Data: v})
+	if v {
+		tracking.Info(nil, "[sync] connected to peer")
+	} else {
+		tracking.Info(nil, "[sync] peer disconnected")
+	}
 }
 
 // runSSEListener turns cloud sync_pending events into engine wake-ups.

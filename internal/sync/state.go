@@ -27,7 +27,7 @@ func GetState(db *sql.DB, peer string) (lastPushedSeq, lastPulledSeq int64, err 
 // SetLastPushed advances the acknowledged push cursor.
 func SetLastPushed(db *sql.DB, peer string, seq int64) error {
 	_, err := db.Exec(
-		`UPDATE sync_state SET last_pushed_seq = ?, updated_at = datetime('now') WHERE peer = ?`,
+		`UPDATE sync_state SET last_pushed_seq = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE peer = ?`,
 		seq, peer,
 	)
 	return err
@@ -36,7 +36,7 @@ func SetLastPushed(db *sql.DB, peer string, seq int64) error {
 // SetLastPulled advances the applied pull cursor.
 func SetLastPulled(db *sql.DB, peer string, seq int64) error {
 	_, err := db.Exec(
-		`UPDATE sync_state SET last_pulled_seq = ?, updated_at = datetime('now') WHERE peer = ?`,
+		`UPDATE sync_state SET last_pulled_seq = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE peer = ?`,
 		seq, peer,
 	)
 	return err

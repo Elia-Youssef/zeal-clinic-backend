@@ -34,7 +34,7 @@ func GetLebanonCityDropdown(c echo.Context) error {
 	}
 	items := []store.DropdownItem{}
 	for _, city := range cities {
-		items = append(items, store.DropdownItem{ID: city.ID, Name: fmt.Sprintf("%s, %s, %s", city.Governorate, city.District, city.Name)})
+		items = append(items, store.DropdownItem{ID: city.ID, Name: fmt.Sprintf("%s, %s, %s", city.Name, city.District, city.Governorate)})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }

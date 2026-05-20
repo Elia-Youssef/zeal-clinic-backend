@@ -5,12 +5,14 @@ import (
 	"clinic-api/internal/database/store"
 	"io"
 	"log"
+	"regexp"
 	"strings"
 
 	"github.com/labstack/echo/v4"
 )
 
-// AuditLogger records successful protected mutations.
+var passwordRedactor = regexp.MustCompile(`("password"\s*:\s*)"[^"]*"`)
+
 func AuditLogger() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -21,7 +23,7 @@ func AuditLogger() echo.MiddlewareFunc {
 			}
 
 			path := c.Request().URL.Path
-			if strings.Contains(path, "/auth/") || strings.Contains(path, "/health") {
+			if strings.HasPrefix(path, "/api/auth/") || path == "/health" {
 				return next(c)
 			}
 
@@ -34,6 +36,7 @@ func AuditLogger() echo.MiddlewareFunc {
 				}
 			}
 
+			bodyStr = passwordRedactor.ReplaceAllString(bodyStr, `$1"[REDACTED]"`)
 			if len(bodyStr) > 2000 {
 				bodyStr = bodyStr[:2000] + "...(truncated)"
 			}
@@ -45,15 +48,15 @@ func AuditLogger() echo.MiddlewareFunc {
 				action := mapMethodToAction(method)
 				entityType, entityID := parseEntityFromPath(path)
 
-				userName := ""
+				userID := ""
 				userRole := ""
 				if user, ok := c.Get("user").(store.User); ok {
-					userName = user.DisplayName
+					userID = user.ID
 					userRole = user.Role
 				}
 
 				entry := store.AuditLogEntry{
-					UserName:   userName,
+					UserID:     userID,
 					UserRole:   userRole,
 					Action:     action,
 					EntityType: entityType,

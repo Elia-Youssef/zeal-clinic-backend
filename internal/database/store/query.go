@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -65,12 +66,15 @@ func (lp ListParams) PaginationClause() string {
 // HasDependencies checks whether the given id exists in any of the specified
 // table/column pairs. The deps map keys are table names and values are the
 // column to match against id. Returns true on the first match found.
+// Fail-closed: if a query errors (e.g. typo in table name), returns true so
+// callers block destructive operations instead of silently allowing them.
 func HasDependencies(id string, deps map[string]string) bool {
 	for table, column := range deps {
 		var count int
 		err := RDB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s = ?", table, column), id).Scan(&count)
 		if err != nil {
-			continue
+			log.Printf("[store.HasDependencies] %s.%s lookup failed (assuming dependency exists): %v", table, column, err)
+			return true
 		}
 		if count > 0 {
 			return true

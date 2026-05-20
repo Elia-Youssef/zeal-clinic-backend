@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -19,6 +20,7 @@ type Appointment struct {
 	Notes           string `json:"notes"`
 	CancelNotes     string `json:"cancelNotes"`
 	CompletionNotes string `json:"completionNotes"`
+	RescheduledFrom string `json:"rescheduledFrom"`
 	CreatedAt       Date   `json:"createdAt"`
 	UpdatedAt       Date   `json:"updatedAt"`
 	// Transient fields (not stored in appointments table)
@@ -46,7 +48,7 @@ func (a *Appointment) IsValid() error {
 	} else if msg := validation.DateTime(string(a.EndTime)); msg != "" {
 		e["endTime"] = msg
 	}
-	if msg := validation.OneOf(a.Status, []string{"Scheduled", "In-Progress", "Completed", "Cancelled"}, "Status"); msg != "" {
+	if msg := validation.OneOf(a.Status, []string{"Scheduled", "In-Progress", "Completed", "Cancelled", "Rescheduled"}, "Status"); msg != "" {
 		e["status"] = msg
 	}
 	if len(e) > 0 {
@@ -55,11 +57,11 @@ func (a *Appointment) IsValid() error {
 	return nil
 }
 
-const appointmentColumnsNoId = `patient_id, room_id, start_time, end_time, status, notes, cancel_notes, completion_notes, created_at, updated_at`
+const appointmentColumnsNoId = `patient_id, room_id, start_time, end_time, status, notes, cancel_notes, completion_notes, rescheduled_from, created_at, updated_at`
 const appointmentColumns = `id, ` + appointmentColumnsNoId
 
 const appointmentSelectQuery = `SELECT a.id, a.patient_id, a.room_id, a.start_time, a.end_time, a.status,
-	a.notes, a.cancel_notes, a.completion_notes, a.created_at, a.updated_at,
+	a.notes, a.cancel_notes, a.completion_notes, COALESCE(a.rescheduled_from, ''), a.created_at, a.updated_at,
 	COALESCE(p.first_name || ' ' || p.last_name, '') AS patient_name
 	FROM appointments a
 	LEFT JOIN patients p ON p.id = a.patient_id`
@@ -73,7 +75,7 @@ func (a *Appointment) ScanRow(row *sql.Row) error {
 	err := row.Scan(&a.ID, &a.PatientID, &a.RoomID,
 		&a.StartTime, &a.EndTime, &a.Status,
 		&a.Notes, &a.CancelNotes, &a.CompletionNotes,
-		&a.CreatedAt, &a.UpdatedAt, &a.PatientName)
+		&a.RescheduledFrom, &a.CreatedAt, &a.UpdatedAt, &a.PatientName)
 	if err != nil {
 		return err
 	}
@@ -90,7 +92,7 @@ func (l *AppointmentList) ScanRows(rows *sql.Rows) error {
 		err := rows.Scan(&item.ID, &item.PatientID, &item.RoomID,
 			&item.StartTime, &item.EndTime, &item.Status,
 			&item.Notes, &item.CancelNotes, &item.CompletionNotes,
-			&item.CreatedAt, &item.UpdatedAt, &item.PatientName)
+			&item.RescheduledFrom, &item.CreatedAt, &item.UpdatedAt, &item.PatientName)
 		if err != nil {
 			continue
 		}
@@ -150,10 +152,19 @@ func (l *AppointmentList) LoadProcedures() error {
 	return nil
 }
 
+// nullableID returns nil for an empty id so the value is stored as SQL NULL,
+// which lets foreign-key constraints accept "no parent".
+func nullableID(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
 func checkAppointmentConflict(db DBTX, roomID string, startTime, endTime Date, excludeID string) error {
 	query := `SELECT COUNT(*) FROM appointments
 		WHERE room_id = ?
-		AND status != 'Cancelled'
+		AND status NOT IN ('Cancelled','Rescheduled')
 		AND start_time < ?
 		AND end_time > ?`
 	args := []any{roomID, endTime, startTime}
@@ -172,8 +183,16 @@ func checkAppointmentConflict(db DBTX, roomID string, startTime, endTime Date, e
 }
 
 func (a *AppointmentList) GetAll(date string, params ListParams) (int, error) {
-	where := " WHERE DATE(a.start_time) = ? AND a.status != 'Cancelled'"
-	args := []any{date}
+	// `date` is a clinic-local calendar day (YYYY-MM-DD) picked by the user.
+	// Convert to UTC half-open instants so a 1 AM Beirut appointment (which
+	// is stored as the previous UTC day) is still attributed to the right day.
+	t, err := time.Parse(DateFormat, date)
+	if err != nil {
+		t = ClinicNow()
+	}
+	dayStart, dayEnd := ClinicDayBounds(t)
+	where := " WHERE a.start_time >= ? AND a.start_time < ? AND a.status NOT IN ('Cancelled','Rescheduled')"
+	args := []any{dayStart, dayEnd}
 	if fc, fa := params.FilterClause("a.status", "a.notes"); fc != "" {
 		where += " AND " + fc
 		args = append(args, fa...)
@@ -223,11 +242,11 @@ func GetAppointmentCountPerRoom(weekStart, weekEnd Date) ([]RoomDayCount, error)
 	query := `SELECT r.id, r.name, DATE(a.start_time) as day, COUNT(a.id) as count
 		FROM rooms r
 		LEFT JOIN appointments a ON a.room_id = r.id
-			AND DATE(a.start_time) BETWEEN ? AND ?
-			AND a.status != 'Cancelled'
+			AND a.start_time >= ? AND a.start_time < ?
+			AND a.status NOT IN ('Cancelled','Rescheduled')
 		GROUP BY r.id, r.name, DATE(a.start_time)
 		ORDER BY r.name, day`
-	rows, err := RDB.Query(query, weekStart, weekEnd)
+	rows, err := RDB.Query(query, RangeStart(string(weekStart)), RangeEnd(string(weekEnd)))
 	if err != nil {
 		return nil, err
 	}
@@ -364,11 +383,11 @@ func (a *Appointment) Create() error {
 	a.UpdatedAt = now
 
 	_, err = tx.Exec(`INSERT INTO appointments (`+appointmentColumns+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
 		a.ID, a.PatientID, a.RoomID,
 		a.StartTime, a.EndTime, a.Status,
 		a.Notes, a.CancelNotes, a.CompletionNotes,
-		a.CreatedAt, a.UpdatedAt)
+		nullableID(a.RescheduledFrom), a.CreatedAt, a.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -490,6 +509,137 @@ func (a *Appointment) Update(updates map[string]any) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	return a.GetByID(a.ID)
+}
+
+func (a *Appointment) Reschedule(overrides map[string]any) error {
+	oldID := a.ID
+	var old Appointment
+	old.ID = oldID
+	if err := old.GetByID(oldID); err != nil {
+		return err
+	}
+	if old.Status == "Cancelled" {
+		return errors.New("cannot reschedule a cancelled appointment")
+	}
+	if old.Status == "Rescheduled" {
+		return errors.New("cannot reschedule an already-rescheduled appointment")
+	}
+
+	// Load procedures from the old appointment so they can carry over.
+	oldList := AppointmentList{old}
+	if err := oldList.LoadProcedures(); err != nil {
+		return err
+	}
+	old = oldList[0]
+
+	// Build the new appointment from the old, then apply overrides.
+	newApt := Appointment{
+		PatientID:       old.PatientID,
+		RoomID:          old.RoomID,
+		StartTime:       old.StartTime,
+		EndTime:         old.EndTime,
+		Status:          "Scheduled",
+		Notes:           old.Notes,
+		CancelNotes:     "",
+		CompletionNotes: "",
+	}
+	if v, ok := overrides["patientId"].(string); ok && v != "" {
+		newApt.PatientID = v
+	}
+	if v, ok := overrides["roomId"].(string); ok && v != "" {
+		newApt.RoomID = v
+	}
+	if v, ok := overrides["startTime"].(string); ok && v != "" {
+		newApt.StartTime = Date(v)
+	}
+	if v, ok := overrides["endTime"].(string); ok && v != "" {
+		newApt.EndTime = Date(v)
+	}
+	if v, ok := overrides["status"].(string); ok && v != "" {
+		newApt.Status = v
+	}
+	if v, ok := overrides["notes"].(string); ok {
+		newApt.Notes = v
+	}
+
+	// Procedures: explicit list in the request overrides; otherwise carry over.
+	if v, ok := overrides["procedureIds"]; ok {
+		if arr, ok := v.([]any); ok {
+			for _, item := range arr {
+				if s, ok := item.(string); ok && s != "" {
+					newApt.ProcedureIDs = append(newApt.ProcedureIDs, s)
+				}
+			}
+		}
+	} else {
+		for _, ap := range old.AppointmentProcedures {
+			newApt.ProcedureIDs = append(newApt.ProcedureIDs, ap.ProcedureID)
+		}
+	}
+
+	if err := newApt.IsValid(); err != nil {
+		return err
+	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	newApt.ID = uuid.Must(uuid.NewV7()).String()
+	newApt.RescheduledFrom = old.ID
+	now := DateNow()
+	newApt.CreatedAt = now
+	newApt.UpdatedAt = now
+
+	// Mark the old appointment Rescheduled first so it does not block the new
+	// one in checkAppointmentConflict (which ignores Cancelled/Rescheduled rows).
+	cancelNotes := old.CancelNotes
+	if v, ok := overrides["cancelNotes"].(string); ok {
+		cancelNotes = v
+	}
+	if _, err := tx.Exec(
+		`UPDATE appointments SET status='Rescheduled', cancel_notes = ?, updated_at = ? WHERE id = ?`,
+		cancelNotes, now, old.ID,
+	); err != nil {
+		return err
+	}
+
+	if err := checkAppointmentConflict(tx, newApt.RoomID, newApt.StartTime, newApt.EndTime, ""); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`INSERT INTO appointments (`+appointmentColumns+`)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		newApt.ID, newApt.PatientID, newApt.RoomID,
+		newApt.StartTime, newApt.EndTime, newApt.Status,
+		newApt.Notes, newApt.CancelNotes, newApt.CompletionNotes,
+		nullableID(newApt.RescheduledFrom), newApt.CreatedAt, newApt.UpdatedAt,
+	); err != nil {
+		return err
+	}
+
+	for _, pid := range newApt.ProcedureIDs {
+		if pid == "" {
+			continue
+		}
+		ap := AppointmentProcedure{
+			PatientID:     newApt.PatientID,
+			ProcedureID:   pid,
+			AppointmentID: newApt.ID,
+		}
+		if err := ap.create(tx); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	*a = Appointment{ID: newApt.ID}
 	return a.GetByID(a.ID)
 }
 

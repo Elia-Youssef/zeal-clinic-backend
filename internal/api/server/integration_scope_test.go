@@ -38,9 +38,15 @@ func TestScope_ReadOnlyUserCannotWritePatients(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 
+	// Narrow the user role to read-only patient scopes for this test so we can
+	// exercise the scope-deny path on POST /api/patients. The seeded `user` role
+	// actually carries patients:write, so we strip it here.
+	if _, err := store.DB.Exec(`UPDATE roles SET scopes = 'patients:read' WHERE name = 'user'`); err != nil {
+		t.Fatal(err)
+	}
+
 	tok := generateTokenForRole(t, "user", "ro")
 
-	// `user` role has patients:read but not patients:write.
 	body := asJSON(t, map[string]any{
 		"firstName":   "Scope",
 		"lastName":    "Test",

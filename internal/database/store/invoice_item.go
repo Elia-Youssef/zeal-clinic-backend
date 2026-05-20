@@ -22,6 +22,7 @@ type InvoiceItem struct {
 	// the resulting Discount row.
 	GiftPatientID *string `json:"giftPatientId,omitempty"`
 	GiftCode      *string `json:"giftCode,omitempty"`
+	GiftName      string  `json:"giftName,omitempty"`
 
 	// Transient join
 	ItemName string `json:"itemName"`

@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/tracking"
 	"clinic-api/internal/validation"
 	"errors"
 	"log"
@@ -30,9 +31,11 @@ func CreateSupplierInvoice(c echo.Context) error {
 		SupplierID        string              `json:"supplierId"`
 		CurrencyID        string              `json:"currencyId"`
 		Notes             string              `json:"notes"`
+		InvoiceNumber     int                 `json:"invoiceNumber"`
 		Items             []store.InvoiceItem `json:"items"`
 	}
 	if err := c.Bind(&req); err != nil {
+		tracking.Warn(c, "[CreateSupplierInvoice] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
@@ -47,6 +50,7 @@ func CreateSupplierInvoice(c echo.Context) error {
 		errs["items"] = "At least one item is required"
 	}
 	if len(errs) > 0 {
+		tracking.Warn(c, "[CreateSupplierInvoice] validation failed")
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
@@ -97,13 +101,17 @@ func CreateSupplierInvoice(c echo.Context) error {
 		ToBalanceID:   selfBalance.ID,
 		CurrencyID:    req.CurrencyID,
 		Notes:         req.Notes,
+		InvoiceNumber: req.InvoiceNumber,
 		CreatedBy:     user.DisplayName,
 		Items:         req.Items,
 	}
 	if err := inv.IsValid(); err != nil {
+		tracking.Warn(c, "[CreateSupplierInvoice] invoice IsValid failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
-	if err := inv.Create(); err != nil {
+	if err := inv.Create(); errors.Is(err, store.ErrConflict) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: err.Error()})
+	} else if err != nil {
 		log.Println("Error: CreateSupplierInvoice:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create invoice: " + err.Error()})
 	}
@@ -123,6 +131,7 @@ func CreateSupplierInvoice(c echo.Context) error {
 func UpdateSupplierInvoice(c echo.Context) error {
 	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
+		tracking.Warn(c, "[UpdateSupplierInvoice] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	delete(updates, "id")
@@ -145,9 +154,11 @@ func UpdateSupplierInvoiceItem(c echo.Context) error {
 		Amount float64 `json:"amount"`
 	}
 	if err := c.Bind(&req); err != nil {
+		tracking.Warn(c, "[UpdateSupplierInvoiceItem] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
+		tracking.Warn(c, "[UpdateSupplierInvoiceItem] non-positive amount")
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: msg})
 	}
 	inv := store.Invoice{ID: c.Param("id")}

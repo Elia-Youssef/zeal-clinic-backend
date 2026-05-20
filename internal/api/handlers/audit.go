@@ -19,6 +19,7 @@ func GetAllAuditLogs(c echo.Context) error {
 		c.QueryParam("entityType"),
 		c.QueryParam("entityId"),
 		c.QueryParam("action"),
+		c.QueryParam("userId"),
 		params,
 	)
 	if err != nil {

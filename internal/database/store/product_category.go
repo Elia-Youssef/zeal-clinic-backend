@@ -9,11 +9,12 @@ import (
 )
 
 type ProductCategory struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	ParentID    string `json:"parentId"`
-	CreatedAt   Date   `json:"createdAt"`
+	ID          string           `json:"id"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	ParentID    string           `json:"parentId"`
+	Parent      *ProductCategory `json:"parent,omitempty"`
+	CreatedAt   Date             `json:"createdAt"`
 }
 
 func (c *ProductCategory) IsValid() error {
@@ -51,6 +52,15 @@ func (l *ProductCategoryList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
+func (c *ProductCategory) loadParent() {
+	if c.ParentID != "" {
+		var parent ProductCategory
+		if err := parent.ScanRow(RDB.QueryRow(`SELECT `+productCategoryColumns+` FROM product_categories WHERE id = ?`, c.ParentID)); err == nil {
+			c.Parent = &parent
+		}
+	}
+}
+
 func (c *ProductCategoryList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []any
@@ -78,6 +88,9 @@ func (c *ProductCategoryList) GetAll(params ListParams) (int, error) {
 	defer rows.Close()
 
 	c.ScanRows(rows)
+	for i := range *c {
+		(*c)[i].loadParent()
+	}
 	return total, nil
 }
 
@@ -106,7 +119,11 @@ func GetProductCategoryDropdown(params ListParams) ([]DropdownItem, error) {
 }
 
 func (c *ProductCategory) GetByID(id string) error {
-	return c.ScanRow(RDB.QueryRow(`SELECT `+productCategoryColumns+` FROM product_categories WHERE id = ?`, id))
+	if err := c.ScanRow(RDB.QueryRow(`SELECT `+productCategoryColumns+` FROM product_categories WHERE id = ?`, id)); err != nil {
+		return err
+	}
+	c.loadParent()
+	return nil
 }
 
 func (c *ProductCategory) Create() error {

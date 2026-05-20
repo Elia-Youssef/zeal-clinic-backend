@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/tracking"
 	"clinic-api/internal/validation"
 	"errors"
 	"log"
@@ -31,13 +32,15 @@ func GetClientInvoices(c echo.Context) error {
 //     gift's value is also auto-applied as a credit on that patient's balance.
 func CreateClientInvoice(c echo.Context) error {
 	var req struct {
-		PatientID  string              `json:"patientId"`
-		CurrencyID string              `json:"currencyId"`
-		DiscountID string              `json:"discountId"`
-		Notes      string              `json:"notes"`
-		Items      []store.InvoiceItem `json:"items"`
+		PatientID     string              `json:"patientId"`
+		CurrencyID    string              `json:"currencyId"`
+		DiscountID    string              `json:"discountId"`
+		Notes         string              `json:"notes"`
+		InvoiceNumber int                 `json:"invoiceNumber"`
+		Items         []store.InvoiceItem `json:"items"`
 	}
 	if err := c.Bind(&req); err != nil {
+		tracking.Warn(c, "[CreateClientInvoice] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
@@ -53,6 +56,7 @@ func CreateClientInvoice(c echo.Context) error {
 		errs["items"] = "At least one item is required"
 	}
 	if len(errs) > 0 {
+		tracking.Warn(c, "[CreateClientInvoice] validation failed")
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
@@ -91,16 +95,21 @@ func CreateClientInvoice(c echo.Context) error {
 	user := c.Get("user").(store.User)
 
 	// Invoice.Create computes Amount (original total) and FinalAmount (discounted total) from items.
+	// InvoiceNumber=0 lets Create auto-assign the next sequential number;
+	// a positive value pins it (and bumps the sequence if higher than current max).
 	inv := store.Invoice{
 		FromBalanceID: selfBalance.ID,
 		ToBalanceID:   patientBalance.ID,
 		CurrencyID:    req.CurrencyID,
 		DiscountID:    req.DiscountID,
 		Notes:         req.Notes,
+		InvoiceNumber: req.InvoiceNumber,
 		CreatedBy:     user.DisplayName,
 		Items:         req.Items,
 	}
-	if err := inv.Create(); err != nil {
+	if err := inv.Create(); errors.Is(err, store.ErrConflict) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: err.Error()})
+	} else if err != nil {
 		log.Println("Error: CreateClientInvoice:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create invoice: " + err.Error()})
 	}
@@ -120,6 +129,7 @@ func CreateClientInvoice(c echo.Context) error {
 func UpdateClientInvoice(c echo.Context) error {
 	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
+		tracking.Warn(c, "[UpdateClientInvoice] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	delete(updates, "id")

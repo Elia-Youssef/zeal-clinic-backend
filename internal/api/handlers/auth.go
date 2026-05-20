@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/auth"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/tracking"
 	"clinic-api/internal/validation"
 	"errors"
 	"log"
@@ -36,11 +37,13 @@ func Login(c echo.Context) error {
 	var req LoginRequest
 	if err := c.Bind(&req); err != nil {
 		log.Println("Error: [Login] invalid request body")
+		tracking.Warn(c, "[Login] invalid request body")
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
 	if err := req.IsValid(); err != nil {
 		log.Println("Error: [Login] missing username or password")
+		tracking.Warn(c, "[Login] missing username or password")
 		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "username and password required"})
 	}
 
@@ -51,6 +54,7 @@ func Login(c echo.Context) error {
 	if err := user.GetByUsername(username); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [Login] user not found:", username)
+			tracking.Warn(c, "[Login] user not found: "+username)
 			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "invalid username or password"})
 		}
 		log.Println("Error: [Login] db error:", err)
@@ -59,6 +63,7 @@ func Login(c echo.Context) error {
 
 	if !user.IsActive {
 		log.Println("Error: [Login] account disabled:", username)
+		tracking.Warn(c, "[Login] account disabled: "+username)
 		return c.JSON(http.StatusForbidden, httpx.Response{Error: "account is disabled"})
 	}
 
@@ -77,6 +82,7 @@ func Login(c echo.Context) error {
 		match, err := auth.ComparePassword(password, user.PasswordHash)
 		if err != nil || !match {
 			log.Println("Error: [Login] invalid password for:", username)
+			tracking.Warn(c, "[Login] invalid password for: "+username)
 			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "invalid username or password"})
 		}
 	}

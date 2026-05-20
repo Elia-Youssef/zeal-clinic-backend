@@ -38,38 +38,26 @@ func TestHasDependencies_FalseWhenNoMatches(t *testing.T) {
 	}
 }
 
-func TestHasDependencies_StopsAtFirstMatch(t *testing.T) {
+func TestHasDependencies_BogusTableFailsClosed(t *testing.T) {
+	// Fail-closed behaviour: any query error (e.g. typo in a table name) must
+	// be treated as "dependency present" so we don't silently allow deletes.
 	setupTestDB(t)
-	cur := seededCurrency(t)
-	pat := makePatient(t, "First", "Match", "9991112")
-	pb := patientBalance(t, pat.ID, cur.ID)
-	self := seededSelfBalance(t, cur.ID)
-	bt := BalanceTransaction{FromBalanceID: pb.ID, ToBalanceID: self.ID, Amount: 1, CurrencyID: cur.ID, TransactionType: "payment"}
-	if err := bt.Create(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Add a non-existent table; the function should skip it (continue) and not
-	// crash the call.
 	deps := map[string]string{
 		"definitely_not_a_real_table": "id",
-		"balance_transactions":        "from_balance_id",
 	}
-	if !HasDependencies(pb.ID, deps) {
-		t.Errorf("expected true despite the bogus table key")
+	if !HasDependencies("anything", deps) {
+		t.Errorf("expected HasDependencies=true (fail-closed) for bogus table")
 	}
 }
 
-func TestHasDependencies_AllBadTablesReturnsFalse(t *testing.T) {
-	// Bad table names make QueryRow error, and the function continues silently and
-	// returns false. Document the behavior.
+func TestHasDependencies_AllBadTablesFailsClosed(t *testing.T) {
 	setupTestDB(t)
 	deps := map[string]string{
 		"not_a_table":           "x",
 		"another_phantom_table": "y",
 	}
-	if HasDependencies("anything", deps) {
-		t.Errorf("expected false for all-bad tables")
+	if !HasDependencies("anything", deps) {
+		t.Errorf("expected HasDependencies=true (fail-closed) for all-bad tables")
 	}
 }
 

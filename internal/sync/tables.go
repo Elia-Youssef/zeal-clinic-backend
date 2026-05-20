@@ -52,7 +52,6 @@ var SyncedTables = []TableInfo{
 	{Name: "procedure_prices", CacheKeys: []string{"procedures"}},
 	{Name: "product_prices", CacheKeys: []string{"products"}},
 	{Name: "product_allergy_conflicts", CacheKeys: []string{"products"}},
-	{Name: "notifications"},
 
 	{Name: "appointment_procedures", HasUpdatedAt: true, CacheKeys: []string{"appointments", "analytics"}},
 	{Name: "prescription_medicines"},

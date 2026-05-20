@@ -1,6 +1,7 @@
 package config
 
 import (
+	"clinic-api/internal/buildmode"
 	"log"
 	"os"
 	"path/filepath"
@@ -19,6 +20,8 @@ type Config struct {
 	DBEncryptionKey string
 	PeerURL         string
 	SyncSecret      string
+	SentryDSN       string
+	PublicURL       string
 }
 
 var current *Config
@@ -36,6 +39,8 @@ func Load() *Config {
 		DBEncryptionKey: getEnv("DB_ENCRYPTION_KEY", ""),
 		PeerURL:         getEnv("PEER_URL", ""),
 		SyncSecret:      getEnv("SYNC_SECRET", ""),
+		SentryDSN:       getEnv("SENTRY_DSN", ""),
+		PublicURL:       getEnv("PUBLIC_URL", ""),
 	}
 
 	if cfg.DBEncryptionKey == "" {
@@ -61,6 +66,17 @@ func SharedDataDir() string {
 		}
 	}
 	return ""
+}
+
+func DataDir() string {
+	if buildmode.Version != "dev" {
+		if dir := SharedDataDir(); dir != "" {
+			if info, err := os.Stat(dir); err == nil && info.IsDir() {
+				return dir
+			}
+		}
+	}
+	return "./tmp"
 }
 
 func getEnv(key, fallback string) string {

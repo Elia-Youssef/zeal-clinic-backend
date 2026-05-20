@@ -18,12 +18,10 @@ import (
 )
 
 // GenerateRevenueReport writes a revenue report PDF and returns its path.
-func GenerateRevenueReport(report *store.RevenueReport, from, to, currencyID string) (string, error) {
+func GenerateRevenueReport(report *store.RevenueReport, from, to string) (string, error) {
 	if report == nil {
 		return "", fmt.Errorf("report is empty")
 	}
-
-	curLabel := currencyLabel(currencyID)
 
 	cfg := config.NewBuilder().
 		WithMaxGridSize(100).
@@ -41,7 +39,7 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to, currencyID str
 		Build()
 	m := maroto.New(cfg)
 
-	if err := m.RegisterHeader(revenueReportHeaderRows(report, from, to, curLabel)...); err != nil {
+	if err := m.RegisterHeader(revenueReportHeaderRows(report, from, to)...); err != nil {
 		return "", err
 	}
 
@@ -65,13 +63,11 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to, currencyID str
 		cellCol(12, "", rowTxt, border.None),
 	)
 
-	return save(m, "revenue-"+from+"-"+to)
+	return save(m, "revenue-report")
 }
 
 // GenerateExpensesReport writes an expenses report PDF and returns its path.
-func GenerateExpensesReport(rows []store.ExpenseRow, from, to, currencyID string) (string, error) {
-	curLabel := currencyLabel(currencyID)
-
+func GenerateExpensesReport(rows []store.ExpenseRow, from, to string) (string, error) {
 	cfg := config.NewBuilder().
 		WithMaxGridSize(100).
 		WithOrientation(orientation.Horizontal).
@@ -88,7 +84,7 @@ func GenerateExpensesReport(rows []store.ExpenseRow, from, to, currencyID string
 		Build()
 	m := maroto.New(cfg)
 
-	if err := m.RegisterHeader(expensesReportHeaderRows(from, to, curLabel)...); err != nil {
+	if err := m.RegisterHeader(expensesReportHeaderRows(from, to)...); err != nil {
 		return "", err
 	}
 
@@ -119,14 +115,11 @@ func GenerateExpensesReport(rows []store.ExpenseRow, from, to, currencyID string
 		cellCol(10, money(remainingTotal), props.Text{Size: 8.5, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1}, border.Full),
 	)
 
-	return save(m, "expenses-"+from+"-"+to)
+	return save(m, "expenses-report")
 }
 
-func revenueReportHeaderRows(report *store.RevenueReport, from, to, curLabel string) []core.Row {
-	sheet := revenueReportSheet(report.Level)
-	if curLabel != "" {
-		sheet += "  " + curLabel
-	}
+func revenueReportHeaderRows(report *store.RevenueReport, from, to string) []core.Row {
+	sheet := revenueReportSheet(report.Level) + "  USD"
 
 	headerTxt := props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center, Top: 1.3}
 
@@ -152,11 +145,8 @@ func revenueReportHeaderRows(report *store.RevenueReport, from, to, curLabel str
 	}
 }
 
-func expensesReportHeaderRows(from, to, curLabel string) []core.Row {
-	sheet := "Clinic expenses"
-	if curLabel != "" {
-		sheet += "  " + curLabel
-	}
+func expensesReportHeaderRows(from, to string) []core.Row {
+	sheet := "Clinic expenses  USD"
 	headerTxt := props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center, Top: 1.3}
 
 	return []core.Row{
@@ -232,18 +222,4 @@ func reportDate(v string) string {
 
 func reportQuantity(v int) string {
 	return fmt.Sprintf("%.2f", float64(v))
-}
-
-func currencyLabel(currencyID string) string {
-	if currencyID == "" {
-		return ""
-	}
-	c := store.Currency{}
-	if err := c.GetByID(currencyID); err != nil {
-		return ""
-	}
-	if c.Code != "" {
-		return c.Code
-	}
-	return c.Symbol
 }

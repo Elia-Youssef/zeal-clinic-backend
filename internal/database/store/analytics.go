@@ -15,9 +15,10 @@ func (a *Analytics) TotalPatients() (int, error) {
 }
 
 func (a *Analytics) NewPatientsThisMonth() (int, error) {
+	start, end := ClinicMonthBounds(ClinicNow())
 	var n int
 	err := RDB.QueryRow(`SELECT COUNT(*) FROM patients
-		WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')`).Scan(&n)
+		WHERE created_at >= ? AND created_at < ?`, start, end).Scan(&n)
 	return n, err
 }
 
@@ -28,20 +29,25 @@ type AppointmentCounts struct {
 }
 
 func (a *Analytics) AppointmentCounts() (AppointmentCounts, error) {
+	now := ClinicNow()
+	dayStart, dayEnd := ClinicDayBounds(now)
+	weekStart, weekEnd := ClinicWeekBounds(now)
+	monthStart, monthEnd := ClinicMonthBounds(now)
 	var c AppointmentCounts
 	err := RDB.QueryRow(`
 		SELECT
-			COALESCE(SUM(CASE WHEN date(start_time) = date('now') THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN date(start_time) >= date('now','weekday 0','-6 days')
-			                  AND  date(start_time) <= date('now','weekday 0')       THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN strftime('%Y-%m', start_time) = strftime('%Y-%m','now') THEN 1 ELSE 0 END), 0)
+			COALESCE(SUM(CASE WHEN start_time >= ? AND start_time < ? THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN start_time >= ? AND start_time < ? THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN start_time >= ? AND start_time < ? THEN 1 ELSE 0 END), 0)
 		FROM appointments
-		WHERE status != 'Cancelled'
-	`).Scan(&c.Today, &c.ThisWeek, &c.ThisMonth)
+		WHERE status NOT IN ('Cancelled','Rescheduled')
+		AND start_time >= ? AND start_time < ?
+	`, dayStart, dayEnd, weekStart, weekEnd, monthStart, monthEnd, monthStart, monthEnd).Scan(&c.Today, &c.ThisWeek, &c.ThisMonth)
 	return c, err
 }
 
 func (a *Analytics) RevenueThisMonth() (float64, error) {
+	start, end := ClinicMonthBounds(ClinicNow())
 	var v float64
 	err := RDB.QueryRow(`
 		SELECT COALESCE(SUM(bt.amount), 0)
@@ -50,12 +56,13 @@ func (a *Analytics) RevenueThisMonth() (float64, error) {
 		WHERE tb.entity_type = 'self'
 		AND bt.voided_at = ''
 		AND bt.transaction_type = 'payment'
-		AND strftime('%Y-%m', bt.created_at) = strftime('%Y-%m', 'now')
-	`).Scan(&v)
+		AND bt.created_at >= ? AND bt.created_at < ?
+	`, start, end).Scan(&v)
 	return v, err
 }
 
 func (a *Analytics) ExpensesThisMonth() (float64, error) {
+	start, end := ClinicMonthBounds(ClinicNow())
 	var v float64
 	err := RDB.QueryRow(`
 		SELECT COALESCE(SUM(bt.amount), 0)
@@ -64,8 +71,8 @@ func (a *Analytics) ExpensesThisMonth() (float64, error) {
 		WHERE fb.entity_type = 'self'
 		AND bt.voided_at = ''
 		AND bt.transaction_type = 'payment'
-		AND strftime('%Y-%m', bt.created_at) = strftime('%Y-%m', 'now')
-	`).Scan(&v)
+		AND bt.created_at >= ? AND bt.created_at < ?
+	`, start, end).Scan(&v)
 	return v, err
 }
 
@@ -79,14 +86,15 @@ func (a *Analytics) OutstandingReceivables() (float64, error) {
 }
 
 func (a *Analytics) ProceduresCompletedThisMonth() (int, error) {
+	start, end := ClinicMonthBounds(ClinicNow())
 	var n int
 	err := RDB.QueryRow(`
 		SELECT COALESCE(SUM(ii.quantity), 0)
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
 		WHERE ii.item_type = 'procedure'
-		AND strftime('%Y-%m', i.created_at) = strftime('%Y-%m', 'now')
-	`).Scan(&n)
+		AND i.created_at >= ? AND i.created_at < ?
+	`, start, end).Scan(&n)
 	return n, err
 }
 
@@ -105,14 +113,16 @@ type AppointmentCancellationRate struct {
 }
 
 func (a *Analytics) CancellationRateThisMonth() (AppointmentCancellationRate, error) {
+	start, end := ClinicMonthBounds(ClinicNow())
 	var r AppointmentCancellationRate
 	err := RDB.QueryRow(`
 		SELECT
 			COUNT(*),
 			COALESCE(SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END), 0)
 		FROM appointments
-		WHERE strftime('%Y-%m', start_time) = strftime('%Y-%m', 'now')
-	`).Scan(&r.Total, &r.Cancelled)
+		WHERE start_time >= ? AND start_time < ?
+		AND status != 'Rescheduled'
+	`, start, end).Scan(&r.Total, &r.Cancelled)
 	if err != nil {
 		return r, err
 	}
@@ -126,10 +136,11 @@ func (a *Analytics) RecentAppointmentsToday(limit int) (AppointmentList, error) 
 	if limit <= 0 {
 		limit = 5
 	}
+	dayStart, dayEnd := ClinicTodayBounds()
 	rows, err := RDB.Query(appointmentSelectQuery+`
-		WHERE DATE(a.start_time) = DATE('now')
-		AND a.status != 'Cancelled'
-		ORDER BY a.start_time DESC LIMIT ?`, limit)
+		WHERE a.start_time >= ? AND a.start_time < ?
+		AND a.status NOT IN ('Cancelled','Rescheduled')
+		ORDER BY a.start_time DESC LIMIT ?`, dayStart, dayEnd, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -181,15 +192,16 @@ func (a *Analytics) TopProceduresThisMonth(limit int) ([]TopProcedure, error) {
 	if limit <= 0 {
 		limit = 5
 	}
+	start, end := ClinicMonthBounds(ClinicNow())
 	rows, err := RDB.Query(`
 		SELECT ii.item_id, pr.name, COALESCE(SUM(ii.quantity), 0) AS cnt
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
 		JOIN procedures pr ON pr.id = ii.item_id
 		WHERE ii.item_type = 'procedure'
-		AND strftime('%Y-%m', i.created_at) = strftime('%Y-%m', 'now')
+		AND i.created_at >= ? AND i.created_at < ?
 		GROUP BY ii.item_id, pr.name
-		ORDER BY cnt DESC LIMIT ?`, limit)
+		ORDER BY cnt DESC LIMIT ?`, start, end, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -235,33 +247,33 @@ func (a *Analytics) Series(p SeriesParams) ([]SeriesPoint, error) {
 			WHERE tb.entity_type = 'self'
 			AND bt.voided_at = ''
 			AND bt.transaction_type = 'payment'
-			AND date(bt.created_at) BETWEEN date(?) AND date(?)
+			AND bt.created_at >= ? AND bt.created_at < ?
 			GROUP BY bucket ORDER BY bucket`, fmt.Sprintf(bucketExpr, "bt.created_at"))
-		args = []any{p.From, p.To}
+		args = []any{RangeStart(p.From), RangeEnd(p.To)}
 	case "appointments":
 		query = fmt.Sprintf(`
 			SELECT %s AS bucket, COUNT(*)
 			FROM appointments
-			WHERE status != 'Cancelled'
-			AND date(start_time) BETWEEN date(?) AND date(?)
+			WHERE status NOT IN ('Cancelled','Rescheduled')
+			AND start_time >= ? AND start_time < ?
 			GROUP BY bucket ORDER BY bucket`, fmt.Sprintf(bucketExpr, "start_time"))
-		args = []any{p.From, p.To}
+		args = []any{RangeStart(p.From), RangeEnd(p.To)}
 	case "new-patients":
 		query = fmt.Sprintf(`
 			SELECT %s AS bucket, COUNT(*)
 			FROM patients
-			WHERE date(created_at) BETWEEN date(?) AND date(?)
+			WHERE created_at >= ? AND created_at < ?
 			GROUP BY bucket ORDER BY bucket`, fmt.Sprintf(bucketExpr, "created_at"))
-		args = []any{p.From, p.To}
+		args = []any{RangeStart(p.From), RangeEnd(p.To)}
 	case "procedures-completed":
 		query = fmt.Sprintf(`
 			SELECT %s AS bucket, COALESCE(SUM(ii.quantity), 0)
 			FROM invoice_items ii
 			JOIN invoices i ON i.id = ii.invoice_id
 			WHERE ii.item_type = 'procedure'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)
+			AND i.created_at >= ? AND i.created_at < ?
 			GROUP BY bucket ORDER BY bucket`, fmt.Sprintf(bucketExpr, "i.created_at"))
-		args = []any{p.From, p.To}
+		args = []any{RangeStart(p.From), RangeEnd(p.To)}
 	default:
 		return nil, fmt.Errorf("unsupported metric %q", p.Metric)
 	}

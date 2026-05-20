@@ -12,8 +12,9 @@ import (
 func auditEntries(t *testing.T) []store.AuditLogEntry {
 	t.Helper()
 	rows, err := store.RDB.Query(
-		`SELECT id, user_name, user_role, action, entity_type, entity_id, details, ip_address, created_at
-		 FROM audit_log ORDER BY created_at ASC`)
+		`SELECT a.id, a.user_id, COALESCE(u.username, ''), a.user_role, a.action, a.entity_type, a.entity_id, a.details, a.ip_address, a.created_at
+		 FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+		 ORDER BY a.created_at ASC`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,7 +22,7 @@ func auditEntries(t *testing.T) []store.AuditLogEntry {
 	var out []store.AuditLogEntry
 	for rows.Next() {
 		var e store.AuditLogEntry
-		if err := rows.Scan(&e.ID, &e.UserName, &e.UserRole, &e.Action, &e.EntityType, &e.EntityID, &e.Details, &e.IPAddress, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.UserID, &e.Username, &e.UserRole, &e.Action, &e.EntityType, &e.EntityID, &e.Details, &e.IPAddress, &e.CreatedAt); err != nil {
 			t.Fatal(err)
 		}
 		out = append(out, e)
@@ -58,13 +59,14 @@ func TestAudit_LogsCreateUpdateDelete(t *testing.T) {
 		t.Fatalf("expected 3 audit rows (create/update/delete), got %d", len(entries))
 	}
 
+	const adminID = "b10829b3-19a0-4813-8e1c-df6f5990737b"
 	wantActions := []string{"create", "update", "delete"}
 	for i, e := range entries {
 		if e.Action != wantActions[i] {
 			t.Errorf("entries[%d].Action = %q want %q", i, e.Action, wantActions[i])
 		}
-		if e.UserName != "Admin" {
-			t.Errorf("entries[%d].UserName = %q want Admin", i, e.UserName)
+		if e.UserID != adminID {
+			t.Errorf("entries[%d].UserID = %q want %q", i, e.UserID, adminID)
 		}
 		if e.UserRole != "super-admin" {
 			t.Errorf("entries[%d].UserRole = %q want super-admin", i, e.UserRole)

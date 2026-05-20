@@ -12,7 +12,11 @@ import (
 // GetRevenueReport returns aggregated revenue at the requested tree position.
 //
 // Query params:
-//   from, to:     YYYY-MM-DD inclusive (default: last 30 days)
+//   from, to:     date-range bounds (default: last 30 UTC days). Accepts
+//                 either RFC3339 UTC instants (from inclusive, to exclusive;
+//                 the frontend converts clinic-local boundaries to UTC) or
+//                 bare YYYY-MM-DD UTC dates (calendar-day inclusive on both
+//                 ends).
 //   itemKind:     "" | products | procedures (root toggle, drill mode)
 //   typeId:       drill into a procedure type
 //   categoryId:   drill into a procedure or product category
@@ -61,15 +65,20 @@ func parseRange(c echo.Context) (string, string) {
 	return defaultDateRange(c.QueryParam("from"), c.QueryParam("to"), 29)
 }
 
-// defaultDateRange fills missing from/to bounds with a UTC window ending today
-// and stretching `daysBack` days into the past. Empty inputs are filled; non-
-// empty inputs are passed through untouched.
+// defaultDateRange fills missing from/to bounds with a clinic-local window
+// ending at end-of-today and reaching `daysBack` days into the past, expressed
+// as RFC3339 UTC instants so they pass through RangeStart/RangeEnd unchanged.
+// Non-empty inputs are forwarded untouched and re-normalized at the store
+// layer (accepts either RFC3339 or bare YYYY-MM-DD).
 func defaultDateRange(from, to string, daysBack int) (string, string) {
-	if to == "" {
-		to = string(store.DateToday())
-	}
-	if from == "" {
-		from = string(store.DateOffsetDays(-daysBack))
+	if from == "" || to == "" {
+		dStart, dEnd := store.ClinicRangeLastNDays(daysBack)
+		if from == "" {
+			from = string(dStart)
+		}
+		if to == "" {
+			to = string(dEnd)
+		}
 	}
 	return from, to
 }

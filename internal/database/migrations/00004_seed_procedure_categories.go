@@ -99,7 +99,7 @@ func downSeedProcedureCategories(ctx context.Context, tx *sql.Tx) error {
 func upsertProcedureCategoryTx(ctx context.Context, tx *sql.Tx, id, name, parentID string) error {
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO procedure_categories (id, name, parent_id, created_at)
-		 SELECT ?, ?, ?, datetime('now')
+		 SELECT ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
 		 WHERE NOT EXISTS (SELECT 1 FROM procedure_categories WHERE name = ? AND parent_id = ?)`,
 		id, name, parentID, name, parentID,
 	)

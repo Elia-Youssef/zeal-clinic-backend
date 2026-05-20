@@ -14,9 +14,13 @@ type Reports struct{}
 // TypeID (procedure-type drill), and CategoryID (category drill; works for
 // both procedure and product categories). Each level shows aggregates for the
 // direct children of the current node.
+// Date range bounds: accept either RFC3339 UTC instants (`from` inclusive,
+// `to` exclusive; the frontend converts clinic-local boundaries to UTC) or bare
+// YYYY-MM-DD UTC dates (`from` becomes start-of-day, `to` becomes start of
+// the following day so the calendar day is included).
 type RevenueParams struct {
-	From       string // YYYY-MM-DD inclusive
-	To         string // YYYY-MM-DD inclusive
+	From       string
+	To         string
 	ItemKind   string // "" | "products" | "procedures" | "all"
 	TypeID     string // procedure type id
 	CategoryID string // procedure or product category id
@@ -95,8 +99,8 @@ func kindGroups(p RevenueParams) (RevenueReport, error) {
 		JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE tb.entity_type = 'patient'
 		AND ii.item_type IN ('product','procedure')
-		AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.From, p.To}
+		AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
 	q += " GROUP BY ii.item_type"
 
@@ -139,8 +143,8 @@ func procedureTypeGroups(p RevenueParams) (RevenueReport, error) {
 		LEFT JOIN procedure_types pt ON pt.id = pr.type_id
 		WHERE tb.entity_type = 'patient'
 		AND ii.item_type = 'procedure'
-		AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.From, p.To}
+		AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
 	q += `
 		GROUP BY pt.id
@@ -171,8 +175,8 @@ func topProductCategoryGroups(p RevenueParams) (RevenueReport, error) {
 			                 THEN self.id ELSE self.parent_id END
 		WHERE tb.entity_type = 'patient'
 		AND ii.item_type = 'product'
-		AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.From, p.To}
+		AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
 	q += `
 		GROUP BY top.id
@@ -205,8 +209,8 @@ func procedureCategoriesByType(p RevenueParams) (RevenueReport, error) {
 		WHERE tb.entity_type = 'patient'
 		AND ii.item_type = 'procedure'
 		AND pr.type_id = ?
-		AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.TypeID, p.From, p.To}
+		AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{p.TypeID, RangeStart(p.From), RangeEnd(p.To)}
 	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
 	q += `
 		GROUP BY top.id
@@ -261,8 +265,8 @@ func procedureChildCategories(p RevenueParams) (RevenueReport, error) {
 		WHERE pc.parent_id = ?
 		AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.CategoryID, p.From, p.To}
+			AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{p.CategoryID, RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -293,8 +297,8 @@ func productChildCategories(p RevenueParams) (RevenueReport, error) {
 		WHERE pc.parent_id = ?
 		AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.CategoryID, p.From, p.To}
+			AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{p.CategoryID, RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -324,8 +328,8 @@ func procedureLeaves(p RevenueParams) (RevenueReport, error) {
 		WHERE pr.category_id = ?
 		AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.CategoryID, p.From, p.To}
+			AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{p.CategoryID, RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -355,8 +359,8 @@ func productLeaves(p RevenueParams) (RevenueReport, error) {
 		WHERE pd.category_id = ?
 		AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.CategoryID, p.From, p.To}
+			AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{p.CategoryID, RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -409,8 +413,8 @@ func allProcedureTypes(p RevenueParams) (RevenueReport, error) {
 		LEFT JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.From, p.To}
+			AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -446,8 +450,8 @@ func allProcedureCategories(p RevenueParams) (RevenueReport, error) {
 		LEFT JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := append(prArgs, p.From, p.To)
+			AND i.created_at >= ? AND i.created_at < ?`
+	args := append(prArgs, RangeStart(p.From), RangeEnd(p.To))
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -477,8 +481,8 @@ func allProductCategories(p RevenueParams) (RevenueReport, error) {
 		LEFT JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args := []any{p.From, p.To}
+			AND i.created_at >= ? AND i.created_at < ?`
+	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -517,8 +521,8 @@ func allProcedures(p RevenueParams) (RevenueReport, error) {
 	}
 	q += ` AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args = append(args, p.From, p.To)
+			AND i.created_at >= ? AND i.created_at < ?`
+	args = append(args, RangeStart(p.From), RangeEnd(p.To))
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -553,8 +557,8 @@ func allProducts(p RevenueParams) (RevenueReport, error) {
 	}
 	q += ` AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	args = append(args, p.From, p.To)
+			AND i.created_at >= ? AND i.created_at < ?`
+	args = append(args, RangeStart(p.From), RangeEnd(p.To))
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
 		args = append(args, p.CurrencyID)
@@ -709,8 +713,8 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 		LEFT JOIN products pd  ON pd.id = ii.item_id AND ii.item_type = 'product'
 		LEFT JOIN procedures pr ON pr.id = ii.item_id AND ii.item_type = 'procedure'
 		WHERE fb.entity_type = 'supplier'
-		AND date(i.created_at) BETWEEN date(?) AND date(?)`
-	itemArgs := []any{p.From, p.To}
+		AND i.created_at >= ? AND i.created_at < ?`
+	itemArgs := []any{RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		itemQ += " AND i.currency_id = ?"
 		itemArgs = append(itemArgs, p.CurrencyID)
@@ -748,8 +752,8 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 		AND tb.entity_type = 'expense'
 		AND bt.voided_at = ''
 		AND bt.transaction_type = 'payment'
-		AND date(bt.created_at) BETWEEN date(?) AND date(?)`
-	payArgs := []any{p.From, p.To}
+		AND bt.created_at >= ? AND bt.created_at < ?`
+	payArgs := []any{RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		payQ += " AND bt.currency_id = ?"
 		payArgs = append(payArgs, p.CurrencyID)

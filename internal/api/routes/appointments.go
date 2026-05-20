@@ -12,5 +12,6 @@ func SetupAppointmentRoutes(api *echo.Group) {
 	api.GET("/appointments/count-per-room", handlers.GetAppointmentCountPerRoom, scope("appointments:read"), cache("appointments"))
 	api.POST("/appointments", handlers.CreateAppointment, scope("appointments:write"), cache("appointments", "analytics"))
 	api.PUT("/appointments/:id", handlers.UpdateAppointment, scope("appointments:write"), cache("appointments", "analytics"))
+	api.POST("/appointments/:id/reschedule", handlers.RescheduleAppointment, scope("appointments:write"), cache("appointments", "analytics"))
 	api.DELETE("/appointments/:id", handlers.DeleteAppointment, scope("appointments:delete"), cache("appointments", "analytics"))
 }

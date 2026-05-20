@@ -26,7 +26,7 @@ func upSeedRooms(ctx context.Context, tx *sql.Tx) error {
 	for _, r := range rooms {
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO rooms (id, name, type, is_available, created_at)
-			 SELECT ?, ?, ?, 1, datetime('now')
+			 SELECT ?, ?, ?, 1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
 			 WHERE NOT EXISTS (SELECT 1 FROM rooms WHERE name = ?)`,
 			r.id, r.name, r.typ, r.name,
 		); err != nil {

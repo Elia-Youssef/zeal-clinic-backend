@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -60,6 +61,10 @@ func setupTestEnv(t *testing.T) {
 	})
 	configInitOnce.Do(func() {
 		// Avoid relying on real .env or env vars during tests; just load defaults.
+		// DB_ENCRYPTION_KEY is required by config.Load, so provide a dummy.
+		if os.Getenv("DB_ENCRYPTION_KEY") == "" {
+			os.Setenv("DB_ENCRYPTION_KEY", testHexKey)
+		}
 		_ = config.Load()
 	})
 

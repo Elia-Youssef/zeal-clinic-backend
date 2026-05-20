@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/tracking"
 	"errors"
 	"log"
 	"net/http"
@@ -93,6 +94,7 @@ func CreateAppointment(c echo.Context) error {
 	var a store.Appointment
 	if err := c.Bind(&a); err != nil {
 		log.Println("Error: CreateAppointment invalid request:", err)
+		tracking.Warn(c, "[CreateAppointment] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	if a.Status == "" {
@@ -100,6 +102,7 @@ func CreateAppointment(c echo.Context) error {
 	}
 	if err := a.IsValid(); err != nil {
 		log.Println("Error: CreateAppointment validation failed:", err)
+		tracking.Warn(c, "[CreateAppointment] validation failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
@@ -114,6 +117,7 @@ func UpdateAppointment(c echo.Context) error {
 	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: UpdateAppointment invalid request:", err)
+		tracking.Warn(c, "[UpdateAppointment] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	delete(updates, "id")
@@ -126,12 +130,45 @@ func UpdateAppointment(c echo.Context) error {
 		}
 		if strings.Contains(err.Error(), "room conflict") {
 			log.Println("Error: UpdateAppointment room conflict:", err)
+			tracking.Warn(c, "[UpdateAppointment] room conflict: "+err.Error())
 			return c.JSON(http.StatusConflict, httpx.Response{Error: err.Error()})
 		}
 		log.Println("Error: UpdateAppointment failed to update appointment:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update appointment"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: apt})
+}
+
+func RescheduleAppointment(c echo.Context) error {
+	var overrides map[string]any
+	if err := c.Bind(&overrides); err != nil {
+		log.Println("Error: RescheduleAppointment invalid request:", err)
+		tracking.Warn(c, "[RescheduleAppointment] bind failed: "+err.Error())
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+	delete(overrides, "id")
+	delete(overrides, "rescheduledFrom")
+
+	apt := store.Appointment{ID: c.Param("id")}
+	if err := apt.Reschedule(overrides); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			log.Println("Error: RescheduleAppointment appointment not found:", err)
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "appointment not found"})
+		}
+		if strings.Contains(err.Error(), "room conflict") {
+			log.Println("Error: RescheduleAppointment room conflict:", err)
+			tracking.Warn(c, "[RescheduleAppointment] room conflict: "+err.Error())
+			return c.JSON(http.StatusConflict, httpx.Response{Error: err.Error()})
+		}
+		if strings.Contains(err.Error(), "cannot reschedule") {
+			log.Println("Error: RescheduleAppointment invalid state:", err)
+			tracking.Warn(c, "[RescheduleAppointment] invalid state: "+err.Error())
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: err.Error()})
+		}
+		log.Println("Error: RescheduleAppointment failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to reschedule appointment"})
+	}
+	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: apt})
 }
 
 func DeleteAppointment(c echo.Context) error {

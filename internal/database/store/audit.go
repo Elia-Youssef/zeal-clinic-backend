@@ -9,7 +9,8 @@ import (
 
 type AuditLogEntry struct {
 	ID         string `json:"id"`
-	UserName   string `json:"userName"`
+	UserID     string `json:"userId"`
+	Username   string `json:"username"`
 	UserRole   string `json:"userRole"`
 	Action     string `json:"action"`
 	EntityType string `json:"entityType"`
@@ -19,8 +20,11 @@ type AuditLogEntry struct {
 	CreatedAt  Date   `json:"createdAt"`
 }
 
-const auditLogEntryColumnsNoId = `user_name, user_role, action, entity_type, entity_id, details, ip_address, created_at`
+const auditLogEntryColumnsNoId = `user_id, user_role, action, entity_type, entity_id, details, ip_address, created_at`
 const auditLogEntryColumns = `id, ` + auditLogEntryColumnsNoId
+
+const auditLogSelectColumns = `a.id, a.user_id, COALESCE(u.username, ''), a.user_role, a.action, a.entity_type, a.entity_id, a.details, a.ip_address, a.created_at`
+const auditLogFromJoin = ` FROM audit_log a LEFT JOIN users u ON u.id = a.user_id`
 
 type AuditLogEntryList []AuditLogEntry
 
@@ -28,7 +32,7 @@ func (m *AuditLogEntry) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil AuditLogEntry row")
 	}
-	return row.Scan(&m.ID, &m.UserName, &m.UserRole, &m.Action, &m.EntityType, &m.EntityID, &m.Details, &m.IPAddress, &m.CreatedAt)
+	return row.Scan(&m.ID, &m.UserID, &m.Username, &m.UserRole, &m.Action, &m.EntityType, &m.EntityID, &m.Details, &m.IPAddress, &m.CreatedAt)
 }
 
 func (l *AuditLogEntryList) ScanRows(rows *sql.Rows) error {
@@ -38,7 +42,7 @@ func (l *AuditLogEntryList) ScanRows(rows *sql.Rows) error {
 	*l = AuditLogEntryList{}
 	for rows.Next() {
 		var item AuditLogEntry
-		err := rows.Scan(&item.ID, &item.UserName, &item.UserRole, &item.Action, &item.EntityType, &item.EntityID, &item.Details, &item.IPAddress, &item.CreatedAt)
+		err := rows.Scan(&item.ID, &item.UserID, &item.Username, &item.UserRole, &item.Action, &item.EntityType, &item.EntityID, &item.Details, &item.IPAddress, &item.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -54,33 +58,33 @@ func (e *AuditLogEntry) Log() error {
 	}
 
 	_, err := DB.Exec(`INSERT INTO audit_log (`+auditLogEntryColumns+`) VALUES (?,?,?,?,?,?,?,?,?)`,
-		e.ID, e.UserName, e.UserRole, e.Action, e.EntityType, e.EntityID, e.Details, e.IPAddress, e.CreatedAt,
+		e.ID, e.UserID, e.UserRole, e.Action, e.EntityType, e.EntityID, e.Details, e.IPAddress, e.CreatedAt,
 	)
 	return err
 }
 
-func (e *AuditLogEntryList) GetByUserName(userName string, params ListParams) (int, error) {
-	where := " WHERE user_name = ?"
-	args := []any{userName}
-	if fc, fa := params.FilterClause("action", "details", "entity_type"); fc != "" {
+func (e *AuditLogEntryList) GetByUserID(userID string, params ListParams) (int, error) {
+	where := " WHERE a.user_id = ?"
+	args := []any{userID}
+	if fc, fa := params.FilterClause("a.action", "a.details", "a.entity_type"); fc != "" {
 		where += " AND " + fc
 		args = append(args, fa...)
 	}
 
 	var total int
-	if err := RDB.QueryRow("SELECT COUNT(*) FROM audit_log"+where, args...).Scan(&total); err != nil {
+	if err := RDB.QueryRow("SELECT COUNT(*)"+auditLogFromJoin+where, args...).Scan(&total); err != nil {
 		return 0, err
 	}
 
 	order := params.OrderClause(map[string]string{
-		"userName":   "user_name",
-		"userRole":   "user_role",
-		"action":     "action",
-		"entityType": "entity_type",
-		"entityId":   "entity_id",
-		"createdAt":  "created_at",
-	}, "created_at DESC")
-	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + order + params.PaginationClause()
+		"username":   "u.username",
+		"userRole":   "a.user_role",
+		"action":     "a.action",
+		"entityType": "a.entity_type",
+		"entityId":   "a.entity_id",
+		"createdAt":  "a.created_at",
+	}, "a.created_at DESC")
+	query := `SELECT ` + auditLogSelectColumns + auditLogFromJoin + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err
@@ -91,41 +95,45 @@ func (e *AuditLogEntryList) GetByUserName(userName string, params ListParams) (i
 	return total, nil
 }
 
-func (e *AuditLogEntryList) GetAll(entityType, entityID, action string, params ListParams) (int, error) {
+func (e *AuditLogEntryList) GetAll(entityType, entityID, action, userID string, params ListParams) (int, error) {
 	where := " WHERE 1=1"
 	var args []any
 
 	if entityType != "" {
-		where += " AND entity_type = ?"
+		where += " AND a.entity_type = ?"
 		args = append(args, entityType)
 	}
 	if entityID != "" {
-		where += " AND entity_id = ?"
+		where += " AND a.entity_id = ?"
 		args = append(args, entityID)
 	}
 	if action != "" {
-		where += " AND action = ?"
+		where += " AND a.action = ?"
 		args = append(args, action)
 	}
-	if fc, fa := params.FilterClause("user_name", "details"); fc != "" {
+	if userID != "" {
+		where += " AND a.user_id = ?"
+		args = append(args, userID)
+	}
+	if fc, fa := params.FilterClause("a.details", "u.username"); fc != "" {
 		where += " AND " + fc
 		args = append(args, fa...)
 	}
 
 	var total int
-	if err := RDB.QueryRow("SELECT COUNT(*) FROM audit_log"+where, args...).Scan(&total); err != nil {
+	if err := RDB.QueryRow("SELECT COUNT(*)"+auditLogFromJoin+where, args...).Scan(&total); err != nil {
 		return 0, err
 	}
 
 	order := params.OrderClause(map[string]string{
-		"userName":   "user_name",
-		"userRole":   "user_role",
-		"action":     "action",
-		"entityType": "entity_type",
-		"entityId":   "entity_id",
-		"createdAt":  "created_at",
-	}, "created_at DESC")
-	query := `SELECT ` + auditLogEntryColumns + ` FROM audit_log` + where + order + params.PaginationClause()
+		"username":   "u.username",
+		"userRole":   "a.user_role",
+		"action":     "a.action",
+		"entityType": "a.entity_type",
+		"entityId":   "a.entity_id",
+		"createdAt":  "a.created_at",
+	}, "a.created_at DESC")
+	query := `SELECT ` + auditLogSelectColumns + auditLogFromJoin + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err

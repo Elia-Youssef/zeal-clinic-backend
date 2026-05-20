@@ -9,6 +9,7 @@ import (
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/pdf"
 	syncpkg "clinic-api/internal/sync"
+	"clinic-api/internal/tracking"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -21,11 +22,22 @@ func CreateServer() *echo.Echo {
 		Format: "${time_rfc3339} | ${status} | ${latency_human} | ${method} ${uri}\n",
 	}))
 	e.Use(middleware.Recover())
+	e.Use(tracking.Middleware())
 	e.Use(middleware.CORS())
 	e.Use(syncpkg.Middleware())
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set("X-Robots-Tag", "noindex, nofollow")
+			return next(c)
+		}
+	})
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
+
+	e.GET("/robots.txt", func(c echo.Context) error {
+		return c.String(http.StatusOK, "User-agent: *\nDisallow: /\n")
 	})
 
 	authGroup := e.Group("/api")

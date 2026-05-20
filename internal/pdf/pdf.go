@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
+
+	"clinic-api/internal/config"
 
 	"github.com/johnfercher/maroto/v2/pkg/components/text"
 	"github.com/johnfercher/maroto/v2/pkg/consts/border"
@@ -11,18 +15,64 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/props"
 )
 
-func TmpDir() string {
-	base := "."
-	if exe, err := os.Executable(); err == nil {
-		base = filepath.Dir(exe)
+// tmpFiles tracks each generated PDF's path and creation time so the monitor
+// can delete it once it ages out of the cache.
+var tmpFiles = struct {
+	sync.Mutex
+	m map[string]time.Time
+}{m: map[string]time.Time{}}
+
+// TmpFiles returns a snapshot of tracked PDF paths and their creation times.
+func TmpFiles() map[string]time.Time {
+	tmpFiles.Lock()
+	defer tmpFiles.Unlock()
+	out := make(map[string]time.Time, len(tmpFiles.m))
+	for p, t := range tmpFiles.m {
+		out[p] = t
 	}
-	dir := filepath.Join(base, "tmp")
+	return out
+}
+
+// ForgetTmp drops a path from the tracking map; call after deleting the file.
+func ForgetTmp(path string) {
+	tmpFiles.Lock()
+	delete(tmpFiles.m, path)
+	tmpFiles.Unlock()
+}
+
+// TmpDir returns the PDF cache directory: a tmp/ subfolder next to the
+// database file.
+func TmpDir() string {
+	dir := filepath.Join(config.DataDir(), "tmp")
 	_ = os.MkdirAll(dir, 0755)
 	return dir
 }
 
 func tmpPath(name string) string {
-	return filepath.Join(TmpDir(), fmt.Sprintf("%s.pdf", name))
+	return filepath.Join(TmpDir(), fmt.Sprintf("%s-%d.pdf", name, time.Now().UnixNano()))
+}
+
+func save(m core.Maroto, name string) (string, error) {
+	doc, err := m.Generate()
+	if err != nil {
+		return "", err
+	}
+	path := tmpPath(name)
+	if err := doc.Save(path); err != nil {
+		return "", err
+	}
+	tmpFiles.Lock()
+	tmpFiles.m[path] = time.Now()
+	tmpFiles.Unlock()
+	return path, nil
+}
+
+func cellCol(size int, value string, p props.Text, bt border.Type) core.Col {
+	col := text.NewCol(size, value, p)
+	if bt != border.None {
+		col.WithStyle(&props.Cell{BorderType: bt, BorderThickness: 0.12})
+	}
+	return col
 }
 
 func money(v float64) string {
@@ -107,25 +157,4 @@ func numberToWords(n int64) string {
 		}
 	}
 	return conv(n)
-}
-
-func newCol(size int, value string, p props.Text, borders ...bool) core.Col {
-	borderStyle := &props.Cell{BorderType: border.None, BorderThickness: 0.1}
-	col := text.NewCol(size, value, p)
-	for i, b := range borders {
-		if b {
-			switch i {
-			case 0:
-				borderStyle.BorderType |= border.Top
-			case 1:
-				borderStyle.BorderType |= border.Right
-			case 2:
-				borderStyle.BorderType |= border.Bottom
-			case 3:
-				borderStyle.BorderType |= border.Left
-			}
-			col.WithStyle(borderStyle)
-		}
-	}
-	return col
 }

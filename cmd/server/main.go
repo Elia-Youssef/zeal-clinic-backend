@@ -16,6 +16,9 @@ import (
 	"clinic-api/internal/monitor"
 	syncpkg "clinic-api/internal/sync"
 	"clinic-api/internal/systray"
+	"clinic-api/internal/tracking"
+
+	"github.com/getsentry/sentry-go"
 )
 
 type appOptions struct {
@@ -39,6 +42,13 @@ func main() {
 	opts := parseOptions()
 	cfg := config.Load()
 
+	tracking.Init(cfg.SentryDSN, buildmode.Version, environmentName(opts))
+	defer tracking.Flush(2 * time.Second)
+	defer tracking.Info(nil, "[main] Server shutting down")
+	defer tracking.Recover()
+
+	tracking.CaptureMessage(nil, sentry.LevelDebug, "[main] Server starting")
+
 	if !buildmode.Cloud && !opts.seedOnly && alreadyRunning() {
 		handoffToRunningInstance(opts, cfg)
 		return
@@ -50,7 +60,7 @@ func main() {
 
 	db, err := database.Open("")
 	if err != nil {
-		log.Fatal("Failed to open database:", err)
+		tracking.Fatal("Failed to open database", err)
 	}
 	defer db.Close()
 
@@ -79,6 +89,17 @@ func main() {
 	}
 
 	runServer(cfg, opts)
+}
+
+func environmentName(opts appOptions) string {
+	switch {
+	case buildmode.Cloud:
+		return "cloud"
+	case opts.dev:
+		return "dev"
+	default:
+		return "local"
+	}
 }
 
 func parseOptions() appOptions {
@@ -113,7 +134,7 @@ func handoffToRunningInstance(opts appOptions, cfg *config.Config) {
 func runSeed(db *sql.DB, opts appOptions) {
 	if opts.demo {
 		if err := database.SeedDemo(db); err != nil {
-			log.Fatal("Failed to seed demo data:", err)
+			tracking.Fatal("Failed to seed demo data", err)
 		}
 	}
 	log.Println("--seed-only complete; exiting")
@@ -138,6 +159,7 @@ func startMonitor() *monitor.Monitor {
 		monitor.Action{Name: "expire-prescription-medicines", Fn: monitor.ExpirePrescriptionMedicines},
 		monitor.Action{Name: "appointment-reminders", Fn: monitor.SendAppointmentReminders},
 		monitor.Action{Name: "low-stock-alerts", Fn: monitor.SendLowStockAlerts},
+		monitor.Action{Name: "cleanup-pdf-cache", Fn: monitor.CleanupPDFCache},
 	)
 	mon.Start()
 	return mon

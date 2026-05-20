@@ -4,6 +4,7 @@ go 1.26.1
 
 require (
 	github.com/getlantern/systray v1.2.2
+	github.com/getsentry/sentry-go v0.46.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/johnfercher/maroto/v2 v2.4.0
@@ -30,6 +31,7 @@ require (
 	github.com/hhrutter/pkcs7 v0.2.0 // indirect
 	github.com/hhrutter/tiff v1.0.2 // indirect
 	github.com/johnfercher/go-tree v1.1.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect

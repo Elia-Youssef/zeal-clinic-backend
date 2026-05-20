@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"clinic-api/internal/buildmode"
+	"clinic-api/internal/tracking"
 
 	"github.com/google/uuid"
 )
@@ -104,8 +105,24 @@ func Apply(db *sql.DB, batch []LogEntry) (maxApplied int64, conflicts []Conflict
 		return 0, nil, fmt.Errorf("commit: %w", err)
 	}
 
+	reportApplyOutcome(len(batch), conflicts)
 	invalidateCachesFor(changedTables)
 	return maxApplied, conflicts, nil
+}
+
+// reportApplyOutcome fires only when an apply produced conflicts. Successful
+// applies happen on every change and would flood Sentry; errors are tracked
+// at the cycle/handler level instead.
+func reportApplyOutcome(total int, conflicts []ConflictEntry) {
+	if len(conflicts) == 0 {
+		return
+	}
+	side := "local"
+	if buildmode.Cloud {
+		side = "cloud"
+	}
+	applied := total - len(conflicts)
+	tracking.Warn(nil, fmt.Sprintf("[sync] %s applied %d rows with %d conflicts", side, applied, len(conflicts)))
 }
 
 // invalidateCachesFor clears cache buckets affected by applied sync rows.

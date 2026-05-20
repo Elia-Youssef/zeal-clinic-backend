@@ -23,17 +23,26 @@ func (h *peerHub) subscribe() chan struct{} {
 	ch := make(chan struct{}, 1)
 	h.mu.Lock()
 	h.chs[ch] = struct{}{}
+	first := len(h.chs) == 1
 	h.mu.Unlock()
+	if first {
+		setCloudConnected(true)
+	}
 	return ch
 }
 
 func (h *peerHub) unsubscribe(ch chan struct{}) {
 	h.mu.Lock()
+	last := false
 	if _, ok := h.chs[ch]; ok {
 		delete(h.chs, ch)
 		close(ch)
+		last = len(h.chs) == 0
 	}
 	h.mu.Unlock()
+	if last {
+		setCloudConnected(false)
+	}
 }
 
 func (h *peerHub) broadcast() {

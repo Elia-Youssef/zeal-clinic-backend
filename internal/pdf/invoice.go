@@ -36,15 +36,9 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 	if inv == nil || inv.ID == "" {
 		return "", fmt.Errorf("invoice is empty")
 	}
-	curLabel := invoiceCurrency(inv.CurrencyID)
-
 	var patient store.Patient
 	if inv.ToEntityID != "" {
 		_ = patient.GetByID(inv.ToEntityID)
-	}
-	patientID := patient.ID
-	if patientID == "" {
-		patientID = inv.ToEntityID
 	}
 	patientName := patientDisplayName(patient, inv.ToEntityName)
 	patientAddress := joinNonEmpty(", ", patient.Country.Name, patient.City.Name, patient.Address)
@@ -79,7 +73,7 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 	}
 	rightRows := []invoiceInfoRow{
 		{"Invoice #", fmt.Sprintf("%08d", inv.InvoiceNumber)},
-		{"Currency", curLabel},
+		{"Currency", "USD"},
 		{"Date", dateStr},
 	}
 
@@ -133,7 +127,7 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 		)
 	}
 
-	words := curLabel + " " + numberToWords(int64(inv.FinalAmount)) + " Only."
+	words := "USD " + numberToWords(int64(inv.FinalAmount)) + " Only."
 
 	m.AddRow(8,
 		text.NewCol(17, words, props.Text{Size: 8.5, Top: 1}),
@@ -158,10 +152,6 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 type invoiceInfoRow struct {
 	Label string
 	Value string
-}
-
-func invoiceCurrency(currencyID string) string {
-	return "USD"
 }
 
 func addInvoiceInfoRow(m core.Maroto, row, last int, left, right invoiceInfoRow, labelTxt, valueTxt props.Text) {
@@ -200,28 +190,12 @@ func addInvoiceInfoRow(m core.Maroto, row, last int, left, right invoiceInfoRow,
 	)
 }
 
-func cellCol(size int, value string, p props.Text, bt border.Type) core.Col {
-	col := text.NewCol(size, value, p)
-	if bt != border.None {
-		col.WithStyle(&props.Cell{BorderType: bt, BorderThickness: 0.12})
-	}
-	return col
-}
-
 func patientDisplayName(patient store.Patient, fallback string) string {
 	name := strings.Join(compactNonEmpty(patient.FirstName, patient.MiddleName, patient.LastName), " ")
 	if name != "" {
 		return name
 	}
 	return fallback
-}
-
-func invoicePartyCode(id string) string {
-	compact := strings.ToUpper(strings.ReplaceAll(id, "-", ""))
-	if len(compact) > 10 {
-		return compact[:10]
-	}
-	return compact
 }
 
 func invoiceItemCode(it store.InvoiceItem) string {
@@ -269,16 +243,4 @@ func compactNonEmpty(parts ...string) []string {
 		}
 	}
 	return out
-}
-
-func save(m core.Maroto, name string) (string, error) {
-	doc, err := m.Generate()
-	if err != nil {
-		return "", err
-	}
-	path := tmpPath(name)
-	if err := doc.Save(path); err != nil {
-		return "", err
-	}
-	return path, nil
 }

@@ -86,7 +86,7 @@ func (r *RoomList) GetAll(params ListParams) (int, error) {
 		"type":        "type",
 		"isAvailable": "is_available",
 		"createdAt":   "created_at",
-	}, "id")
+	}, "name")
 	query := `SELECT ` + roomColumns + ` FROM rooms` + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {

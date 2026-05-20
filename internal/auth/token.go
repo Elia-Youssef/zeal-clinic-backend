@@ -8,6 +8,7 @@ import (
 	"clinic-api/internal/database/store"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type TokenResult struct {
@@ -29,6 +30,9 @@ func GenerateToken(user store.User, scopes []string) (TokenResult, error) {
 		"exp":  expiresAt.Unix(),
 		"iat":  now.Unix(),
 		"iss":  "clinic-api",
+		// jti makes each token unique even when iat/exp resolve to the same
+		// second (otherwise rapid repeat logins collide on tokens.token UNIQUE).
+		"jti": uuid.Must(uuid.NewV7()).String(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

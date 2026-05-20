@@ -45,7 +45,7 @@ func GetRevenueReportPDF(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: err.Error()})
 	}
-	path, err := pdf.GenerateRevenueReport(&report, from, to, currencyID)
+	path, err := pdf.GenerateRevenueReport(&report, from, to)
 	if err != nil {
 		log.Println("Error: GenerateRevenueReport:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to generate pdf"})
@@ -65,7 +65,7 @@ func GetExpensesReportPDF(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: err.Error()})
 	}
-	path, err := pdf.GenerateExpensesReport(rows, from, to, currencyID)
+	path, err := pdf.GenerateExpensesReport(rows, from, to)
 	if err != nil {
 		log.Println("Error: GenerateExpensesReport:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to generate pdf"})

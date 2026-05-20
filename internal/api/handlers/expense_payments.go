@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/tracking"
 	"clinic-api/internal/validation"
 	"log"
 	"net/http"
@@ -34,6 +35,7 @@ func CreateExpensePayment(c echo.Context) error {
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
+		tracking.Warn(c, "[CreateExpensePayment] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
@@ -48,6 +50,7 @@ func CreateExpensePayment(c echo.Context) error {
 		errs["amount"] = msg
 	}
 	if len(errs) > 0 {
+		tracking.Warn(c, "[CreateExpensePayment] validation failed")
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
@@ -124,6 +127,7 @@ func CreateExpenseAdjustment(c echo.Context) error {
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
+		tracking.Warn(c, "[CreateExpenseAdjustment] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
@@ -144,6 +148,7 @@ func CreateExpenseAdjustment(c echo.Context) error {
 		errs["direction"] = msg
 	}
 	if len(errs) > 0 {
+		tracking.Warn(c, "[CreateExpenseAdjustment] validation failed")
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 
@@ -168,6 +173,7 @@ func CreateExpenseWriteOff(c echo.Context) error {
 		Description string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
+		tracking.Warn(c, "[CreateExpenseWriteOff] bind failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 
@@ -188,6 +194,7 @@ func CreateExpenseWriteOff(c echo.Context) error {
 		errs["direction"] = msg
 	}
 	if len(errs) > 0 {
+		tracking.Warn(c, "[CreateExpenseWriteOff] validation failed")
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
 	}
 

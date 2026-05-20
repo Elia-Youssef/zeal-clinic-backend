@@ -21,7 +21,7 @@ func upSeedProcedureTypes(ctx context.Context, tx *sql.Tx) error {
 	for _, t := range types {
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO procedure_types (id, name, description, created_at)
-			 SELECT ?, ?, ?, datetime('now')
+			 SELECT ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
 			 WHERE NOT EXISTS (SELECT 1 FROM procedure_types WHERE name = ?)`,
 			t.id, t.name, t.desc, t.name,
 		); err != nil {

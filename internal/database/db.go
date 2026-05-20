@@ -3,6 +3,7 @@ package database
 import (
 	"clinic-api/internal/config"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/tracking"
 	"database/sql"
 	"fmt"
 	"log"
@@ -68,12 +69,7 @@ func buildDSN(dbPath, hexKey string) string {
 
 // defaultDBPath uses ProgramData when installed, otherwise ./tmp/clinic.db.
 func defaultDBPath() string {
-	if dir := config.SharedDataDir(); dir != "" {
-		if info, err := os.Stat(dir); err == nil && info.IsDir() {
-			return filepath.Join(dir, "clinic.db")
-		}
-	}
-	return "./tmp/clinic.db"
+	return filepath.Join(config.DataDir(), "clinic.db")
 }
 
 func resolveSQLitePath(rawPath string) string {
@@ -86,12 +82,12 @@ func resolveSQLitePath(rawPath string) string {
 
 	absPath, err := filepath.Abs(trimmed)
 	if err != nil {
-		log.Fatal(err.Error())
+		tracking.Fatal("resolve sqlite path", err)
 	}
 
 	parentDir := filepath.Dir(absPath)
 	if err := os.MkdirAll(parentDir, 0o755); err != nil {
-		log.Fatal(err.Error())
+		tracking.Fatal("create sqlite parent dir", err)
 	}
 
 	return absPath

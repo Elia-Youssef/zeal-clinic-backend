@@ -49,7 +49,7 @@ func (sa *ScheduleAvailability) IsValid() error {
 
 func (sa *ScheduleAvailability) normalizeDates() {
 	if sa.StartDate.IsZero() {
-		sa.StartDate = DateToday()
+		sa.StartDate = ClinicToday()
 	}
 }
 

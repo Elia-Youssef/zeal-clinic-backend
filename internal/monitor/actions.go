@@ -3,20 +3,43 @@ package monitor
 import (
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"clinic-api/internal/api/middleware"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/pdf"
 	"clinic-api/internal/realtime"
 )
 
-// ExpireDiscounts deactivates discounts whose end_date has passed.
+const pdfTTL = 15 * time.Minute
+
+func CleanupPDFCache() error {
+	deleted := 0
+	for path, created := range pdf.TmpFiles() {
+		if time.Since(created) < pdfTTL {
+			continue
+		}
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			log.Printf("monitor: failed to delete pdf %q: %v", path, err)
+			continue
+		}
+		pdf.ForgetTmp(path)
+		deleted++
+	}
+	if deleted > 0 {
+		log.Printf("monitor: deleted %d cached pdf(s)", deleted)
+	}
+	return nil
+}
+
 func ExpireDiscounts() error {
 	res, err := store.DB.Exec(`UPDATE discounts
 		SET is_active = 0, updated_at = ?
 		WHERE is_active = 1
 		  AND end_date IS NOT NULL
 		  AND end_date != ''
-		  AND end_date < DATE('now')`, store.DateNow())
+		  AND end_date < ?`, store.DateNow(), store.ClinicToday())
 	if err != nil {
 		return err
 	}
@@ -29,15 +52,15 @@ func ExpireDiscounts() error {
 }
 
 // ExpirePrescriptionMedicines completes active prescription medicines whose
-// parent prescription end_date has passed.
+// parent prescription end_date has passed in the clinic's local calendar.
 func ExpirePrescriptionMedicines() error {
 	res, err := store.DB.Exec(`UPDATE prescription_medicines
 		SET status = 'completed'
 		WHERE status = 'active'
 		  AND prescription_id IN (
 		    SELECT id FROM prescriptions
-		    WHERE end_date != '' AND end_date < DATE('now')
-		  )`)
+		    WHERE end_date != '' AND end_date < ?
+		  )`, store.ClinicToday())
 	if err != nil {
 		return err
 	}
@@ -56,7 +79,8 @@ func SendAppointmentReminders() error {
 		FROM appointments a
 		LEFT JOIN patients p ON p.id = a.patient_id
 		WHERE a.status = 'Scheduled'
-		  AND datetime(a.start_time) BETWEEN datetime('now') AND datetime('now', '+30 minutes')`)
+		  AND a.start_time >= strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+		  AND a.start_time <  strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '+30 minutes')`)
 	if err != nil {
 		return err
 	}

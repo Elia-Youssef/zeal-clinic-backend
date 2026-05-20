@@ -229,7 +229,7 @@ func upSeedProcedures(ctx context.Context, tx *sql.Tx) error {
 			procID = s.id
 			if _, err := tx.ExecContext(ctx,
 				`INSERT INTO procedures (id, name, type_id, category_id, price_note, is_active, remarks, includes, created_at, updated_at)
-				 VALUES (?, ?, ?, ?, ?, 1, ?, ?, datetime('now'), datetime('now'))`,
+				 VALUES (?, ?, ?, ?, ?, 1, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
 				procID, s.name, typeID, categoryID, s.priceNote, s.remarks, s.includes,
 			); err != nil {
 				return err
@@ -243,7 +243,7 @@ func upSeedProcedures(ctx context.Context, tx *sql.Tx) error {
 		if err == sql.ErrNoRows {
 			if _, err := tx.ExecContext(ctx,
 				`INSERT INTO procedure_prices (id, procedure_id, price, is_active, created_at)
-				 VALUES (?, ?, ?, 1, datetime('now'))`,
+				 VALUES (?, ?, ?, 1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
 				s.priceID, procID, s.price,
 			); err != nil {
 				return err

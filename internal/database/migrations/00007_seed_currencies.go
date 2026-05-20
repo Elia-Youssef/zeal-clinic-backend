@@ -16,7 +16,7 @@ const seedUSDCurrencyID = "c3de6dbc-7598-4878-98fc-c91186ab596f"
 func upSeedCurrencies(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx,
 		`INSERT OR IGNORE INTO currencies (id, code, name, symbol, exchange_rate, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+		 VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
 		seedUSDCurrencyID, "USD", "US Dollar", "$", 1.0,
 	)
 	return err

@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
     display_name  TEXT NOT NULL DEFAULT '',
     role          TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('super-admin','admin','user')),
     is_active     INTEGER NOT NULL DEFAULT 1,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -27,20 +27,21 @@ CREATE TABLE IF NOT EXISTS tokens (
     token      TEXT NOT NULL UNIQUE,
     user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (
     id          TEXT PRIMARY KEY,
-    user_name   TEXT NOT NULL DEFAULT '',
+    user_id     TEXT NOT NULL DEFAULT '',
     user_role   TEXT NOT NULL DEFAULT '',
     action      TEXT NOT NULL CHECK(action IN ('create','update','delete')),
     entity_type TEXT NOT NULL,
     entity_id   TEXT NOT NULL,
     details     TEXT NOT NULL DEFAULT '',
     ip_address  TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
+CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
 
 -- ============================================================
 -- ROOMS
@@ -51,7 +52,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     name         TEXT NOT NULL,
     type         TEXT NOT NULL CHECK(type IN ('Consultation','Procedure','General','Hospital')),
     is_available INTEGER NOT NULL DEFAULT 1,
-    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -62,7 +63,7 @@ CREATE TABLE IF NOT EXISTS allergies (
     id          TEXT PRIMARY KEY,
     name        TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -73,7 +74,7 @@ CREATE TABLE IF NOT EXISTS procedure_types (
     id          TEXT PRIMARY KEY,
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -85,7 +86,7 @@ CREATE TABLE IF NOT EXISTS procedure_categories (
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     parent_id   TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -101,8 +102,8 @@ CREATE TABLE IF NOT EXISTS procedures (
     is_active       INTEGER NOT NULL DEFAULT 1,
     remarks         TEXT NOT NULL DEFAULT '',
     includes        TEXT NOT NULL DEFAULT '[]',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS procedure_prices (
@@ -110,7 +111,7 @@ CREATE TABLE IF NOT EXISTS procedure_prices (
     procedure_id TEXT NOT NULL REFERENCES procedures(id) ON DELETE CASCADE,
     price        REAL NOT NULL DEFAULT 0,
     is_active    INTEGER NOT NULL DEFAULT 1,
-    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_procedure_prices_procedure ON procedure_prices(procedure_id, is_active);
 
@@ -119,7 +120,7 @@ CREATE TABLE IF NOT EXISTS procedure_allergy_conflicts (
     procedure_id TEXT NOT NULL REFERENCES procedures(id) ON DELETE CASCADE,
     allergy_id   TEXT NOT NULL REFERENCES allergies(id) ON DELETE CASCADE,
     notes        TEXT NOT NULL DEFAULT '',
-    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(procedure_id, allergy_id)
 );
 
@@ -131,7 +132,7 @@ CREATE TABLE IF NOT EXISTS medicines (
     id          TEXT PRIMARY KEY,
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -158,8 +159,8 @@ CREATE TABLE IF NOT EXISTS patients (
     referral_id             TEXT DEFAULT NULL,
     referral_source         TEXT NOT NULL DEFAULT '',
     notes                   TEXT NOT NULL DEFAULT '',
-    created_at              TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS patient_allergies (
@@ -167,7 +168,7 @@ CREATE TABLE IF NOT EXISTS patient_allergies (
     patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
     allergy_id TEXT NOT NULL REFERENCES allergies(id) ON DELETE CASCADE,
     notes      TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(patient_id, allergy_id)
 );
 
@@ -177,7 +178,7 @@ CREATE TABLE IF NOT EXISTS patient_medicines (
     medicine_id TEXT NOT NULL REFERENCES medicines(id) ON DELETE CASCADE,
     is_active   INTEGER NOT NULL DEFAULT 1,
     notes       TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(patient_id, medicine_id)
 );
 
@@ -191,8 +192,8 @@ CREATE TABLE IF NOT EXISTS appointment_procedures (
     procedure_id            TEXT NOT NULL REFERENCES procedures(id),
     appointment_id          TEXT NOT NULL REFERENCES appointments(id),
     notes                   TEXT NOT NULL DEFAULT '',
-    created_at              TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -209,8 +210,8 @@ CREATE TABLE IF NOT EXISTS employees (
     email           TEXT NOT NULL DEFAULT '',
     date_of_birth   TEXT NOT NULL DEFAULT '',
     employment_type TEXT NOT NULL CHECK(employment_type IN ('Full-time','Part-time')),
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS employee_salaries (
@@ -221,8 +222,8 @@ CREATE TABLE IF NOT EXISTS employee_salaries (
     is_active     INTEGER NOT NULL DEFAULT 1,
     effective_date TEXT NOT NULL DEFAULT '',
     notes         TEXT NOT NULL DEFAULT '',
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS employee_salary_preparations (
@@ -238,7 +239,7 @@ CREATE TABLE IF NOT EXISTS employee_salary_preparations (
     prepared_amount REAL NOT NULL DEFAULT 0,
     notes           TEXT NOT NULL DEFAULT '',
     created_by      TEXT NOT NULL DEFAULT '',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(employee_id, period_start, period_end)
 );
 
@@ -257,13 +258,17 @@ CREATE TABLE IF NOT EXISTS appointments (
     room_id                      TEXT NOT NULL REFERENCES rooms(id),
     start_time                   TEXT NOT NULL,
     end_time                     TEXT NOT NULL,
-    status                       TEXT NOT NULL CHECK(status IN ('Scheduled','In-Progress','Completed','Cancelled')),
+    status                       TEXT NOT NULL CHECK(status IN ('Scheduled','In-Progress','Completed','Cancelled','Rescheduled')),
     notes                        TEXT NOT NULL DEFAULT '',
     cancel_notes                 TEXT NOT NULL DEFAULT '',
     completion_notes             TEXT NOT NULL DEFAULT '',
-    created_at                   TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at                   TEXT NOT NULL DEFAULT (datetime('now'))
+    rescheduled_from             TEXT REFERENCES appointments(id),
+    created_at                   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at                   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_appointments_rescheduled_from
+    ON appointments(rescheduled_from) WHERE rescheduled_from IS NOT NULL;
 
 -- ============================================================
 -- SCHEDULE AVAILABILITY
@@ -278,8 +283,8 @@ CREATE TABLE IF NOT EXISTS schedule_availability (
     start_date     TEXT NOT NULL DEFAULT '',
     end_date       TEXT NOT NULL DEFAULT '',
     is_active      INTEGER NOT NULL DEFAULT 1,
-    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_schedule_availability_employee_day_start
@@ -294,8 +299,8 @@ CREATE TABLE IF NOT EXISTS holidays (
     end_date   TEXT NOT NULL,
     notes      TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_holidays_range ON holidays(start_date, end_date);
@@ -309,8 +314,8 @@ CREATE TABLE IF NOT EXISTS employee_vacations (
     end_time    TEXT NOT NULL DEFAULT '',
     status      TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','rejected')),
     notes       TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_employee_vacations_employee_range
@@ -328,8 +333,8 @@ CREATE TABLE IF NOT EXISTS prescriptions (
     prescribed_by_id  TEXT NOT NULL DEFAULT '' REFERENCES employees(id),
     start_date        TEXT NOT NULL,
     end_date          TEXT NOT NULL DEFAULT '',
-    created_at        TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS prescription_medicines (
@@ -338,7 +343,7 @@ CREATE TABLE IF NOT EXISTS prescription_medicines (
     prescription_id TEXT NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
     instructions    TEXT NOT NULL DEFAULT '',
     status          TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','completed','cancelled')),
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -350,7 +355,7 @@ CREATE TABLE IF NOT EXISTS product_categories (
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     parent_id   TEXT NOT NULL DEFAULT '',
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -359,7 +364,7 @@ CREATE TABLE IF NOT EXISTS products (
     category_id   TEXT NOT NULL DEFAULT '',
     quantity      INTEGER NOT NULL DEFAULT 0,
     min_threshold INTEGER NOT NULL DEFAULT 0,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS product_prices (
@@ -367,7 +372,7 @@ CREATE TABLE IF NOT EXISTS product_prices (
     product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     price      REAL NOT NULL DEFAULT 0,
     is_active  INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_product_prices_product ON product_prices(product_id, is_active);
 
@@ -376,7 +381,7 @@ CREATE TABLE IF NOT EXISTS product_allergy_conflicts (
     product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     allergy_id TEXT NOT NULL REFERENCES allergies(id) ON DELETE CASCADE,
     notes      TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(product_id, allergy_id)
 );
 
@@ -391,8 +396,8 @@ CREATE TABLE IF NOT EXISTS suppliers (
     email      TEXT NOT NULL DEFAULT '',
     address    TEXT NOT NULL DEFAULT '',
     notes      TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -403,8 +408,8 @@ CREATE TABLE IF NOT EXISTS expenses (
     id         TEXT PRIMARY KEY,
     name       TEXT NOT NULL,
     notes      TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -420,8 +425,8 @@ CREATE TABLE IF NOT EXISTS balances (
     amount      REAL NOT NULL DEFAULT 0,
     total_in    REAL NOT NULL DEFAULT 0,
     total_out   REAL NOT NULL DEFAULT 0,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(entity_type, entity_id, currency_id)
 );
 
@@ -437,7 +442,7 @@ CREATE TABLE IF NOT EXISTS balance_transactions (
     source_id           TEXT NOT NULL DEFAULT '',
     description         TEXT NOT NULL DEFAULT '',
     created_by          TEXT NOT NULL DEFAULT '',
-    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     voided_at           TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_balance_transactions_source ON balance_transactions(source_type, source_id);
@@ -455,8 +460,8 @@ CREATE TABLE IF NOT EXISTS invoices (
     currency_id     TEXT NOT NULL DEFAULT '',
     notes           TEXT NOT NULL DEFAULT '',
     created_by      TEXT NOT NULL DEFAULT '',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS invoice_items (
@@ -468,7 +473,7 @@ CREATE TABLE IF NOT EXISTS invoice_items (
     amount       REAL NOT NULL DEFAULT 0,
     final_amount REAL NOT NULL DEFAULT 0,
     notes        TEXT NOT NULL DEFAULT '',
-    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -481,8 +486,8 @@ CREATE TABLE IF NOT EXISTS currencies (
     name          TEXT NOT NULL,
     symbol        TEXT NOT NULL DEFAULT '',
     exchange_rate REAL NOT NULL DEFAULT 1.0,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -496,7 +501,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     description TEXT NOT NULL DEFAULT '',
     action      TEXT NOT NULL DEFAULT '',
     is_read     INTEGER NOT NULL DEFAULT 0,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -542,8 +547,8 @@ CREATE TABLE IF NOT EXISTS discounts (
     start_date      TEXT DEFAULT NULL,
     end_date        TEXT DEFAULT NULL,
     is_active       INTEGER NOT NULL DEFAULT 1,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- ============================================================
@@ -563,7 +568,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
     table_name TEXT NOT NULL,
     row_id     TEXT NOT NULL,
     op         TEXT NOT NULL CHECK(op IN ('insert','update','delete')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_sync_log_table_row ON sync_log(table_name, row_id);
 
@@ -574,7 +579,7 @@ CREATE TABLE IF NOT EXISTS sync_state (
     peer             TEXT PRIMARY KEY,
     last_pushed_seq  INTEGER NOT NULL DEFAULT 0,
     last_pulled_seq  INTEGER NOT NULL DEFAULT 0,
-    updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 -- sync_conflicts logs rows where local won over a conflicting remote write,
@@ -588,7 +593,7 @@ CREATE TABLE IF NOT EXISTS sync_conflicts (
     local_json   TEXT NOT NULL DEFAULT '',
     remote_json  TEXT NOT NULL DEFAULT '',
     resolution   TEXT NOT NULL DEFAULT 'local_wins',
-    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_sync_conflicts_created_at ON sync_conflicts(created_at);
 

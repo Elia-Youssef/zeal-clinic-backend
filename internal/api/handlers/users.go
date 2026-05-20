@@ -72,6 +72,7 @@ func UpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
 	delete(updates, "id")
+	delete(updates, "username")
 
 	// Handle password change separately
 	var passwordHash string
@@ -106,5 +107,30 @@ func UpdateUser(c echo.Context) error {
 		realtime.SendTo(user.ID, realtime.Event{Type: "scopes_changed"})
 	}
 
+	if active, ok := updates["isActive"].(bool); ok && !active {
+		realtime.SendTo(user.ID, realtime.Event{Type: "account_disabled"})
+		if err := (&store.Token{}).DeleteByUser(user.ID); err != nil {
+			log.Println("Error: [UpdateUser] failed to revoke tokens:", err)
+		}
+	}
+
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: user})
+}
+
+func GetUserActions(c echo.Context) error {
+	var user store.User
+	if err := user.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "user not found"})
+	} else if err != nil {
+		log.Println("Error: [GetUserActions] failed to load user:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch actions"})
+	}
+	params := parseListParams(c)
+	entries := store.AuditLogEntryList{}
+	total, err := entries.GetByUserID(user.ID, params)
+	if err != nil {
+		log.Println("Error: [GetUserActions] failed to fetch actions:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch actions"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: entries, Total: total}})
 }

@@ -46,10 +46,13 @@ type demoCtx struct {
 	employeeBal map[string]string // employee id -> balance id
 	patientBal  map[string]string // patient id -> balance id
 	supplierBal map[string]string // supplier id -> balance id
+	expenseBal  map[string]string // expense id -> balance id
 
 	doctorIDs   []string
 	patientIDs  []string
 	employeeIDs []string
+	supplierIDs []string
+	expenseIDs  []string
 }
 
 func newDemoCtx(ctx context.Context, tx *sql.Tx) (*demoCtx, error) {
@@ -66,6 +69,7 @@ func newDemoCtx(ctx context.Context, tx *sql.Tx) (*demoCtx, error) {
 		employeeBal: map[string]string{},
 		patientBal:  map[string]string{},
 		supplierBal: map[string]string{},
+		expenseBal:  map[string]string{},
 	}
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM currencies WHERE code = 'USD'`).Scan(&c.currencyID); err != nil {
 		return nil, err
@@ -126,10 +130,14 @@ func createBalance(ctx context.Context, tx *sql.Tx, c *demoCtx, entityType, enti
 // affected cached balance fields. Charges and adjustments don't bump
 // total_in/total_out, which track money actually exchanged.
 func recordTransaction(ctx context.Context, tx *sql.Tx, c *demoCtx, fromID, toID string, amount float64, txType, method, desc, at string) error {
+	return recordTransactionSource(ctx, tx, c, fromID, toID, amount, txType, method, "", "", desc, at)
+}
+
+func recordTransactionSource(ctx context.Context, tx *sql.Tx, c *demoCtx, fromID, toID string, amount float64, txType, method, sourceType, sourceID, desc, at string) error {
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO balance_transactions (id, from_balance_id, to_balance_id, amount, currency_id, transaction_type, transaction_method, description, created_by, created_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		newID(), fromID, toID, amount, c.currencyID, txType, method, desc, c.adminUserID, at,
+		`INSERT INTO balance_transactions (id, from_balance_id, to_balance_id, amount, currency_id, transaction_type, transaction_method, source_type, source_id, description, created_by, created_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		newID(), fromID, toID, amount, c.currencyID, txType, method, sourceType, sourceID, desc, c.adminUserID, at,
 	); err != nil {
 		return err
 	}

@@ -16,6 +16,8 @@ type Product struct {
 	MinThreshold int     `json:"minThreshold"`
 	UnitPrice    float64 `json:"unitPrice"`
 	CreatedAt    Date    `json:"createdAt"`
+	// Nested
+	Category *ProductCategory `json:"category,omitempty"`
 }
 
 func (p *Product) IsValid() error {
@@ -64,6 +66,15 @@ func (l *ProductList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
+func (p *Product) loadRelations() {
+	if p.CategoryID != "" {
+		var cat ProductCategory
+		if err := cat.GetByID(p.CategoryID); err == nil {
+			p.Category = &cat
+		}
+	}
+}
+
 func (p *ProductList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []any
@@ -90,10 +101,18 @@ func (p *ProductList) GetAll(params ListParams) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
 
 	if err := p.ScanRows(rows); err != nil {
+		rows.Close()
 		return 0, err
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	for i := range *p {
+		(*p)[i].loadRelations()
 	}
 	return total, nil
 }
@@ -123,7 +142,12 @@ func GetProductDropdown(params ListParams) ([]DropdownItem, error) {
 }
 
 func (p *Product) GetByID(id string) error {
-	return p.ScanRow(RDB.QueryRow(productSelect+` WHERE p.id = ?`, id))
+	err := p.ScanRow(RDB.QueryRow(productSelect+` WHERE p.id = ?`, id))
+	if err != nil {
+		return err
+	}
+	p.loadRelations()
+	return nil
 }
 
 func (p *Product) Create() error {

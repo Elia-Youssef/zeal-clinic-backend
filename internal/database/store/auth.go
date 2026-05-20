@@ -68,7 +68,12 @@ func (t *Token) Delete() error {
 	return err
 }
 
+func (t *Token) DeleteByUser(userID string) error {
+	_, err := DB.Exec(`DELETE FROM tokens WHERE user_id = ?`, userID)
+	return err
+}
+
 func (t *Token) DeleteExpired() error {
-	_, err := DB.Exec(`DELETE FROM tokens WHERE expires_at < datetime('now')`)
+	_, err := DB.Exec(`DELETE FROM tokens WHERE expires_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`)
 	return err
 }

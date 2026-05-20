@@ -29,7 +29,7 @@ Table roles {
 
 Table audit_log {
   id string [pk]
-  user_name string
+  user_id string [ref: > users.id]
   user_role string
   action string [note: 'create | update | delete']
   entity_type string

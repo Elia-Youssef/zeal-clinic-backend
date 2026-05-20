@@ -44,6 +44,7 @@ directory.
 | `DB_ENCRYPTION_KEY` | required               | Required by config; see drift below |
 | `PEER_URL`          | empty                  | Local server's cloud peer URL       |
 | `SYNC_SECRET`       | empty                  | Enables cloud `/api/sync/*` routes  |
+| `PUBLIC_URL`        | empty                  | Cloud build advertises this in `/server-url` |
 
 DB path:
 

@@ -142,17 +142,36 @@ func (inv *Invoice) Create() error {
 		partyEntityType = toEntityType
 	}
 
-	var nextNum int
-	if err := tx.QueryRow(`SELECT COALESCE(MAX(i.invoice_number), 0) + 1
-		FROM invoices i
-		JOIN balances fb ON fb.id = i.from_balance_id
-		JOIN balances tb ON tb.id = i.to_balance_id
-		WHERE fb.entity_type = ? OR tb.entity_type = ?`, partyEntityType, partyEntityType).Scan(&nextNum); err != nil {
-		return fmt.Errorf("invoice counter: %w", err)
+	// If the caller provided a specific invoice_number, honor it (after
+	// checking uniqueness within the same party scope). Otherwise pick the
+	// next sequential number. A caller-supplied number that's higher than
+	// the current max effectively bumps the sequence: future auto-assigned
+	// numbers will continue from there.
+	if inv.InvoiceNumber > 0 {
+		var dup int
+		if err := tx.QueryRow(`SELECT COUNT(*)
+			FROM invoices i
+			JOIN balances fb ON fb.id = i.from_balance_id
+			JOIN balances tb ON tb.id = i.to_balance_id
+			WHERE i.invoice_number = ?
+			AND (fb.entity_type = ? OR tb.entity_type = ?)`,
+			inv.InvoiceNumber, partyEntityType, partyEntityType).Scan(&dup); err != nil {
+			return fmt.Errorf("check invoice number: %w", err)
+		}
+		if dup > 0 {
+			return fmt.Errorf("%w: invoice number %d already exists", ErrConflict, inv.InvoiceNumber)
+		}
+	} else {
+		if err := tx.QueryRow(`SELECT COALESCE(MAX(i.invoice_number), 0) + 1
+			FROM invoices i
+			JOIN balances fb ON fb.id = i.from_balance_id
+			JOIN balances tb ON tb.id = i.to_balance_id
+			WHERE fb.entity_type = ? OR tb.entity_type = ?`, partyEntityType, partyEntityType).Scan(&inv.InvoiceNumber); err != nil {
+			return fmt.Errorf("invoice counter: %w", err)
+		}
 	}
 
 	inv.ID = uuid.Must(uuid.NewV7()).String()
-	inv.InvoiceNumber = nextNum
 	now := DateNow()
 	inv.CreatedAt = now
 	inv.UpdatedAt = now
@@ -282,7 +301,9 @@ func createGiftFromLine(tx *sql.Tx, item *InvoiceItem, now Date) (*Discount, err
 		return nil, errors.New("gift line must have exactly one of giftPatientId or giftCode")
 	}
 	name := "Gift Card"
-	if item.Notes != "" {
+	if item.GiftName != "" {
+		name = item.GiftName
+	} else if item.Notes != "" {
 		name = item.Notes
 	}
 	gift := &Discount{
