@@ -84,7 +84,7 @@ func TestRequireScope_MissingRequired(t *testing.T) {
 	if code != http.StatusForbidden {
 		t.Errorf("code = %d", code)
 	}
-	if !strings.Contains(body, "missing required scope: payments:write") {
+	if !strings.Contains(body, "missing required scope") {
 		t.Errorf("body = %s", body)
 	}
 }

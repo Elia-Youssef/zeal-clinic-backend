@@ -43,6 +43,7 @@ func upSeedRoles(ctx context.Context, tx *sql.Tx) error {
 		"rooms:read,rooms:write,rooms:delete," +
 		"schedule-availability:write,schedule-availability:delete," +
 		"suppliers:read,suppliers:write,suppliers:delete," +
+		"update:read,update:write," +
 		"users:read,users:write"
 
 	userScopes := "allergies:read,analytics:read," +

@@ -39,12 +39,13 @@ directory.
 | Variable            | Default                | Notes                               |
 | ------------------- | ---------------------- | ----------------------------------- |
 | `PORT`              | `55555`                | API and frontend port               |
-| `JWT_SECRET`        | `dev-only-clinic-jwt-secret-not-for-release` | Change before shipping              |
+| `JWT_SECRET`        | `secret` | Change before shipping              |
 | `JWT_LIFETIME`      | `14h`                  | Invalid values fall back to `14h`   |
-| `DB_ENCRYPTION_KEY` | required               | Required by config; see drift below |
+| `DB_ENCRYPTION_KEY` | required               | Required by config (a hardcoded key is currently used; wiring pending) |
 | `PEER_URL`          | empty                  | Local server's cloud peer URL       |
 | `SYNC_SECRET`       | empty                  | Enables cloud `/api/sync/*` routes  |
-| `PUBLIC_URL`        | empty                  | Cloud build advertises this in `/server-url` |
+| `PUBLIC_URL`        | empty                  | Cloud build advertises this at `/api/server-url` |
+| `SENTRY_DSN`        | empty                  | Error tracking endpoint             |
 
 DB path:
 
@@ -60,6 +61,8 @@ DB path:
 - `internal/sync`: transactional-outbox local/cloud replication
 - `internal/monitor`: periodic jobs
 - `internal/pdf`: invoice and report PDF generation
+- `internal/realtime`: in-memory SSE hub
+- `internal/tracking`: Sentry error tracking
 - `client`: embedded Vite build
 - `build/local`: Windows installer script/assets
 

@@ -43,6 +43,27 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
 
+-- versions: advertised app builds, published on cloud and synced to locals.
+-- One row per platform per release.
+CREATE TABLE IF NOT EXISTS versions (
+    id         TEXT PRIMARY KEY,
+    version    TEXT NOT NULL,
+    platform   TEXT NOT NULL CHECK(platform IN ('windows','linux')),
+    url        TEXT NOT NULL,
+    sha256     TEXT NOT NULL DEFAULT '',
+    notes      TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- app_state: per-machine, single-row, NOT synced. Tracks an in-progress self-update.
+CREATE TABLE IF NOT EXISTS app_state (
+    id             INTEGER PRIMARY KEY CHECK(id = 1),
+    installing     INTEGER NOT NULL DEFAULT 0,
+    target_version TEXT NOT NULL DEFAULT '',
+    updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+INSERT OR IGNORE INTO app_state (id) VALUES (1);
+
 -- ============================================================
 -- ROOMS
 -- ============================================================
@@ -342,7 +363,6 @@ CREATE TABLE IF NOT EXISTS prescription_medicines (
     medicine_id     TEXT NOT NULL REFERENCES medicines(id),
     prescription_id TEXT NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
     instructions    TEXT NOT NULL DEFAULT '',
-    status          TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','completed','cancelled')),
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -613,6 +633,8 @@ INSERT OR IGNORE INTO _sync_applying(rowid, applying) VALUES (1, 0);
 
 -- +goose Down
 -- +goose StatementBegin
+DROP TABLE IF EXISTS app_state;
+DROP TABLE IF EXISTS versions;
 DROP TABLE IF EXISTS sync_conflicts;
 DROP TABLE IF EXISTS sync_state;
 DROP TABLE IF EXISTS sync_log;

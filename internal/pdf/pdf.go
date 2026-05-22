@@ -8,12 +8,22 @@ import (
 	"time"
 
 	"clinic-api/internal/config"
+	"clinic-api/internal/database/store"
 
 	"github.com/johnfercher/maroto/v2/pkg/components/text"
 	"github.com/johnfercher/maroto/v2/pkg/consts/border"
 	"github.com/johnfercher/maroto/v2/pkg/core"
 	"github.com/johnfercher/maroto/v2/pkg/props"
 )
+
+// clinicDate formats a stored UTC timestamp in the clinic's local timezone
+// (Beirut) as DD/MM/YYYY, the form staff read on invoices and reports.
+func clinicDate(d store.Date) string {
+	if t, err := d.Time(); err == nil {
+		return t.In(store.ClinicLocation()).Format("02/01/2006")
+	}
+	return d.DateOnly()
+}
 
 // tmpFiles tracks each generated PDF's path and creation time so the monitor
 // can delete it once it ages out of the cache.
@@ -44,12 +54,12 @@ func ForgetTmp(path string) {
 // database file.
 func TmpDir() string {
 	dir := filepath.Join(config.DataDir(), "tmp")
-	_ = os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0700)
 	return dir
 }
 
 func tmpPath(name string) string {
-	return filepath.Join(TmpDir(), fmt.Sprintf("%s-%d.pdf", name, time.Now().UnixNano()))
+	return filepath.Join(TmpDir(), fmt.Sprintf("%s-%d.pdf", name, time.Now().UnixMilli()))
 }
 
 func save(m core.Maroto, name string) (string, error) {

@@ -76,7 +76,11 @@ Filename: "netsh"; Parameters: "advfirewall firewall delete rule name=""{#AppNam
 Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow protocol=TCP localport={#AppPort} program=""{app}\{#AppExeName}"" description=""{#AppName} backend (HTTP)"""; Flags: runhidden; StatusMsg: "Configuring Windows Firewall..."
 ; Initialise the database (creates %PROGRAMDATA%\Zeal Clinic\clinic.db if absent).
 Filename: "{app}\{#AppExeName}"; Parameters: "--seed-only --no-browser"; Flags: runhidden waituntilterminated; StatusMsg: "Initialising database..."
-; Final-page checkbox: launch the app.
+; Silent self-update path: relaunch the app as the original (non-elevated) user
+; so it drops back to medium integrity. Runs only for /VERYSILENT installs (i.e.
+; the in-app updater), never for an interactive install.
+Filename: "{app}\{#AppExeName}"; Parameters: "--post-update"; Flags: nowait runasoriginaluser; Check: WizardSilent
+; Final-page checkbox: launch the app (interactive installs only).
 Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName} now"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]

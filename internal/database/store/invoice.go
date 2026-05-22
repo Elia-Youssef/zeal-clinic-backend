@@ -248,6 +248,19 @@ func (inv *Invoice) Create() error {
 		if fromEntityType == "self" {
 			delta -= item.Quantity
 		}
+		if delta < 0 {
+			// Don't let an outgoing line drive stock negative. Querying live
+			// quantity inside the tx accounts for earlier lines of the same
+			// product already decremented above.
+			var name string
+			var qty int
+			if err := tx.QueryRow(`SELECT name, quantity FROM products WHERE id = ?`, item.ItemID).Scan(&name, &qty); err != nil {
+				return fmt.Errorf("check product stock: %w", err)
+			}
+			if qty+delta < 0 {
+				return fmt.Errorf("%w: insufficient stock for %q (have %d, need %d)", ErrConflict, name, qty, -delta)
+			}
+		}
 		if delta != 0 {
 			if err := (&Product{ID: item.ItemID}).AdjustQuantity(delta, tx); err != nil {
 				return fmt.Errorf("update product quantity: %w", err)

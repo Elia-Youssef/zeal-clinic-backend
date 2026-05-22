@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"clinic-api/internal/buildmode"
 	"clinic-api/internal/realtime"
 )
 
@@ -28,6 +29,7 @@ func (e *Engine) pull(ctx context.Context) error {
 			return err
 		}
 		req.Header.Set("X-Sync-Secret", e.cfg.Secret)
+		req.Header.Set("X-Sync-Version", buildmode.Version)
 
 		resp, err := e.httpC.Do(req)
 		if err != nil {

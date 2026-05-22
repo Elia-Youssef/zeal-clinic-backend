@@ -82,6 +82,18 @@ func (pm *PatientMedicine) Create() error {
 	return err
 }
 
+func (pm *PatientMedicine) UpdateNotes() error {
+	res, err := DB.Exec("UPDATE patient_medicines SET notes = ? WHERE id = ?", pm.Notes, pm.ID)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (pm *PatientMedicine) Delete() error {
 	res, err := DB.Exec("DELETE FROM patient_medicines WHERE id = ?", pm.ID)
 	if err != nil {

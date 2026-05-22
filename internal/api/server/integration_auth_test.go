@@ -142,14 +142,29 @@ func TestVerify_AcceptsBearerToken(t *testing.T) {
 	}
 }
 
-func TestVerify_AcceptsAccessTokenQueryParam(t *testing.T) {
+// The access_token query param is only honored by AuthMiddleware(true), which is
+// mounted on the SSE (/api/events) and /files groups, not on standard /api
+// routes. So verify rejects it, while /files accepts it.
+func TestAuth_QueryParamTokenOnlyOnStreamRoutes(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
+	// Standard API route: query token is ignored, and no Bearer header returns 401.
 	rec := doRequest(t, e, http.MethodGet, "/api/auth/verify?access_token="+tok, nil, "")
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200 via query token, got %d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("verify should ignore query token, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// /files group accepts the query token: a valid token gets past auth (the
+	// missing file then 404s); a missing token is rejected at auth (401).
+	rec = doRequest(t, e, http.MethodGet, "/files/nope.pdf?access_token="+tok, nil, "")
+	if rec.Code == http.StatusUnauthorized {
+		t.Errorf("files route should accept query token, got 401 body=%s", rec.Body.String())
+	}
+	rec = doRequest(t, e, http.MethodGet, "/files/nope.pdf", nil, "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("files route without token should be 401, got %d", rec.Code)
 	}
 }
 

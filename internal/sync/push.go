@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"clinic-api/internal/buildmode"
 )
 
 const pushBatchSize = 500
@@ -45,6 +47,7 @@ func (e *Engine) push(ctx context.Context) error {
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Sync-Secret", e.cfg.Secret)
+		req.Header.Set("X-Sync-Version", buildmode.Version)
 
 		resp, err := e.httpC.Do(req)
 		if err != nil {

@@ -12,7 +12,8 @@ const medicineColumnsNoId = `name, description, created_at`
 const medicineColumns = `id, ` + medicineColumnsNoId
 
 var MedicineDeps = map[string]string{
-	"patient_medicines": "medicine_id",
+	"patient_medicines":      "medicine_id",
+	"prescription_medicines": "medicine_id",
 }
 
 type Medicine struct {

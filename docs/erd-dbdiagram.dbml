@@ -39,6 +39,25 @@ Table audit_log {
   created_at datetime
 }
 
+Table versions {
+  id string [pk]
+  version string
+  platform string [note: 'windows | linux']
+  url string
+  sha256 string
+  notes string
+  created_at datetime
+  Note: 'Advertised app builds. Inserted on cloud, synced to locals.'
+}
+
+Table app_state {
+  id int [pk, note: 'always 1']
+  installing bool
+  target_version string
+  updated_at datetime
+  Note: 'Per-machine self-update state. NOT synced.'
+}
+
 // ============================================================
 // ROOMS
 // ============================================================
@@ -312,7 +331,6 @@ Table prescription_medicines {
   medicine_id string [ref: > medicines.id]
   prescription_id string [ref: > prescriptions.id]
   instructions string
-  status string [note: 'active | completed | cancelled']
   created_at datetime
 }
 

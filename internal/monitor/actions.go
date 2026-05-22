@@ -51,25 +51,6 @@ func ExpireDiscounts() error {
 	return nil
 }
 
-// ExpirePrescriptionMedicines completes active prescription medicines whose
-// parent prescription end_date has passed in the clinic's local calendar.
-func ExpirePrescriptionMedicines() error {
-	res, err := store.DB.Exec(`UPDATE prescription_medicines
-		SET status = 'completed'
-		WHERE status = 'active'
-		  AND prescription_id IN (
-		    SELECT id FROM prescriptions
-		    WHERE end_date != '' AND end_date < ?
-		  )`, store.ClinicToday())
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n > 0 {
-		log.Printf("monitor: completed %d prescription medicine(s)", n)
-	}
-	return nil
-}
-
 // SendAppointmentReminders notifies all active users about each scheduled
 // appointment starting within the next 30 minutes. Idempotency is enforced by
 // the action field `appointment-reminder:<appointmentId>`; a reminder is sent
@@ -127,7 +108,7 @@ func SendAppointmentReminders() error {
 
 		desc := r.patientName
 		if t, err := store.Date(r.startTime).Time(); err == nil {
-			hm := t.UTC().Format("15:04")
+			hm := t.In(store.ClinicLocation()).Format("15:04")
 			if r.patientName != "" {
 				desc = r.patientName + " at " + hm
 			} else {

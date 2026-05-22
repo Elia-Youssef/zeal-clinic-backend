@@ -434,23 +434,23 @@ func seedPrescriptions(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	type rx struct {
 		patientIdx       int
 		startOff, endOff int
-		meds             []struct{ name, instructions, status string }
+		meds             []struct{ name, instructions string }
 	}
 	prescriptions := []rx{
-		{0, -10, -3, []struct{ name, instructions, status string }{
-			{"Amoxicillin 500mg", "1 cap three times daily for 7 days", "completed"},
-			{"Arnica Gel", "Apply 3-4 times daily to bruising", "completed"},
+		{0, -10, -3, []struct{ name, instructions string }{
+			{"Amoxicillin 500mg", "1 cap three times daily for 7 days"},
+			{"Arnica Gel", "Apply 3-4 times daily to bruising"},
 		}},
-		{3, -5, 2, []struct{ name, instructions, status string }{
-			{"Cephalexin 500mg", "1 cap three times daily for 7 days", "active"},
-			{"Ibuprofen 400mg", "1 tab every 8h with food", "active"},
+		{3, -5, 2, []struct{ name, instructions string }{
+			{"Cephalexin 500mg", "1 cap three times daily for 7 days"},
+			{"Ibuprofen 400mg", "1 tab every 8h with food"},
 		}},
-		{8, -2, 5, []struct{ name, instructions, status string }{
-			{"Valacyclovir 500mg", "1 tab twice daily for 5 days", "active"},
+		{8, -2, 5, []struct{ name, instructions string }{
+			{"Valacyclovir 500mg", "1 tab twice daily for 5 days"},
 		}},
-		{10, -20, -13, []struct{ name, instructions, status string }{
-			{"Doxycycline 100mg", "1 cap daily after food for 7 days", "completed"},
-			{"Mupirocin Ointment", "Apply thin layer twice daily", "completed"},
+		{10, -20, -13, []struct{ name, instructions string }{
+			{"Doxycycline 100mg", "1 cap daily after food for 7 days"},
+			{"Mupirocin Ointment", "Apply thin layer twice daily"},
 		}},
 	}
 	for _, p := range prescriptions {
@@ -464,9 +464,9 @@ func seedPrescriptions(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 		}
 		for _, m := range p.meds {
 			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO prescription_medicines (id, medicine_id, prescription_id, instructions, status, created_at)
-				 VALUES (?,?,?,?,?,?)`,
-				newID(), c.medicines[m.name], pid, m.instructions, m.status, c.now,
+				`INSERT INTO prescription_medicines (id, medicine_id, prescription_id, instructions, created_at)
+				 VALUES (?,?,?,?,?)`,
+				newID(), c.medicines[m.name], pid, m.instructions, c.now,
 			); err != nil {
 				return err
 			}

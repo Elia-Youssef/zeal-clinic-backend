@@ -202,5 +202,8 @@ func (s *Supplier) Delete() error {
 	if n == 0 {
 		return ErrNotFound
 	}
+	if _, err := DB.Exec("DELETE FROM balances WHERE entity_id = ? AND entity_type = ?", s.ID, "supplier"); err != nil {
+		return err
+	}
 	return nil
 }

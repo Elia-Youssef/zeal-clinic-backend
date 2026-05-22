@@ -38,6 +38,24 @@ func AddPatientMedicine(c echo.Context) error {
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: pm})
 }
 
+func UpdatePatientMedicineNotes(c echo.Context) error {
+	var pm store.PatientMedicine
+	if err := c.Bind(&pm); err != nil {
+		log.Println("Error: [UpdatePatientMedicineNotes] invalid request body:", err)
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+	pm.ID = c.Param("id")
+	if err := pm.UpdateNotes(); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			log.Println("Error: [UpdatePatientMedicineNotes] not found:", c.Param("id"))
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "patient medicine not found"})
+		}
+		log.Println("Error: [UpdatePatientMedicineNotes] failed to update:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update patient medicine"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: pm})
+}
+
 func RemovePatientMedicine(c echo.Context) error {
 	pm := store.PatientMedicine{ID: c.Param("id")}
 	if err := pm.Delete(); err != nil {

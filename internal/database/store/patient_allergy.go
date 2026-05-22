@@ -75,6 +75,18 @@ func (pa *PatientAllergy) Create() error {
 	return err
 }
 
+func (pa *PatientAllergy) UpdateNotes() error {
+	res, err := DB.Exec("UPDATE patient_allergies SET notes = ? WHERE id = ?", pa.Notes, pa.ID)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (pa *PatientAllergy) Delete() error {
 	res, err := DB.Exec("DELETE FROM patient_allergies WHERE id = ?", pa.ID)
 	if err != nil {

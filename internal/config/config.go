@@ -22,6 +22,7 @@ type Config struct {
 	SyncSecret      string
 	SentryDSN       string
 	PublicURL       string
+	PublishSecret   string
 }
 
 var current *Config
@@ -41,6 +42,7 @@ func Load() *Config {
 		SyncSecret:      getEnv("SYNC_SECRET", ""),
 		SentryDSN:       getEnv("SENTRY_DSN", ""),
 		PublicURL:       getEnv("PUBLIC_URL", ""),
+		PublishSecret:   getEnv("PUBLISH_SECRET", ""),
 	}
 
 	if cfg.DBEncryptionKey == "" {

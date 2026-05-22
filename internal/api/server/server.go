@@ -24,6 +24,7 @@ func CreateServer() *echo.Echo {
 	e.Use(middleware.Recover())
 	e.Use(tracking.Middleware())
 	e.Use(middleware.CORS())
+	e.Use(mw.UpdateGate())
 	e.Use(syncpkg.Middleware())
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -42,10 +43,15 @@ func CreateServer() *echo.Echo {
 
 	authGroup := e.Group("/api")
 	api := e.Group("/api")
-	api.Use(mw.AuthMiddleware)
+	api.Use(mw.AuthMiddleware(false))
 	api.Use(mw.AuditLogger())
 
 	routes.SetupAuthRoutes(authGroup, api)
+
+	sse := e.Group("/api")
+	sse.Use(mw.AuthMiddleware(true))
+	sse.Use(mw.AuditLogger())
+	routes.SetupEventRoutes(sse)
 
 	for _, register := range protectedRouteRegistrars {
 		register(api)
@@ -58,7 +64,12 @@ func CreateServer() *echo.Echo {
 	}
 	syncAPI.RegisterRoutes(e)
 
-	e.Static("/files", pdf.TmpDir())
+	routes.SetupUpdatePublicRoutes(e, cfg)
+
+	pdfs := e.Group("/files")
+	pdfs.Use(mw.AuthMiddleware(true))
+	pdfs.Static("/", pdf.TmpDir())
+
 	e.GET("/*", spaHandler())
 
 	return e
@@ -66,6 +77,7 @@ func CreateServer() *echo.Echo {
 
 var protectedRouteRegistrars = []func(*echo.Group){
 	routes.SetupServerInfoRoutes,
+	routes.SetupUpdateRoutes,
 	routes.SetupRoleRoutes,
 	routes.SetupRoomRoutes,
 	routes.SetupAllergyRoutes,
@@ -102,7 +114,6 @@ var protectedRouteRegistrars = []func(*echo.Group){
 	routes.SetupLebanonCityRoutes,
 	routes.SetupDiscountRoutes,
 	routes.SetupNotificationRoutes,
-	routes.SetupEventRoutes,
 	routes.SetupAuditRoutes,
 	routes.SetupAnalyticsRoutes,
 	routes.SetupReportsRoutes,

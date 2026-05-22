@@ -63,7 +63,7 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to string) (string
 		cellCol(12, "", rowTxt, border.None),
 	)
 
-	return save(m, "revenue-report")
+	return save(m, fmt.Sprintf("revenue-report-%s-%s", from[:10], to[:10]))
 }
 
 // GenerateExpensesReport writes an expenses report PDF and returns its path.
@@ -94,7 +94,7 @@ func GenerateExpensesReport(rows []store.ExpenseRow, from, to string) (string, e
 	for i, r := range rows {
 		m.AddRow(6,
 			cellCol(6, fmt.Sprintf("%d", i+1), numTxt, border.Full),
-			cellCol(12, reportDate(r.Date.DateOnly()), rowTxt, border.Full),
+			cellCol(12, clinicDate(r.Date), rowTxt, border.Full),
 			cellCol(20, r.Supplier, rowTxt, border.Full),
 			cellCol(30, r.Description, rowTxt, border.Full),
 			cellCol(10, reportQuantity(r.Quantity), numTxt, border.Full),
@@ -115,7 +115,7 @@ func GenerateExpensesReport(rows []store.ExpenseRow, from, to string) (string, e
 		cellCol(10, money(remainingTotal), props.Text{Size: 8.5, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1}, border.Full),
 	)
 
-	return save(m, "expenses-report")
+	return save(m, fmt.Sprintf("expenses-report-%s-%s", from[:10], to[:10]))
 }
 
 func revenueReportHeaderRows(report *store.RevenueReport, from, to string) []core.Row {
@@ -132,7 +132,7 @@ func revenueReportHeaderRows(report *store.RevenueReport, from, to string) []cor
 			text.NewCol(10, "Accumulate By", props.Text{Size: 9, Style: fontstyle.Bold}),
 			text.NewCol(20, revenueReportAccumulate(report.Level), props.Text{Size: 9}),
 			text.NewCol(55, ""),
-			text.NewCol(15, fmt.Sprintf("%s - %s", reportDate(from), reportDate(to)), props.Text{Size: 9, Align: align.Right, Right: 1}),
+			text.NewCol(15, fmt.Sprintf("%s - %s", reportRangeStart(from), reportRangeEnd(to)), props.Text{Size: 9, Align: align.Right, Right: 1}),
 		),
 		row.New(5),
 		row.New(9).Add(
@@ -158,7 +158,7 @@ func expensesReportHeaderRows(from, to string) []core.Row {
 			text.NewCol(10, "Accumulate By", props.Text{Size: 9, Style: fontstyle.Bold}),
 			text.NewCol(20, "Expense", props.Text{Size: 9}),
 			text.NewCol(55, ""),
-			text.NewCol(15, fmt.Sprintf("%s - %s", reportDate(from), reportDate(to)), props.Text{Size: 9, Align: align.Right, Right: 1}),
+			text.NewCol(15, fmt.Sprintf("%s - %s", reportRangeStart(from), reportRangeEnd(to)), props.Text{Size: 9, Align: align.Right, Right: 1}),
 		),
 		row.New(5),
 		row.New(9).Add(
@@ -212,12 +212,21 @@ func reportNameHeader(level string) string {
 	}
 }
 
-func reportDate(v string) string {
-	t, err := time.Parse(store.DateFormat, v)
-	if err != nil {
-		return v
+// reportRangeStart formats an inclusive lower range bound in clinic-local
+// (Beirut) time as DD/MM/YYYY. Bounds arrive as either RFC3339 UTC instants or
+// bare YYYY-MM-DD dates.
+func reportRangeStart(v string) string {
+	return clinicDate(store.Date(v))
+}
+
+// reportRangeEnd formats a range upper bound. RFC3339 bounds are exclusive
+// half-open instants, so step back one second to land on the last included
+// clinic-local day; bare YYYY-MM-DD bounds are already inclusive.
+func reportRangeEnd(v string) string {
+	if t, err := time.Parse(time.RFC3339, v); err == nil {
+		return t.Add(-time.Second).In(store.ClinicLocation()).Format("02/01/2006")
 	}
-	return t.Format("02/01/2006")
+	return clinicDate(store.Date(v))
 }
 
 func reportQuantity(v int) string {

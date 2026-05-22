@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -12,61 +13,67 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		tokenStr := getTokenFromRequest(c)
-		if tokenStr == "" {
-			log.Println("Error: [Auth] No token provided")
-			return c.JSON(401, httpx.Response{Error: "Not Authorized"})
+func AuthMiddleware(useParamToken bool) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			tokenStr := ""
+
+			authHeader := c.Request().Header.Get("Authorization")
+			if t, ok := strings.CutPrefix(authHeader, "Bearer "); ok {
+				tokenStr = t
+			} else if useParamToken {
+				tokenStr = c.QueryParam("access_token")
+			}
+
+			if tokenStr == "" {
+				log.Println("Error: [Auth] No token provided")
+				return c.JSON(401, httpx.Response{Error: "Not Authorized"})
+			}
+
+			msg, ok := checkAuth(c, tokenStr)
+			if !ok {
+				log.Println(msg)
+				return c.JSON(401, httpx.Response{Error: "Not Authorized"})
+			}
+
+			return next(c)
 		}
-
-		claims, err := auth.ParseToken(tokenStr)
-		if err != nil {
-			log.Println("Error: [Auth] Invalid token:", err)
-			return c.JSON(401, httpx.Response{Error: "Not Authorized"})
-		}
-
-		dbToken := store.Token{}
-		if err := dbToken.GetByValue(tokenStr); err != nil {
-			log.Println("Error: [Auth] Token not found in database")
-			return c.JSON(401, httpx.Response{Error: "Not Authorized"})
-		}
-
-		expiresAt, err := dbToken.ExpiresAt.Time()
-		if err != nil || expiresAt.Before(time.Now().UTC()) {
-			log.Println("Error: [Auth] Token expired")
-			t := store.Token{Token: tokenStr}
-			t.Delete()
-			return c.JSON(401, httpx.Response{Error: "Not Authorized"})
-		}
-
-		userID, _ := claims["sub"].(string)
-
-		user := store.User{}
-		if err := user.GetByID(userID); err != nil || !user.IsActive {
-			log.Println("Error: [Auth] User not found or inactive")
-			return c.JSON(401, httpx.Response{Error: "Not Authorized"})
-		}
-
-		role := store.Role{}
-		if err := role.GetByName(user.Role); err != nil {
-			log.Println("Error: [Auth] Role not found:", user.Role)
-			return c.JSON(401, httpx.Response{Error: "Not Authorized"})
-		}
-
-		c.Set("user", user)
-		c.Set("role", user.Role)
-		c.Set("scopes", role.Scopes)
-
-		return next(c)
 	}
 }
 
-func getTokenFromRequest(c echo.Context) string {
-	auth := c.Request().Header.Get("Authorization")
-	if tokenStr, ok := strings.CutPrefix(auth, "Bearer "); ok {
-		return tokenStr
+func checkAuth(c echo.Context, tokenStr string) (string, bool) {
+	claims, err := auth.ParseToken(tokenStr)
+	if err != nil {
+		return fmt.Sprintf("Error: [Auth] Invalid token: %s", err.Error()), false
 	}
-	// Fallback for browser EventSource which cannot set custom headers.
-	return c.QueryParam("access_token")
+
+	dbToken := store.Token{}
+	if err := dbToken.GetByValue(tokenStr); err != nil {
+		return "Error: [Auth] Token not found in database", false
+	}
+
+	expiresAt, err := dbToken.ExpiresAt.Time()
+	if err != nil || expiresAt.Before(time.Now().UTC()) {
+		t := store.Token{Token: tokenStr}
+		t.Delete()
+		return "Error: [Auth] Token expired", false
+	}
+
+	userID, _ := claims["sub"].(string)
+
+	user := store.User{}
+	if err := user.GetByID(userID); err != nil || !user.IsActive {
+		return "Error: [Auth] User not found or inactive", false
+	}
+
+	role := store.Role{}
+	if err := role.GetByName(user.Role); err != nil {
+		return fmt.Sprintf("Error: [Auth] Role not found: %s", user.Role), false
+	}
+
+	c.Set("user", user)
+	c.Set("role", user.Role)
+	c.Set("scopes", role.Scopes)
+
+	return "", true
 }

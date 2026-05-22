@@ -43,10 +43,7 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 	patientName := patientDisplayName(patient, inv.ToEntityName)
 	patientAddress := joinNonEmpty(", ", patient.Country.Name, patient.City.Name, patient.Address)
 
-	dateStr := inv.CreatedAt.DateOnly()
-	if t, err := inv.CreatedAt.Time(); err == nil {
-		dateStr = t.Format("02/01/2006")
-	}
+	dateStr := clinicDate(inv.CreatedAt)
 
 	cfg := config.NewBuilder().
 		WithMaxGridSize(24).
@@ -146,7 +143,7 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 		cellCol(4, "Net", props.Text{Size: 9, Style: fontstyle.Bold, Left: 1, Top: 1.4}, border.Left|border.Top|border.Bottom),
 		cellCol(3, money(inv.FinalAmount), props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1.4}, border.Right|border.Top|border.Bottom),
 	)
-	return save(m, "invoice")
+	return save(m, fmt.Sprintf("invoice-%d", inv.InvoiceNumber))
 }
 
 type invoiceInfoRow struct {

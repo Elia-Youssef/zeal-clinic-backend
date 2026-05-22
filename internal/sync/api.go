@@ -34,9 +34,12 @@ func (a *API) RegisterRoutes(e *echo.Echo) {
 		return
 	}
 	g := e.Group("/api/sync", a.requireSecret)
-	g.GET("/pull", a.handlePull)
-	g.POST("/push", a.handlePush)
-	g.GET("/events", a.handleEvents)
+	// pull/push/events are version-gated: a peer on a different build is refused
+	// so data only ever flows between identical versions. status stays open for
+	// diagnostics.
+	g.GET("/pull", a.handlePull, a.requireVersion)
+	g.POST("/push", a.handlePush, a.requireVersion)
+	g.GET("/events", a.handleEvents, a.requireVersion)
 	g.GET("/status", a.handleStatus)
 	log.Printf("[sync] API mounted under /api/sync (self=%s)", nodeLabel())
 }
@@ -50,6 +53,23 @@ func (a *API) requireSecret(next echo.HandlerFunc) echo.HandlerFunc {
 		if subtle.ConstantTimeCompare([]byte(got), []byte(a.Secret)) != 1 {
 			log.Printf("[sync] unauthorized %s %s from %s", c.Request().Method, c.Path(), c.RealIP())
 			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		}
+		return next(c)
+	}
+}
+
+// requireVersion refuses a peer on a different build (X-Sync-Version), so data
+// never syncs across a schema change.
+func (a *API) requireVersion(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if peerVer := c.Request().Header.Get("X-Sync-Version"); peerVer != buildmode.Version {
+			log.Printf("[sync] %s %s rejected: peer version %q != %q",
+				c.Request().Method, c.Path(), peerVer, buildmode.Version)
+			return c.JSON(http.StatusConflict, map[string]string{
+				"error": "version mismatch",
+				"peer":  peerVer,
+				"cloud": buildmode.Version,
+			})
 		}
 		return next(c)
 	}

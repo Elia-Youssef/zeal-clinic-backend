@@ -21,9 +21,15 @@ func (lp ListParams) FilterClause(columns ...string) (string, []any) {
 	}
 	var conditions []string
 	var args []any
-	f := "%" + lp.Filter + "%"
+	// Escape LIKE wildcards so the filter matches literally; the backslash
+	// escape char is declared per-condition with ESCAPE.
+	esc := lp.Filter
+	esc = strings.ReplaceAll(esc, `\`, `\\`)
+	esc = strings.ReplaceAll(esc, "%", `\%`)
+	esc = strings.ReplaceAll(esc, "_", `\_`)
+	f := "%" + esc + "%"
 	for _, col := range columns {
-		conditions = append(conditions, col+" LIKE ?")
+		conditions = append(conditions, col+` LIKE ? ESCAPE '\'`)
 		args = append(args, f)
 	}
 	return "(" + strings.Join(conditions, " OR ") + ")", args

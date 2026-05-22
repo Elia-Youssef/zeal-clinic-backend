@@ -38,6 +38,24 @@ func AddPatientAllergy(c echo.Context) error {
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: pa})
 }
 
+func UpdatePatientAllergyNotes(c echo.Context) error {
+	var pa store.PatientAllergy
+	if err := c.Bind(&pa); err != nil {
+		log.Println("Error: [UpdatePatientAllergyNotes] invalid request body:", err)
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+	}
+	pa.ID = c.Param("id")
+	if err := pa.UpdateNotes(); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			log.Println("Error: [UpdatePatientAllergyNotes] not found:", c.Param("id"))
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "patient allergy not found"})
+		}
+		log.Println("Error: [UpdatePatientAllergyNotes] failed to update:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update patient allergy"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: pa})
+}
+
 func RemovePatientAllergy(c echo.Context) error {
 	pa := store.PatientAllergy{ID: c.Param("id")}
 	if err := pa.Delete(); err != nil {

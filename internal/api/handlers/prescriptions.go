@@ -40,18 +40,19 @@ func CreatePrescription(c echo.Context) error {
 }
 
 func UpdatePrescription(c echo.Context) error {
-	var updates map[string]any
-	if err := c.Bind(&updates); err != nil {
+	var p store.Prescription
+	if err := c.Bind(&p); err != nil {
 		log.Println("Error: [UpdatePrescription] invalid request:", err)
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
 	}
-	delete(updates, "id")
-	delete(updates, "patientId")
-	delete(updates, "createdAt")
-	delete(updates, "updatedAt")
+	p.ID = c.Param("id")
 
-	p := store.Prescription{ID: c.Param("id")}
-	if err := p.Update(updates); errors.Is(err, store.ErrNotFound) {
+	if err := p.IsValid(); err != nil {
+		log.Println("Error: [UpdatePrescription] validation failed:", err)
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+	}
+
+	if err := p.Update(); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [UpdatePrescription] prescription not found:", err)
 		return c.JSON(http.StatusNotFound, httpx.Response{Error: "prescription not found"})
 	} else if err != nil {

@@ -91,7 +91,7 @@ func UpdateProduct(c echo.Context) error {
 
 func DeleteProduct(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"invoice_items": "product_id"}) {
+	if store.HasDependencies(id, map[string]string{"invoice_items": "item_id"}) {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete product: has related records"})
 	}
 

@@ -58,8 +58,8 @@ func TestScope_ReadOnlyUserCannotWritePatients(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("expected 403, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "patients:write") {
-		t.Errorf("body should mention required scope, got %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "missing required scope") {
+		t.Errorf("body should report a missing scope, got %s", rec.Body.String())
 	}
 }
 

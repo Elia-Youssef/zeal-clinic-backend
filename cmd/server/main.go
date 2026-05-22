@@ -17,16 +17,18 @@ import (
 	syncpkg "clinic-api/internal/sync"
 	"clinic-api/internal/systray"
 	"clinic-api/internal/tracking"
+	"clinic-api/internal/updater"
 
 	"github.com/getsentry/sentry-go"
 )
 
 type appOptions struct {
-	seedOnly  bool
-	demo      bool
-	noBrowser bool
-	dev       bool
-	startup   bool
+	seedOnly   bool
+	demo       bool
+	noBrowser  bool
+	dev        bool
+	startup    bool
+	postUpdate bool
 }
 
 const (
@@ -49,7 +51,7 @@ func main() {
 
 	tracking.CaptureMessage(nil, sentry.LevelDebug, "[main] Server starting")
 
-	if !buildmode.Cloud && !opts.seedOnly && alreadyRunning() {
+	if !buildmode.Cloud && !opts.seedOnly && !opts.postUpdate && alreadyRunning() {
 		handoffToRunningInstance(opts, cfg)
 		return
 	}
@@ -68,6 +70,9 @@ func main() {
 		runSeed(db, opts)
 		return
 	}
+
+	// If we just rebooted from a self-update, confirm it and reopen the API.
+	updater.FinalizeOnBoot()
 
 	if opts.startup {
 		time.Sleep(syncDelay)
@@ -108,16 +113,18 @@ func parseOptions() appOptions {
 	noBrowser := flag.Bool("no-browser", false, "Don't auto-open the browser on startup")
 	dev := flag.Bool("dev", false, "Development mode: no tray, no browser, db at ./tmp/clinic.db")
 	startup := flag.Bool("startup", false, "Windows startup launch: delay heavy services and do not open the browser")
+	postUpdate := flag.Bool("post-update", false, "Relaunch after a self-update: skip the single-instance handoff and the browser")
 	flag.Parse()
 
 	opts := appOptions{
-		seedOnly:  *seedOnly,
-		demo:      *demo,
-		noBrowser: *noBrowser,
-		dev:       *dev,
-		startup:   *startup,
+		seedOnly:   *seedOnly,
+		demo:       *demo,
+		noBrowser:  *noBrowser,
+		dev:        *dev,
+		startup:    *startup,
+		postUpdate: *postUpdate,
 	}
-	if opts.dev || opts.startup || buildmode.Cloud {
+	if opts.dev || opts.startup || opts.postUpdate || buildmode.Cloud {
 		opts.noBrowser = true
 	}
 	return opts
@@ -156,7 +163,6 @@ func startMonitor() *monitor.Monitor {
 	mon := monitor.New(1 * time.Minute)
 	mon.Register(
 		monitor.Action{Name: "expire-discounts", Fn: monitor.ExpireDiscounts},
-		monitor.Action{Name: "expire-prescription-medicines", Fn: monitor.ExpirePrescriptionMedicines},
 		monitor.Action{Name: "appointment-reminders", Fn: monitor.SendAppointmentReminders},
 		monitor.Action{Name: "low-stock-alerts", Fn: monitor.SendLowStockAlerts},
 		monitor.Action{Name: "cleanup-pdf-cache", Fn: monitor.CleanupPDFCache},

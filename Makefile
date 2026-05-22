@@ -21,16 +21,22 @@ else
     CLOUD_ENV   := CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 endif
 
-# Dev binary lives in tmp/ (gitignored) alongside the dev clinic.db.
-# Release artifacts live under build/<target>/output/.
-DEV_BINARY    := tmp/ZealClinic_dev$(EXE)
-LOCAL_BINARY  := build/local/output/ZealClinic$(EXE)
-CLOUD_BINARY  := build/cloud/output/ZealClinicCloud-$(VERSION)-linux-amd64
-PKG           := ./cmd/server
-ISCC          ?= ISCC.exe
-FRONTEND      := ../zeal-clinic-frontend
+# Cloud ldflags mirror LDFLAGS but never set -H=windowsgui (cloud is a server).
+CLOUD_LDFLAGS := -s -w -X clinic-api/internal/buildmode.Version=$(VERSION)
+# Debug builds keep symbols but stamp a -dev suffix on the version.
+DEV_LDFLAGS   := -X clinic-api/internal/buildmode.Version=$(VERSION)-dev
 
-.PHONY: dev dev-seed dev-demo run build frontend release installer build-cloud release-cloud clean help
+# Debug binaries live in tmp/ (gitignored) alongside the dev clinic.db.
+# Release artifacts live under build/<target>/output/.
+DEV_BINARY        := tmp/ZealClinic_dev$(EXE)
+DEV_CLOUD_BINARY  := tmp/ZealClinicCloud_dev$(EXE)
+LOCAL_BINARY      := build/local/output/ZealClinic$(EXE)
+CLOUD_BINARY      := build/cloud/output/ZealClinicCloud-$(VERSION)-linux-amd64
+PKG               := ./cmd/server
+ISCC              ?= ISCC.exe
+FRONTEND          := ../zeal-clinic-frontend
+
+.PHONY: dev dev-seed dev-demo dev-cloud build build-cloud frontend release release-cloud installer deploy clean help
 
 dev: build
 	$(DEV_BINARY) --dev
@@ -41,32 +47,39 @@ dev-seed: build
 dev-demo: build
 	$(DEV_BINARY) --dev --seed-only --demo
 
-run: build
-	$(DEV_BINARY)
+dev-cloud: build-cloud
+	$(DEV_CLOUD_BINARY) --dev
 
 build:
 	$(call MKDIR_P,tmp)
-	go build -o $(DEV_BINARY) $(PKG)
+	go build -ldflags "$(DEV_LDFLAGS)" -o $(DEV_BINARY) $(PKG)
+
+# Native cloud-tagged debug build so the cloud code path is runnable locally.
+build-cloud:
+	$(call MKDIR_P,tmp)
+	go build -tags cloud -ldflags "$(DEV_LDFLAGS)" -o $(DEV_CLOUD_BINARY) $(PKG)
 
 frontend:
 	cd $(FRONTEND) && npm run build
 	$(call RMDIR_IF,client/dist)
 	$(COPY_DIST)
 
-release: frontend
+# release / release-cloud reuse the existing client/dist — run `make frontend`
+# (or `make release-all`) first so one frontend build serves both platforms.
+release:
 	$(call MKDIR_P,build/local/output)
 	go build -trimpath -ldflags "$(LDFLAGS)" -o $(LOCAL_BINARY) $(PKG)
+
+release-cloud:
+	$(call MKDIR_P,build/cloud/output)
+	$(CLOUD_ENV) go build -tags cloud -trimpath -ldflags "$(CLOUD_LDFLAGS)" -o $(CLOUD_BINARY) $(PKG)
 
 installer: release
 	$(ISCC) build/local/installer.iss
 
-build-cloud:
-	$(call MKDIR_P,build/cloud/output)
-	$(CLOUD_ENV) go build -tags cloud -o $(CLOUD_BINARY) $(PKG)
-
-release-cloud: frontend
-	$(call MKDIR_P,build/cloud/output)
-	$(CLOUD_ENV) go build -tags cloud -trimpath -ldflags "-s -w -X clinic-api/internal/buildmode.Version=$(VERSION)" -o $(CLOUD_BINARY) $(PKG)
+# Full deploy: build the frontend once, then the cloud release and the
+# Windows installer (which also produces the local release) against it.
+deploy: frontend release-cloud installer
 
 clean:
 	-$(call RMDIR_IF,tmp)
@@ -78,11 +91,12 @@ help:
 	@echo "dev            - build and run as --dev (binary in tmp/)"
 	@echo "dev-seed       - build and run as --dev --seed-only"
 	@echo "dev-demo       - build and run as --dev --seed-only --demo"
-	@echo "run            - build and run as prod (dev binary)"
+	@echo "dev-cloud      - cloud build and run as --dev (binary in tmp/)"
 	@echo "build          - debug build to $(DEV_BINARY)"
+	@echo "build-cloud    - cloud debug build to $(DEV_CLOUD_BINARY)"
 	@echo "frontend       - npm build the frontend and copy dist into client/dist"
-	@echo "release        - prod build to $(LOCAL_BINARY) + embed frontend"
+	@echo "release        - prod build to $(LOCAL_BINARY) (needs client/dist)"
+	@echo "release-cloud  - cloud prod build to $(CLOUD_BINARY) (needs client/dist)"
 	@echo "installer      - release + Inno Setup installer (Windows only)"
-	@echo "build-cloud    - cloud build to $(CLOUD_BINARY) (no tray, no browser)"
-	@echo "release-cloud  - cloud prod build + embed frontend (run from WSL)"
+	@echo "deploy         - frontend + release-cloud + installer"
 	@echo "clean          - remove build outputs and tmp/"

@@ -30,6 +30,7 @@ var SyncedTables = []TableInfo{
 	{Name: "lebanon_cities", CacheKeys: []string{"lebanon-cities"}},
 	{Name: "expenses", HasUpdatedAt: true, CacheKeys: []string{"expenses"}},
 	{Name: "suppliers", HasUpdatedAt: true, CacheKeys: []string{"suppliers"}},
+	{Name: "versions", NoDelete: true, CacheKeys: []string{"versions"}},
 
 	{Name: "users", HasUpdatedAt: true, CacheKeys: []string{"users"}},
 	{Name: "procedures", HasUpdatedAt: true, CacheKeys: []string{"procedures", "discounts"}},

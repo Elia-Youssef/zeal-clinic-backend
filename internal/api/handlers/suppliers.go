@@ -83,8 +83,20 @@ func UpdateSupplier(c echo.Context) error {
 
 func DeleteSupplier(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"balances": "entity_id"}) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete supplier: has related records"})
+
+	balance := store.Balance{}
+	switch err := balance.GetByEntityID("supplier", id); {
+	case errors.Is(err, store.ErrNotFound):
+		// no balance means no dependencies
+	case err != nil:
+		log.Println("Error: [DeleteSupplier] failed to load balance:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete supplier"})
+	default:
+		hasDepFrom := store.HasDependencies(balance.ID, map[string]string{"invoices": "from_balance_id", "balance_transactions": "from_balance_id"})
+		hasDepTo := store.HasDependencies(balance.ID, map[string]string{"invoices": "to_balance_id", "balance_transactions": "to_balance_id"})
+		if hasDepFrom || hasDepTo {
+			return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete supplier: has related records"})
+		}
 	}
 
 	s := store.Supplier{ID: id}

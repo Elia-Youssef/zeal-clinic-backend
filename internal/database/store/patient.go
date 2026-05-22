@@ -150,7 +150,7 @@ func GetPatientDropdown(params ListParams) ([]DropdownItem, error) {
 		where = " WHERE " + fc
 		args = fa
 	}
-	query := `SELECT id, first_name || ' ' || last_name as name FROM patients` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
+	query := `SELECT id, first_name || CASE WHEN middle_name != '' THEN ' ' || middle_name ELSE '' END || ' ' || last_name as name FROM patients` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err

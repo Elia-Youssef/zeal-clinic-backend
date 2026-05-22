@@ -122,7 +122,10 @@ func reportApplyOutcome(total int, conflicts []ConflictEntry) {
 		side = "cloud"
 	}
 	applied := total - len(conflicts)
-	tracking.Warn(nil, fmt.Sprintf("[sync] %s applied %d rows with %d conflicts", side, applied, len(conflicts)))
+	tracking.WarnWith(nil,
+		fmt.Sprintf("[sync] %s applied %d rows with %d conflicts", side, applied, len(conflicts)),
+		map[string]any{"conflicts": conflicts},
+	)
 }
 
 // invalidateCachesFor clears cache buckets affected by applied sync rows.

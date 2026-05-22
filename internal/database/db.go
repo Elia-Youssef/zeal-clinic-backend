@@ -86,7 +86,7 @@ func resolveSQLitePath(rawPath string) string {
 	}
 
 	parentDir := filepath.Dir(absPath)
-	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+	if err := os.MkdirAll(parentDir, 0700); err != nil {
 		tracking.Fatal("create sqlite parent dir", err)
 	}
 

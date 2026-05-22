@@ -24,6 +24,8 @@ type Engine struct {
 	running  bool
 	cancel   context.CancelFunc
 	stopWait sync.WaitGroup
+
+	cycleMu sync.Mutex // serializes pull-then-push so RunNow can't race the loop
 }
 
 type Config struct {
@@ -109,6 +111,8 @@ func (e *Engine) run(ctx context.Context) {
 
 // cycle runs one pull-then-push round.
 func (e *Engine) cycle(ctx context.Context) {
+	e.cycleMu.Lock()
+	defer e.cycleMu.Unlock()
 	if err := e.pull(ctx); err != nil {
 		log.Printf("[sync] pull error: %v", err)
 		if ctx.Err() == nil {
@@ -122,4 +126,25 @@ func (e *Engine) cycle(ctx context.Context) {
 			tracking.CaptureError(nil, fmt.Errorf("[sync] push: %w", err))
 		}
 	}
+}
+
+// RunNow runs one synchronous pull-then-push cycle (no-op without a peer).
+// Used to flush before a self-update, while both nodes still share a version.
+func RunNow(ctx context.Context) error {
+	debounce.mu.Lock()
+	eng := debounce.engine
+	debounce.mu.Unlock()
+	if eng == nil || eng.cfg.PeerURL == "" {
+		return nil
+	}
+
+	eng.cycleMu.Lock()
+	defer eng.cycleMu.Unlock()
+	if err := eng.pull(ctx); err != nil {
+		return fmt.Errorf("pull: %w", err)
+	}
+	if err := eng.push(ctx); err != nil {
+		return fmt.Errorf("push: %w", err)
+	}
+	return nil
 }

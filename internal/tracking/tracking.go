@@ -52,18 +52,31 @@ func CaptureError(c echo.Context, err error) {
 }
 
 func CaptureMessage(c echo.Context, level sentry.Level, msg string) {
+	CaptureMessageWith(c, level, msg, nil)
+}
+
+// CaptureMessageWith captures a message with a structured context block attached
+// so the details (not just the summary) land on the Sentry event.
+func CaptureMessageWith(c echo.Context, level sentry.Level, msg string, details map[string]any) {
 	if !enabled {
 		return
 	}
 	h := Hub(c)
 	h.WithScope(func(s *sentry.Scope) {
 		s.SetLevel(level)
+		if len(details) > 0 {
+			s.SetContext("details", details)
+		}
 		h.CaptureMessage(msg)
 	})
 }
 
 func Warn(c echo.Context, msg string) { CaptureMessage(c, sentry.LevelWarning, msg) }
 func Info(c echo.Context, msg string) { CaptureMessage(c, sentry.LevelInfo, msg) }
+
+func WarnWith(c echo.Context, msg string, details map[string]any) {
+	CaptureMessageWith(c, sentry.LevelWarning, msg, details)
+}
 
 func Fatal(msg string, err error) {
 	if enabled {

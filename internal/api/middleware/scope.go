@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"slices"
 
 	"github.com/labstack/echo/v4"
 )
@@ -18,14 +19,12 @@ func RequireScope(scope string) echo.MiddlewareFunc {
 				})
 			}
 
-			for _, s := range scopes {
-				if s == scope {
-					return next(c)
-				}
+			if slices.Contains(scopes, scope) {
+				return next(c)
 			}
 
 			return c.JSON(http.StatusForbidden, map[string]string{
-				"error": "missing required scope: " + scope,
+				"error": "missing required scope",
 			})
 		}
 	}

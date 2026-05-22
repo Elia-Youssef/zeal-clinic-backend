@@ -92,7 +92,7 @@ func UpdateProcedure(c echo.Context) error {
 
 func DeleteProcedure(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"appointment_procedures": "procedure_id"}) {
+	if store.HasDependencies(id, map[string]string{"appointment_procedures": "procedure_id", "invoice_items": "item_id"}) {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete procedure: has related records"})
 	}
 

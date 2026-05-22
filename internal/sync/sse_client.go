@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"clinic-api/internal/buildmode"
 	"clinic-api/internal/realtime"
 	"clinic-api/internal/tracking"
 )
@@ -75,6 +76,7 @@ func streamOnce(ctx context.Context, e *Engine) (connected bool, err error) {
 	}
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("X-Sync-Secret", e.cfg.Secret)
+	req.Header.Set("X-Sync-Version", buildmode.Version)
 	req.Header.Set("Cache-Control", "no-cache")
 
 	resp, err := sseClient.Do(req)

@@ -29,7 +29,7 @@ func TestListParams_FilterClause(t *testing.T) {
 	t.Run("single column", func(t *testing.T) {
 		lp := ListParams{Filter: "abc"}
 		c, a := lp.FilterClause("name")
-		if c != "(name LIKE ?)" {
+		if c != `(name LIKE ? ESCAPE '\')` {
 			t.Errorf("clause = %q", c)
 		}
 		if len(a) != 1 || a[0] != "%abc%" {
@@ -40,7 +40,7 @@ func TestListParams_FilterClause(t *testing.T) {
 	t.Run("multiple columns OR'd, args repeated", func(t *testing.T) {
 		lp := ListParams{Filter: "x"}
 		c, a := lp.FilterClause("a", "b", "c")
-		if c != "(a LIKE ? OR b LIKE ? OR c LIKE ?)" {
+		if c != `(a LIKE ? ESCAPE '\' OR b LIKE ? ESCAPE '\' OR c LIKE ? ESCAPE '\')` {
 			t.Errorf("clause = %q", c)
 		}
 		if len(a) != 3 {
@@ -53,13 +53,13 @@ func TestListParams_FilterClause(t *testing.T) {
 		}
 	})
 
-	t.Run("filter with sql special chars passes through verbatim", func(t *testing.T) {
-		// FilterClause does NOT escape % or _. That's a known shape, capture it so
-		// future changes are intentional.
-		lp := ListParams{Filter: "10%_y"}
+	t.Run("filter escapes LIKE wildcards so they match literally", func(t *testing.T) {
+		// %, _ and \ are escaped with a backslash; the clause declares ESCAPE '\'
+		// so the search matches the literal characters instead of wildcards.
+		lp := ListParams{Filter: `10%_y\z`}
 		_, a := lp.FilterClause("name")
-		if a[0] != "%10%_y%" {
-			t.Errorf("got %v, want %%10%%_y%%", a[0])
+		if a[0] != `%10\%\_y\\z%` {
+			t.Errorf(`got %v, want %%10\%%\_y\\z%%`, a[0])
 		}
 	})
 

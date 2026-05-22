@@ -13,6 +13,9 @@ func (p *Prescription) IsValid() error {
 	if msg := validation.Required(p.PatientID, "Patient ID"); msg != "" {
 		e["patientId"] = msg
 	}
+	if msg := validation.Required(p.PrescribedByID, "Prescribed by"); msg != "" {
+		e["prescribedById"] = msg
+	}
 	if msg := validation.Required(string(p.StartDate), "Start date"); msg != "" {
 		e["startDate"] = msg
 	} else if msg := validation.Date(string(p.StartDate)); msg != "" {
@@ -21,6 +24,12 @@ func (p *Prescription) IsValid() error {
 	if string(p.EndDate) != "" {
 		if msg := validation.Date(string(p.EndDate)); msg != "" {
 			e["endDate"] = msg
+		}
+	}
+	for i := range p.Medicines {
+		if msg := validation.Required(p.Medicines[i].MedicineID, "Medicine ID"); msg != "" {
+			e["medicines"] = msg
+			break
 		}
 	}
 	if len(e) > 0 {
@@ -65,7 +74,7 @@ func (l *PrescriptionList) ScanRows(rows *sql.Rows) error {
 		err := rows.Scan(&item.ID, &item.PatientID, &item.PrescribedByID,
 			&item.StartDate, &item.EndDate, &item.CreatedAt, &item.UpdatedAt, &item.PrescribedByName)
 		if err != nil {
-			continue
+			return err
 		}
 		*l = append(*l, item)
 	}
@@ -88,14 +97,19 @@ func (p *PrescriptionList) GetByPatient(patientID string) error {
 	if err := p.ScanRows(rows); err != nil {
 		return err
 	}
-
-	for i := range *p {
-		if err := (*p)[i].Medicines.GetByPrescription((*p)[i].ID); err != nil {
-			return err
-		}
+	if err := rows.Err(); err != nil {
+		return err
 	}
 
-	return rows.Err()
+	byPrescription, err := MedicinesByPatient(patientID)
+	if err != nil {
+		return err
+	}
+	for i := range *p {
+		(*p)[i].Medicines = byPrescription[(*p)[i].ID]
+	}
+
+	return nil
 }
 
 func (p *Prescription) GetByID(id string) error {
@@ -131,19 +145,8 @@ func (p *Prescription) Create() error {
 		return err
 	}
 
-	for i := range p.Medicines {
-		m := &p.Medicines[i]
-		m.ID = uuid.Must(uuid.NewV7()).String()
-		m.PrescriptionID = p.ID
-		m.CreatedAt = now
-		if m.Status == "" {
-			m.Status = "active"
-		}
-		_, err = tx.Exec(`INSERT INTO prescription_medicines (`+prescriptionMedicineColumns+`) VALUES (?,?,?,?,?,?)`,
-			m.ID, m.MedicineID, m.PrescriptionID, m.Instructions, m.Status, m.CreatedAt)
-		if err != nil {
-			return err
-		}
+	if err := p.insertMedicines(tx, now); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -152,24 +155,52 @@ func (p *Prescription) Create() error {
 	return p.GetByID(p.ID)
 }
 
-func (p *Prescription) Update(updates map[string]any) error {
-	cols := map[string]string{
-		"prescribedById": "prescribed_by_id", "startDate": "start_date", "endDate": "end_date",
-	}
-
-	setClauses := "updated_at = ?"
-	args := []any{DateNow()}
-
-	for jsonKey, dbCol := range cols {
-		if val, ok := updates[jsonKey]; ok {
-			setClauses += ", " + dbCol + " = ?"
-			args = append(args, val)
+// insertMedicines assigns IDs and inserts each medicine in p.Medicines within tx.
+func (p *Prescription) insertMedicines(tx *sql.Tx, now Date) error {
+	for i := range p.Medicines {
+		m := &p.Medicines[i]
+		m.ID = uuid.Must(uuid.NewV7()).String()
+		m.PrescriptionID = p.ID
+		m.CreatedAt = now
+		if _, err := tx.Exec(`INSERT INTO prescription_medicines (`+prescriptionMedicineColumns+`) VALUES (?,?,?,?,?)`,
+			m.ID, m.MedicineID, m.PrescriptionID, m.Instructions, m.CreatedAt); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	args = append(args, p.ID)
-	_, err := DB.Exec("UPDATE prescriptions SET "+setClauses+" WHERE id = ?", args...)
+// Update rewrites the prescription header and replaces its medicine list in a
+// single transaction: the edit form submits the whole prescription at once.
+// patient_id and created_at are immutable here.
+func (p *Prescription) Update() error {
+	now := DateNow()
+
+	tx, err := DB.Begin()
 	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec(`UPDATE prescriptions
+		SET prescribed_by_id = ?, start_date = ?, end_date = ?, updated_at = ?
+		WHERE id = ?`,
+		p.PrescribedByID, p.StartDate, p.EndDate, now, p.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+
+	if _, err := tx.Exec("DELETE FROM prescription_medicines WHERE prescription_id = ?", p.ID); err != nil {
+		return err
+	}
+	if err := p.insertMedicines(tx, now); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return p.GetByID(p.ID)

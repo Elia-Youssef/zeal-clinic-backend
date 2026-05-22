@@ -9,5 +9,6 @@ import (
 func SetupPatientAllergyRoutes(api *echo.Group) {
 	api.GET("/patients/:patientId/allergies", handlers.GetPatientAllergies, scope("patient-allergies:read"))
 	api.POST("/patients/:patientId/allergies", handlers.AddPatientAllergy, scope("patient-allergies:write"))
+	api.PUT("/patient-allergies/:id", handlers.UpdatePatientAllergyNotes, scope("patient-allergies:write"))
 	api.DELETE("/patient-allergies/:id", handlers.RemovePatientAllergy, scope("patient-allergies:write"))
 }
