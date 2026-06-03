@@ -3,6 +3,7 @@ package realtime
 import (
 	"log"
 	"sync"
+	"sync/atomic"
 )
 
 type Event struct {
@@ -11,9 +12,10 @@ type Event struct {
 }
 
 type Client struct {
-	userID string
-	ch     chan Event
-	hub    *Hub
+	userID  string
+	ch      chan Event
+	hub     *Hub
+	pending atomic.Bool
 }
 
 // Events returns the channel the SSE handler reads from.
@@ -21,6 +23,9 @@ func (c *Client) Events() <-chan Event { return c.ch }
 
 // UserID is the authenticated user owning this connection.
 func (c *Client) UserID() string { return c.userID }
+
+// TakePending reports-and-clears whether an event was dropped (for SSE resync).
+func (c *Client) TakePending() bool { return c.pending.Swap(false) }
 
 // Close removes the client from its hub and closes the event channel.
 // Safe to call multiple times.
@@ -84,7 +89,8 @@ func deliver(c *Client, ev Event) {
 	select {
 	case c.ch <- ev:
 	default:
-		log.Printf("realtime: client %s buffer full, dropping %q", c.userID, ev.Type)
+		c.pending.Store(true)
+		log.Printf("realtime: client %s buffer full, dropping %q (will resync)", c.userID, ev.Type)
 	}
 }
 

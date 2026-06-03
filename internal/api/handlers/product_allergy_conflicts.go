@@ -11,32 +11,51 @@ import (
 )
 
 func GetProductAllergyConflicts(c echo.Context) error {
+	params := parseListParams(c)
 	items := store.ProductAllergyConflictList{}
-	err := items.GetByProduct(c.Param("id"))
+	total, err := items.GetByProduct(c.Param("id"), params)
 	if err != nil {
 		log.Println("Error: [GetProductAllergyConflicts] failed to fetch:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch product allergy conflicts"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load product allergy conflicts"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
 
 func AddProductAllergyConflict(c echo.Context) error {
 	var pac store.ProductAllergyConflict
 	if err := c.Bind(&pac); err != nil {
 		log.Println("Error: [AddProductAllergyConflict] invalid request body:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	pac.ProductID = c.Param("id")
 	if err := pac.IsValid(); err != nil {
 		log.Println("Error: [AddProductAllergyConflict] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	pac.CreatedAt = store.DateNow()
 	if err := pac.Create(); err != nil {
 		log.Println("Error: [AddProductAllergyConflict] failed to add:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to add product allergy conflict"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't add product allergy conflict"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: pac})
+}
+
+func UpdateProductAllergyConflictNotes(c echo.Context) error {
+	var pac store.ProductAllergyConflict
+	if err := c.Bind(&pac); err != nil {
+		log.Println("Error: [UpdateProductAllergyConflictNotes] invalid request body:", err)
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
+	}
+	pac.ID = c.Param("id")
+	if err := pac.UpdateNotes(); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			log.Println("Error: [UpdateProductAllergyConflictNotes] not found:", c.Param("id"))
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Conflict not found"})
+		}
+		log.Println("Error: [UpdateProductAllergyConflictNotes] failed to update:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update conflict"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: pac})
 }
 
 func RemoveProductAllergyConflict(c echo.Context) error {
@@ -44,10 +63,10 @@ func RemoveProductAllergyConflict(c echo.Context) error {
 	if err := pac.Delete(); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [RemoveProductAllergyConflict] not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "conflict not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Conflict not found"})
 		}
 		log.Println("Error: [RemoveProductAllergyConflict] failed to remove:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to remove conflict"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't remove conflict"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

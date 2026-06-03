@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -108,6 +109,9 @@ func (t *ProcedureType) GetByID(id string) error {
 }
 
 func (t *ProcedureType) Create() error {
+	if NameExists("procedure_types", t.Name, "") {
+		return fmt.Errorf("%w: A type with this name already exists", ErrConflict)
+	}
 	t.ID = uuid.Must(uuid.NewV7()).String()
 	t.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO procedure_types (`+procedureTypeColumns+`) VALUES (?,?,?,?)`,
@@ -116,6 +120,9 @@ func (t *ProcedureType) Create() error {
 }
 
 func (t *ProcedureType) Update(updates map[string]any) error {
+	if name, ok := updates["name"].(string); ok && NameExists("procedure_types", name, t.ID) {
+		return fmt.Errorf("%w: A type with this name already exists", ErrConflict)
+	}
 	cols := map[string]string{"name": "name", "description": "description"}
 	setClauses := ""
 	var args []any

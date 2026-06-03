@@ -15,7 +15,7 @@ func GetAllCountries(c echo.Context) error {
 	total, err := countries.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllCountries] failed to fetch countries:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch countries"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load countries"})
 	}
 	if countries == nil {
 		countries = []store.Country{}
@@ -28,7 +28,7 @@ func GetCountryDropdown(c echo.Context) error {
 	items, err := store.GetCountryDropdown(params)
 	if err != nil {
 		log.Println("Error: [GetCountryDropdown] failed to fetch country dropdown:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch country dropdown"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load options"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }

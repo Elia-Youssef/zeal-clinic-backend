@@ -4,9 +4,12 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
-
-	"github.com/google/uuid"
 )
+
+// Currencies use their ISO code as the primary key: it's a stable, unique
+// natural key that's identical across synced DBs, so a separate UUID adds no
+// sync value and only obscures which row is which.
+const USDCurrencyID = "USD"
 
 type Currency struct {
 	ID           string  `json:"id"`
@@ -124,8 +127,21 @@ func (cur *Currency) GetByCode(code string) error {
 	return cur.ScanRow(RDB.QueryRow(`SELECT `+currencyColumns+` FROM currencies WHERE code = ?`, code))
 }
 
+// LBPRate returns the current LBP-per-USD exchange rate from the currencies
+// table, or 0 if it can't be read so callers can skip the conversion.
+func LBPRate() float64 {
+	if RDB == nil {
+		return 0
+	}
+	var c Currency
+	if err := c.GetByCode("LBP"); err != nil {
+		return 0
+	}
+	return c.ExchangeRate
+}
+
 func (cur *Currency) Create() error {
-	cur.ID = uuid.Must(uuid.NewV7()).String()
+	cur.ID = cur.Code
 	now := DateNow()
 	cur.CreatedAt = now
 	cur.UpdatedAt = now

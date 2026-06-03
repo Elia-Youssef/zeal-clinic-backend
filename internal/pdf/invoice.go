@@ -1,13 +1,13 @@
 package pdf
 
 import (
-	"clinic-api/client"
+	"clinic-api/internal/assets"
 	"clinic-api/internal/database/store"
 	"fmt"
-	"io/fs"
 	"strings"
 
 	"github.com/johnfercher/maroto/v2"
+	"github.com/johnfercher/maroto/v2/pkg/components/col"
 	"github.com/johnfercher/maroto/v2/pkg/components/image"
 	"github.com/johnfercher/maroto/v2/pkg/components/text"
 	"github.com/johnfercher/maroto/v2/pkg/config"
@@ -15,21 +15,8 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/consts/border"
 	"github.com/johnfercher/maroto/v2/pkg/consts/extension"
 	"github.com/johnfercher/maroto/v2/pkg/consts/fontstyle"
-	"github.com/johnfercher/maroto/v2/pkg/core"
 	"github.com/johnfercher/maroto/v2/pkg/props"
 )
-
-var logoBytes []byte
-
-func loadLogo() []byte {
-	if logoBytes != nil {
-		return logoBytes
-	}
-	if data, err := fs.ReadFile(client.DistFS(), "zeal.png"); err == nil {
-		logoBytes = data
-	}
-	return logoBytes
-}
 
 // GenerateInvoice writes an invoice PDF and returns its absolute path.
 func GenerateInvoice(inv *store.Invoice) (string, error) {
@@ -42,7 +29,6 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 	}
 	patientName := patientDisplayName(patient, inv.ToEntityName)
 	patientAddress := joinNonEmpty(", ", patient.Country.Name, patient.City.Name, patient.Address)
-
 	dateStr := clinicDate(inv.CreatedAt)
 
 	cfg := config.NewBuilder().
@@ -51,140 +37,94 @@ func GenerateInvoice(inv *store.Invoice) (string, error) {
 		WithRightMargin(12).
 		WithTopMargin(12).
 		WithBottomMargin(12).
+		WithPageNumber(props.PageNumber{
+			Pattern: fmt.Sprintf("Zeal Clinic — Invoice #%08d      {current} / {total}", inv.InvoiceNumber),
+			Place:   props.RightBottom,
+			Size:    8,
+			Color:   clrMutedFg,
+		}).
 		Build()
 	m := maroto.New(cfg)
 
-	if logo := loadLogo(); len(logo) > 0 {
-		m.AddRow(36,
-			image.NewFromBytesCol(24, logo, extension.Png, props.Rect{Percent: 86, Center: true}),
-		)
+	// Header (logo, patient/invoice info grid, items column header) repeats on
+	// every page via RegisterHeader.
+	hdr := &rowBuf{}
+	if logo := assets.InvoiceLogo(); len(logo) > 0 {
+		hdr.AddRow(26, image.NewFromBytesCol(24, logo, extension.Png, props.Rect{Percent: 78, Center: true}))
 	} else {
-		m.AddRow(36)
+		hdr.AddRow(14, text.NewCol(24, "Zeal Clinic", props.Text{Size: 18, Style: fontstyle.Bold, Color: clrInk, Align: align.Center, Top: 4}))
 	}
-	m.AddRow(5)
+	hdr.AddRow(2, col.New(24).WithStyle(&props.Cell{BorderType: border.Bottom, BorderColor: clrPrimary, BorderThickness: 0.4}))
+	hdr.AddRow(3)
 
-	leftRows := []invoiceInfoRow{
-		{"Patient", patientName},
-		{"Address", patientAddress},
-		{"Tel", patient.Contact},
-	}
-	rightRows := []invoiceInfoRow{
-		{"Invoice #", fmt.Sprintf("%08d", inv.InvoiceNumber)},
-		{"Currency", "USD"},
-		{"Date", dateStr},
-	}
-
-	labelTxt := props.Text{Size: 8.8, Style: fontstyle.Bold, Left: 1, Top: 1.2}
-	valueTxt := props.Text{Size: 8.8, Left: 1, Top: 1.2}
-
-	for i := range leftRows {
-		addInvoiceInfoRow(m, i, len(leftRows)-1, leftRows[i], rightRows[i], labelTxt, valueTxt)
+	type kv struct{ label, value string }
+	left := []kv{{"Patient", patientName}, {"Address", patientAddress}, {"Tel", patient.Contact}}
+	right := []kv{{"Invoice #", fmt.Sprintf("%08d", inv.InvoiceNumber)}, {"Currency", "USD"}, {"Date", dateStr}}
+	for i := range left {
+		hdr.AddRow(6,
+			boldCell(4, left[i].label, align.Left),
+			bodyCell(11, left[i].value, align.Left),
+			col.New(1),
+			boldCell(3, right[i].label, align.Left),
+			bodyCell(5, right[i].value, align.Left),
+		)
 	}
 
-	m.AddRow(7)
-	headerTxt := props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center, Top: 1.4}
-	m.AddRow(8,
-		cellCol(4, "Item No.", headerTxt, border.Full),
-		cellCol(12, "Description", headerTxt, border.Full),
-		cellCol(2, "Qty.", headerTxt, border.Full),
-		cellCol(3, "U.Price", headerTxt, border.Full),
-		cellCol(3, "Total", headerTxt, border.Full),
+	titleBar(hdr, 24, "Items")
+	hdr.AddRow(8,
+		headerCell(13, "Description", align.Left),
+		headerCell(3, "Qty", align.Right),
+		headerCell(4, "U.Price", align.Right),
+		headerCell(4, "Total", align.Right),
 	)
+	if err := m.RegisterHeader(hdr.rows...); err != nil {
+		return "", err
+	}
 
-	itemTxt := props.Text{Size: 8.5, Left: 1, Top: 1}
-	itemRightTxt := props.Text{Size: 8.5, Align: align.Right, Right: 1, Top: 1}
-	itemHeight := 7.0
-	bodyHeight := 140.0
-	for i, it := range inv.Items {
+	for _, it := range inv.Items {
 		unit := 0.0
 		if it.Quantity > 0 {
 			unit = it.Amount / float64(it.Quantity)
 		}
-		rowBorder := border.Left | border.Right
-		if i == len(inv.Items)-1 && float64(len(inv.Items))*itemHeight >= bodyHeight {
-			rowBorder |= border.Bottom
-		}
-		m.AddRow(itemHeight,
-			cellCol(4, invoiceItemCode(it), itemTxt, rowBorder),
-			cellCol(12, invoiceItemName(it), itemTxt, rowBorder),
-			cellCol(2, fmt.Sprintf("%d", it.Quantity), itemRightTxt, rowBorder),
-			cellCol(3, money(unit), itemRightTxt, rowBorder),
-			cellCol(3, money(it.Amount), itemRightTxt, rowBorder),
+		m.AddRow(7,
+			bodyCell(13, invoiceItemName(it), align.Left),
+			bodyCell(3, fmt.Sprintf("%d", it.Quantity), align.Right),
+			bodyCell(4, money(unit), align.Right),
+			bodyCell(4, money(it.Amount), align.Right),
 		)
 	}
 
-	fillerHeight := bodyHeight - float64(len(inv.Items))*itemHeight
-	if fillerHeight > 0 {
-		m.AddRow(fillerHeight,
-			cellCol(4, "", props.Text{}, border.Left|border.Right|border.Bottom),
-			cellCol(12, "", props.Text{}, border.Left|border.Right|border.Bottom),
-			cellCol(2, "", props.Text{}, border.Left|border.Right|border.Bottom),
-			cellCol(3, "", props.Text{}, border.Left|border.Right|border.Bottom),
-			cellCol(3, "", props.Text{}, border.Left|border.Right|border.Bottom),
-		)
-	}
-
+	// Totals: amount in words on the left, figures stacked on the right. The
+	// value column is wide because the LBP equivalent can run into billions.
 	words := "USD " + numberToWords(int64(inv.FinalAmount)) + " Only."
-
-	m.AddRow(8,
-		text.NewCol(17, words, props.Text{Size: 8.5, Top: 1}),
-		cellCol(4, "Gross Total", props.Text{Size: 8.8, Style: fontstyle.Bold, Left: 1, Top: 1.3}, border.Left|border.Top|border.Bottom),
-		cellCol(3, money(inv.Amount), props.Text{Size: 8.8, Align: align.Right, Right: 1, Top: 1.3}, border.Right|border.Top|border.Bottom),
+	m.AddRow(4)
+	m.AddRow(7,
+		text.NewCol(15, words, props.Text{Size: 8.5, Style: fontstyle.Italic, Color: clrMutedFg, Top: 1.5}),
+		boldCell(4, "Gross Total", align.Left),
+		boldCell(5, money(inv.Amount), align.Right),
 	)
 	if inv.DiscountValue > 0 {
 		m.AddRow(7,
-			text.NewCol(17, "", props.Text{}),
-			cellCol(4, "Discount", props.Text{Size: 8.8, Style: fontstyle.Bold, Left: 1, Top: 1}, border.Left),
-			cellCol(3, "-"+money(inv.DiscountValue), props.Text{Size: 8.8, Align: align.Right, Right: 1, Top: 1}, border.Right),
+			text.NewCol(15, "", props.Text{}),
+			boldCell(4, "Discount", align.Left),
+			boldCell(5, "-"+money(inv.DiscountValue), align.Right),
 		)
 	}
 	m.AddRow(8,
-		text.NewCol(17, "", props.Text{}),
-		cellCol(4, "Net", props.Text{Size: 9, Style: fontstyle.Bold, Left: 1, Top: 1.4}, border.Left|border.Top|border.Bottom),
-		cellCol(3, money(inv.FinalAmount), props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1.4}, border.Right|border.Top|border.Bottom),
+		text.NewCol(15, "", props.Text{}),
+		emphCell(4, "Net", align.Left),
+		emphCell(5, money(inv.FinalAmount), align.Right),
 	)
+	// LBP equivalent at the current table rate (the rate may change over time).
+	if rate := store.LBPRate(); rate > 0 {
+		m.AddRow(7,
+			text.NewCol(15, "", props.Text{}),
+			boldCell(4, "Equivalent LBP", align.Left),
+			boldCell(5, money(inv.FinalAmount*rate), align.Right),
+		)
+	}
+
 	return save(m, fmt.Sprintf("invoice-%d", inv.InvoiceNumber))
-}
-
-type invoiceInfoRow struct {
-	Label string
-	Value string
-}
-
-func addInvoiceInfoRow(m core.Maroto, row, last int, left, right invoiceInfoRow, labelTxt, valueTxt props.Text) {
-	leftLabelBorder := border.Left
-	leftValueBorder := border.Right
-	rightLabelBorder := border.Left
-	rightValueBorder := border.Right
-	if row == 0 {
-		leftLabelBorder |= border.Top
-		leftValueBorder |= border.Top
-		rightLabelBorder |= border.Top
-		rightValueBorder |= border.Top
-	}
-	if row == last {
-		leftLabelBorder |= border.Bottom
-		leftValueBorder |= border.Bottom
-		rightLabelBorder |= border.Bottom
-		rightValueBorder |= border.Bottom
-	}
-
-	leftValue := ""
-	if left.Label != "" || left.Value != "" {
-		leftValue = ": " + left.Value
-	}
-	rightValue := ""
-	if right.Label != "" || right.Value != "" {
-		rightValue = ": " + right.Value
-	}
-
-	m.AddRow(6,
-		cellCol(4, left.Label, labelTxt, leftLabelBorder),
-		cellCol(11, leftValue, valueTxt, leftValueBorder),
-		text.NewCol(1, "", props.Text{}),
-		cellCol(3, right.Label, labelTxt, rightLabelBorder),
-		cellCol(5, rightValue, valueTxt, rightValueBorder),
-	)
 }
 
 func patientDisplayName(patient store.Patient, fallback string) string {
@@ -193,26 +133,6 @@ func patientDisplayName(patient store.Patient, fallback string) string {
 		return name
 	}
 	return fallback
-}
-
-func invoiceItemCode(it store.InvoiceItem) string {
-	prefix := "X"
-	switch it.ItemType {
-	case "product":
-		prefix = "M"
-	case "procedure":
-		prefix = "C"
-	case "gift":
-		prefix = "G"
-	}
-	compact := strings.ToUpper(strings.ReplaceAll(it.ItemID, "-", ""))
-	if compact == "" {
-		compact = strings.ToUpper(strings.ReplaceAll(it.ID, "-", ""))
-	}
-	if len(compact) > 6 {
-		compact = compact[:6]
-	}
-	return prefix + compact
 }
 
 func invoiceItemName(it store.InvoiceItem) string {

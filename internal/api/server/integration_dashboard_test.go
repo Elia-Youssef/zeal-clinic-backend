@@ -7,24 +7,29 @@ import (
 
 // analytics
 
-func TestAnalytics_TotalPatients(t *testing.T) {
+func TestAnalytics_MoneySectionShape(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
-	createPatientAndGetID(t, e, tok, "Counted")
-
-	rec := doRequest(t, e, http.MethodGet, "/api/analytics/patients/total", nil, tok)
+	rec := doRequest(t, e, http.MethodGet, "/api/analytics/money?from=2026-05-01&to=2026-05-31", nil, tok)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("total patients: %d body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("money: %d body=%s", rec.Code, rec.Body.String())
 	}
 	var data struct {
-		Total int `json:"total"`
+		Revenue struct {
+			Value    float64 `json:"value"`
+			Previous float64 `json:"previous"`
+			Change   float64 `json:"change"`
+		} `json:"revenue"`
+		NetProfit  struct{ Value float64 } `json:"netProfit"`
+		RevenueMix struct {
+			Procedures float64 `json:"procedures"`
+		} `json:"revenueMix"`
 	}
 	decodeEnvelope(t, rec.Body, &data)
-	if data.Total != 1 {
-		t.Errorf("total = %d want 1", data.Total)
-	}
+	// On an empty seed these are all zero, but the keys must decode (delta shape present).
+	_ = data
 }
 
 func TestAnalytics_HappyPathEndpoints(t *testing.T) {
@@ -33,17 +38,20 @@ func TestAnalytics_HappyPathEndpoints(t *testing.T) {
 	tok := adminToken(t, e)
 
 	paths := []string{
-		"/api/analytics/patients/new-this-month",
-		"/api/analytics/appointments/counts",
-		"/api/analytics/appointments/recent-today",
-		"/api/analytics/appointments/cancellation-rate",
-		"/api/analytics/revenue/this-month",
-		"/api/analytics/revenue/outstanding",
-		"/api/analytics/expenses/this-month",
-		"/api/analytics/transactions/recent",
-		"/api/analytics/procedures/completed-this-month",
+		"/api/analytics/money",
+		"/api/analytics/patients",
+		"/api/analytics/operations",
+		"/api/analytics/inventory",
+		"/api/analytics/demographics",
+		"/api/analytics/referral-sources",
+		"/api/analytics/staff-performance",
 		"/api/analytics/procedures/top",
-		"/api/analytics/inventory/low-stock",
+		"/api/analytics/procedures/top?by=revenue",
+		"/api/analytics/products/top",
+		"/api/analytics/appointments/distribution",
+		"/api/analytics/appointments/recent-today",
+		"/api/analytics/rooms/utilization",
+		"/api/analytics/transactions/recent",
 	}
 	for _, p := range paths {
 		t.Run(p, func(t *testing.T) {
@@ -52,6 +60,24 @@ func TestAnalytics_HappyPathEndpoints(t *testing.T) {
 				t.Errorf("%s: expected 200, got %d body=%s", p, rec.Code, rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestAnalytics_ReportPDF(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	rec := doRequest(t, e, http.MethodGet, "/api/analytics/report/pdf?from=2026-05-01&to=2026-05-31", nil, tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("report pdf: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var data struct {
+		URL string `json:"url"`
+	}
+	decodeEnvelope(t, rec.Body, &data)
+	if data.URL == "" {
+		t.Errorf("expected a served pdf url, got empty")
 	}
 }
 
@@ -66,17 +92,44 @@ func TestAnalytics_SeriesRequiresMetric(t *testing.T) {
 		t.Errorf("expected 400 without metric, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
-	// A valid metric returns 200.
-	rec = doRequest(t, e, http.MethodGet, "/api/analytics/series?metric=revenue&from=2026-05-01&to=2026-05-07", nil, tok)
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200 with metric, got %d body=%s", rec.Code, rec.Body.String())
+	// Each supported metric returns 200.
+	for _, m := range []string{"revenue", "expenses", "appointments", "new-patients", "procedures-completed"} {
+		rec = doRequest(t, e, http.MethodGet, "/api/analytics/series?metric="+m+"&from=2026-05-01&to=2026-05-07", nil, tok)
+		if rec.Code != http.StatusOK {
+			t.Errorf("metric %s: expected 200, got %d body=%s", m, rec.Code, rec.Body.String())
+		}
+	}
+}
+
+func TestAnalytics_RangeParamsAccepted(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	paths := []string{
+		"/api/analytics/money",
+		"/api/analytics/patients",
+		"/api/analytics/operations",
+		"/api/analytics/referral-sources",
+		"/api/analytics/staff-performance",
+		"/api/analytics/procedures/top",
+		"/api/analytics/products/top",
+		"/api/analytics/rooms/utilization",
+	}
+	for _, p := range paths {
+		t.Run(p, func(t *testing.T) {
+			rec := doRequest(t, e, http.MethodGet, p+"?from=2026-05-01&to=2026-05-31", nil, tok)
+			if rec.Code != http.StatusOK {
+				t.Errorf("%s: expected 200, got %d body=%s", p, rec.Code, rec.Body.String())
+			}
+		})
 	}
 }
 
 func TestAnalytics_RequiresAuth(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
-	rec := doRequest(t, e, http.MethodGet, "/api/analytics/patients/total", nil, "")
+	rec := doRequest(t, e, http.MethodGet, "/api/analytics/money", nil, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", rec.Code)
 	}

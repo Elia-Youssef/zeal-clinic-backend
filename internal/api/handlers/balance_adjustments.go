@@ -18,10 +18,10 @@ import (
 func DeleteBalanceTransaction(c echo.Context) error {
 	bt := store.BalanceTransaction{ID: c.Param("id")}
 	if err := bt.Delete(); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "transaction not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Transaction not found"})
 	} else if err != nil {
 		log.Println("Error: DeleteBalanceTransaction:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete transaction"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete transaction"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
@@ -39,9 +39,8 @@ func createEntityBalanceCorrection(
 	amount float64,
 	direction, transactionType, transactionMethod, description string,
 ) (*store.BalanceTransaction, error) {
-	var currency store.Currency
-	if err := currency.GetByID(currencyID); err != nil {
-		return nil, errors.New("currency not found")
+	if currencyID == "" {
+		currencyID = store.USDCurrencyID
 	}
 
 	entityName, err := resolveEntityName(entityType, entityID)

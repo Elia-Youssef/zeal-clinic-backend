@@ -196,7 +196,7 @@ func (p *Procedure) Create() error {
 	}
 	if _, err := tx.Exec(`INSERT INTO procedure_prices (id, procedure_id, price, is_active, created_at)
 		VALUES (?, ?, ?, 1, ?)`,
-		uuid.Must(uuid.NewV7()).String(), p.ID, p.Price, now); err != nil {
+		uuid.Must(uuid.NewV7()).String(), p.ID, Round2(p.Price), now); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -226,6 +226,7 @@ func (p *Procedure) Update(updates map[string]any) error {
 		case int64:
 			price = float64(v)
 		}
+		price = Round2(price)
 		var current float64
 		_ = tx.QueryRow(`SELECT price FROM procedure_prices WHERE procedure_id = ? AND is_active = 1`, p.ID).Scan(&current)
 		if current != price {

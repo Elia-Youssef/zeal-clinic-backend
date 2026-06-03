@@ -19,7 +19,7 @@ func GetClientPayments(c echo.Context) error {
 	total, err := items.GetEntityPayments("patient", c.Param("id"), params)
 	if err != nil {
 		log.Println("Error: GetClientPayments:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch client payments"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load client payments"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
@@ -30,40 +30,35 @@ func CreateClientPayment(c echo.Context) error {
 	var req struct {
 		PatientID         string  `json:"patientId"`
 		Amount            float64 `json:"amount"`
-		CurrencyID        string  `json:"currencyId"`
 		TransactionMethod string  `json:"transactionMethod"`
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		tracking.Warn(c, "[CreateClientPayment] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	errs := make(validation.Errors)
 	if msg := validation.Required(req.PatientID, "Patient ID"); msg != "" {
 		errs["patientId"] = msg
 	}
-	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
-		errs["currencyId"] = msg
-	}
 	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
 	}
+	if msg := validation.OneOf(req.TransactionMethod, []string{"cash", "card", "transfer", "discount", "other"}, "Method"); msg != "" {
+		errs["transactionMethod"] = msg
+	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateClientPayment] validation failed")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
-	// Verify currency exists
-	var currency store.Currency
-	if err := currency.GetByID(req.CurrencyID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "currency not found"})
-	}
+	currencyID := store.USDCurrencyID
 
 	// Verify patient exists
 	var patient store.Patient
 	if err := patient.GetByID(req.PatientID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "patient not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Patient not found"})
 	}
 	patientName := patient.FirstName + " " + patient.LastName
 
@@ -72,11 +67,11 @@ func CreateClientPayment(c echo.Context) error {
 		EntityType: "patient",
 		EntityID:   &req.PatientID,
 		EntityName: patientName,
-		CurrencyID: req.CurrencyID,
+		CurrencyID: currencyID,
 	}
 	if err := patientBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateClientPayment patient balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve patient balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load patient balance"})
 	}
 
 	// Resolve self balance (TO)
@@ -85,11 +80,11 @@ func CreateClientPayment(c echo.Context) error {
 		EntityType: "self",
 		EntityID:   &selfID,
 		EntityName: "Clinic",
-		CurrencyID: req.CurrencyID,
+		CurrencyID: currencyID,
 	}
 	if err := selfBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateClientPayment self balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve self balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load clinic balance"})
 	}
 
 	user := c.Get("user").(store.User)
@@ -98,7 +93,7 @@ func CreateClientPayment(c echo.Context) error {
 		FromBalanceID:     patientBalance.ID,
 		ToBalanceID:       selfBalance.ID,
 		Amount:            req.Amount,
-		CurrencyID:        req.CurrencyID,
+		CurrencyID:        currencyID,
 		TransactionType:   "payment",
 		TransactionMethod: req.TransactionMethod,
 		Description:       req.Description,
@@ -106,7 +101,7 @@ func CreateClientPayment(c echo.Context) error {
 	}
 	if err := bt.Create(); err != nil {
 		log.Println("Error: CreateClientPayment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create payment: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create payment"})
 	}
 
 	bt.FromEntityName = patientBalance.EntityName
@@ -122,22 +117,18 @@ func CreateClientAdjustment(c echo.Context) error {
 	var req struct {
 		PatientID         string  `json:"patientId"`
 		Amount            float64 `json:"amount"`
-		CurrencyID        string  `json:"currencyId"`
 		TransactionMethod string  `json:"transactionMethod"`
 		Direction         string  `json:"direction"`
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		tracking.Warn(c, "[CreateClientAdjustment] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	errs := make(validation.Errors)
 	if msg := validation.Required(req.PatientID, "Patient ID"); msg != "" {
 		errs["patientId"] = msg
-	}
-	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
-		errs["currencyId"] = msg
 	}
 	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
@@ -148,16 +139,20 @@ func CreateClientAdjustment(c echo.Context) error {
 	if msg := validation.OneOf(req.Direction, []string{"incoming", "outgoing"}, "Direction"); msg != "" {
 		errs["direction"] = msg
 	}
+	if msg := validation.OneOf(req.TransactionMethod, []string{"cash", "card", "transfer", "discount", "other"}, "Method"); msg != "" {
+		errs["transactionMethod"] = msg
+	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateClientAdjustment] validation failed")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
-	bt, err := createEntityBalanceCorrection(c, "patient", req.PatientID, req.CurrencyID,
+	currencyID := store.USDCurrencyID
+	bt, err := createEntityBalanceCorrection(c, "patient", req.PatientID, currencyID,
 		req.Amount, req.Direction, "adjustment", req.TransactionMethod, req.Description)
 	if err != nil {
 		log.Println("Error: CreateClientAdjustment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create adjustment: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create adjustment"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }
@@ -170,21 +165,17 @@ func CreateClientWriteOff(c echo.Context) error {
 	var req struct {
 		PatientID   string  `json:"patientId"`
 		Amount      float64 `json:"amount"`
-		CurrencyID  string  `json:"currencyId"`
 		Direction   string  `json:"direction"`
 		Description string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		tracking.Warn(c, "[CreateClientWriteOff] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	errs := make(validation.Errors)
 	if msg := validation.Required(req.PatientID, "Patient ID"); msg != "" {
 		errs["patientId"] = msg
-	}
-	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
-		errs["currencyId"] = msg
 	}
 	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
@@ -197,14 +188,15 @@ func CreateClientWriteOff(c echo.Context) error {
 	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateClientWriteOff] validation failed")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
-	bt, err := createEntityBalanceCorrection(c, "patient", req.PatientID, req.CurrencyID,
+	currencyID := store.USDCurrencyID
+	bt, err := createEntityBalanceCorrection(c, "patient", req.PatientID, currencyID,
 		req.Amount, req.Direction, "write-off", "other", req.Description)
 	if err != nil {
 		log.Println("Error: CreateClientWriteOff:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create write-off: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create write-off"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }
@@ -215,38 +207,34 @@ func CreateClientRefund(c echo.Context) error {
 	var req struct {
 		PatientID         string  `json:"patientId"`
 		Amount            float64 `json:"amount"`
-		CurrencyID        string  `json:"currencyId"`
 		TransactionMethod string  `json:"transactionMethod"`
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		tracking.Warn(c, "[CreateClientRefund] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	errs := make(validation.Errors)
 	if msg := validation.Required(req.PatientID, "Patient ID"); msg != "" {
 		errs["patientId"] = msg
 	}
-	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
-		errs["currencyId"] = msg
-	}
 	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
 	}
+	if msg := validation.OneOf(req.TransactionMethod, []string{"cash", "card", "transfer", "discount", "other"}, "Method"); msg != "" {
+		errs["transactionMethod"] = msg
+	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateClientRefund] validation failed")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
-	var currency store.Currency
-	if err := currency.GetByID(req.CurrencyID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "currency not found"})
-	}
+	currencyID := store.USDCurrencyID
 
 	var patient store.Patient
 	if err := patient.GetByID(req.PatientID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "patient not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Patient not found"})
 	}
 	patientName := patient.FirstName + " " + patient.LastName
 
@@ -256,11 +244,11 @@ func CreateClientRefund(c echo.Context) error {
 		EntityType: "self",
 		EntityID:   &selfID,
 		EntityName: "Clinic",
-		CurrencyID: req.CurrencyID,
+		CurrencyID: currencyID,
 	}
 	if err := selfBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateClientRefund self balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve self balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load clinic balance"})
 	}
 
 	// Resolve patient balance (TO)
@@ -268,11 +256,11 @@ func CreateClientRefund(c echo.Context) error {
 		EntityType: "patient",
 		EntityID:   &req.PatientID,
 		EntityName: patientName,
-		CurrencyID: req.CurrencyID,
+		CurrencyID: currencyID,
 	}
 	if err := patientBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateClientRefund patient balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve patient balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load patient balance"})
 	}
 
 	user := c.Get("user").(store.User)
@@ -281,7 +269,7 @@ func CreateClientRefund(c echo.Context) error {
 		FromBalanceID:     selfBalance.ID,
 		ToBalanceID:       patientBalance.ID,
 		Amount:            req.Amount,
-		CurrencyID:        req.CurrencyID,
+		CurrencyID:        currencyID,
 		TransactionType:   "refund",
 		TransactionMethod: req.TransactionMethod,
 		Description:       req.Description,
@@ -289,7 +277,7 @@ func CreateClientRefund(c echo.Context) error {
 	}
 	if err := bt.Create(); err != nil {
 		log.Println("Error: CreateClientRefund:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create refund: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create refund"})
 	}
 
 	bt.FromEntityName = selfBalance.EntityName

@@ -4,22 +4,19 @@ package systray
 
 import (
 	"context"
-	_ "embed"
 	"log"
 	"time"
 
+	"clinic-api/internal/assets"
 	"clinic-api/internal/browser"
 
 	trayui "github.com/getlantern/systray"
 )
 
-//go:embed icon.ico
-var iconData []byte
-
 func Run(shutdown func(ctx context.Context) error) {
 	trayui.Run(
 		func() {
-			trayui.SetIcon(iconData)
+			trayui.SetIcon(assets.Icon())
 			trayui.SetTitle("Zeal Clinic")
 
 			mOpen := trayui.AddMenuItem("Open Browser", "Open the app in your browser")

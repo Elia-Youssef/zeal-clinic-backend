@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"flag"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"clinic-api/internal/api/middleware"
@@ -13,6 +16,7 @@ import (
 	"clinic-api/internal/buildmode"
 	"clinic-api/internal/config"
 	"clinic-api/internal/database"
+	"clinic-api/internal/database/store"
 	"clinic-api/internal/monitor"
 	syncpkg "clinic-api/internal/sync"
 	"clinic-api/internal/systray"
@@ -149,6 +153,7 @@ func runSeed(db *sql.DB, opts appOptions) {
 
 func startSync(db *sql.DB, cfg *config.Config) (*syncpkg.Engine, context.CancelFunc) {
 	syncpkg.InvalidateCache = middleware.InvalidateCache
+	syncpkg.RecalcBalance = store.RecalculateBalanceWithTx
 
 	ctx, cancel := context.WithCancel(context.Background())
 	engine := syncpkg.New(db, syncpkg.Config{
@@ -162,10 +167,9 @@ func startSync(db *sql.DB, cfg *config.Config) (*syncpkg.Engine, context.CancelF
 func startMonitor() *monitor.Monitor {
 	mon := monitor.New(1 * time.Minute)
 	mon.Register(
-		monitor.Action{Name: "expire-discounts", Fn: monitor.ExpireDiscounts},
-		monitor.Action{Name: "appointment-reminders", Fn: monitor.SendAppointmentReminders},
-		monitor.Action{Name: "low-stock-alerts", Fn: monitor.SendLowStockAlerts},
-		monitor.Action{Name: "cleanup-pdf-cache", Fn: monitor.CleanupPDFCache},
+		monitor.Action{Name: "expire-discounts", Duration: 10 * time.Minute, Fn: monitor.ExpireDiscounts},
+		monitor.Action{Name: "appointment-reminders", Duration: 1 * time.Minute, Fn: monitor.SendAppointmentReminders},
+		monitor.Action{Name: "cleanup-pdf-cache", Duration: 5 * time.Minute, Fn: monitor.CleanupPDFCache},
 	)
 	mon.Start()
 	return mon
@@ -179,7 +183,15 @@ func runServer(cfg *config.Config, opts appOptions) {
 	e := server.CreateServer()
 
 	if opts.dev || buildmode.Cloud {
-		server.Start(e, cfg)
+		go server.Start(e, cfg)
+
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		<-ctx.Done()
+
+		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = e.Shutdown(shutCtx)
 		return
 	}
 

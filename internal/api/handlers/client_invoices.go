@@ -3,23 +3,39 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/monitor"
 	"clinic-api/internal/tracking"
 	"clinic-api/internal/validation"
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
 
+// invoiceProductIDs returns the product item IDs from the given invoice items,
+// used to scope low-stock checks to just the products an invoice touched.
+func invoiceProductIDs(items store.InvoiceItemList) []string {
+	var ids []string
+	for _, it := range items {
+		if it.ItemType == "product" && it.ItemID != "" {
+			ids = append(ids, it.ItemID)
+		}
+	}
+	return ids
+}
+
 // GetClientInvoices returns invoices where to_balance is a patient balance.
 func GetClientInvoices(c echo.Context) error {
+	params := parseListParams(c)
 	items := store.InvoiceList{}
-	if err := items.GetClientInvoices(c.Param("id")); err != nil {
+	total, err := items.GetClientInvoices(c.Param("id"), params)
+	if err != nil {
 		log.Println("Error: GetClientInvoices:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch client invoices"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load client invoices"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
 
 // CreateClientInvoice creates an invoice for a patient.
@@ -33,7 +49,6 @@ func GetClientInvoices(c echo.Context) error {
 func CreateClientInvoice(c echo.Context) error {
 	var req struct {
 		PatientID     string              `json:"patientId"`
-		CurrencyID    string              `json:"currencyId"`
 		DiscountID    string              `json:"discountId"`
 		Notes         string              `json:"notes"`
 		InvoiceNumber int                 `json:"invoiceNumber"`
@@ -41,7 +56,7 @@ func CreateClientInvoice(c echo.Context) error {
 	}
 	if err := c.Bind(&req); err != nil {
 		tracking.Warn(c, "[CreateClientInvoice] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	// Validate
@@ -49,23 +64,21 @@ func CreateClientInvoice(c echo.Context) error {
 	if msg := validation.Required(req.PatientID, "Patient ID"); msg != "" {
 		errs["patientId"] = msg
 	}
-	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
-		errs["currencyId"] = msg
-	}
 	if len(req.Items) == 0 {
 		errs["items"] = "At least one item is required"
 	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateClientInvoice] validation failed")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
 	// Verify patient exists
 	var patient store.Patient
 	if err := patient.GetByID(req.PatientID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "patient not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Patient not found"})
 	}
 	patientName := patient.FirstName + " " + patient.LastName
+	currencyID := store.USDCurrencyID
 
 	// Resolve self balance (FROM)
 	selfID := "self"
@@ -73,11 +86,11 @@ func CreateClientInvoice(c echo.Context) error {
 		EntityType: "self",
 		EntityID:   &selfID,
 		EntityName: "Clinic",
-		CurrencyID: req.CurrencyID,
+		CurrencyID: currencyID,
 	}
 	if err := selfBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateClientInvoice self balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve self balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load clinic balance"})
 	}
 
 	// Resolve patient balance (TO)
@@ -85,11 +98,11 @@ func CreateClientInvoice(c echo.Context) error {
 		EntityType: "patient",
 		EntityID:   &req.PatientID,
 		EntityName: patientName,
-		CurrencyID: req.CurrencyID,
+		CurrencyID: currencyID,
 	}
 	if err := patientBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateClientInvoice patient balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve patient balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load patient balance"})
 	}
 
 	user := c.Get("user").(store.User)
@@ -100,7 +113,7 @@ func CreateClientInvoice(c echo.Context) error {
 	inv := store.Invoice{
 		FromBalanceID: selfBalance.ID,
 		ToBalanceID:   patientBalance.ID,
-		CurrencyID:    req.CurrencyID,
+		CurrencyID:    currencyID,
 		DiscountID:    req.DiscountID,
 		Notes:         req.Notes,
 		InvoiceNumber: req.InvoiceNumber,
@@ -108,11 +121,12 @@ func CreateClientInvoice(c echo.Context) error {
 		Items:         req.Items,
 	}
 	if err := inv.Create(); errors.Is(err, store.ErrConflict) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: err.Error()})
+		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
 	} else if err != nil {
 		log.Println("Error: CreateClientInvoice:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create invoice: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create invoice"})
 	}
+	monitor.CheckLowStock(invoiceProductIDs(inv.Items))
 
 	if selfBalance.EntityID != nil {
 		inv.FromEntityID = *selfBalance.EntityID
@@ -130,16 +144,16 @@ func UpdateClientInvoice(c echo.Context) error {
 	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		tracking.Warn(c, "[UpdateClientInvoice] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	delete(updates, "id")
 	delete(updates, "invoiceNumber")
 	inv := store.Invoice{ID: c.Param("id")}
 	if err := inv.Update(updates); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "invoice not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
 	} else if err != nil {
 		log.Println("Error: UpdateClientInvoice:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update invoice"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update invoice"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
 }
@@ -147,11 +161,19 @@ func UpdateClientInvoice(c echo.Context) error {
 func DeleteClientInvoice(c echo.Context) error {
 	id := c.Param("id")
 	inv := store.Invoice{ID: id}
+	if err := inv.GetByID(id); errors.Is(err, store.ErrNotFound) {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
+	} else if err != nil {
+		log.Println("Error: DeleteClientInvoice fetch:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete invoice"})
+	}
+	productIDs := invoiceProductIDs(inv.Items)
 	if err := inv.Delete(); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "invoice not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
 	} else if err != nil {
 		log.Println("Error: DeleteClientInvoice:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete invoice"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete invoice"})
 	}
+	monitor.CheckLowStock(productIDs)
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

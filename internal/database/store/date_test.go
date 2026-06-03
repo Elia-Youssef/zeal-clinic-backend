@@ -6,6 +6,37 @@ import (
 	"time"
 )
 
+// PreviousPeriod must return the equal-length window ending exactly where the
+// current one begins (half-open, no gap or overlap).
+func TestPreviousPeriod(t *testing.T) {
+	// For a 30-day window in May, the previous window is the 30 days ending May 1.
+	pf, pt := PreviousPeriod("2026-05-01", "2026-05-30")
+	// RangeEnd("2026-05-30") is exclusive next-day (2026-05-31), so the window is
+	// 30 days; previous ends at the current start.
+	if pt != "2026-05-01T00:00:00Z" {
+		t.Errorf("previous end = %q, want current start 2026-05-01T00:00:00Z", pt)
+	}
+	if pf != "2026-04-01T00:00:00Z" {
+		t.Errorf("previous start = %q, want 2026-04-01T00:00:00Z", pf)
+	}
+}
+
+func TestPreviousPeriod_BadInput(t *testing.T) {
+	if pf, pt := PreviousPeriod("", ""); pf != "" || pt != "" {
+		t.Errorf("empty bounds should yield empty, got (%q,%q)", pf, pt)
+	}
+}
+
+// newMetric computes the fractional change and guards divide-by-zero.
+func TestNewMetric(t *testing.T) {
+	if m := newMetric(120, 100); m.Change < 0.1999 || m.Change > 0.2001 {
+		t.Errorf("change = %v, want ~0.2", m.Change)
+	}
+	if m := newMetric(50, 0); m.Change != 0 {
+		t.Errorf("change with zero previous = %v, want 0", m.Change)
+	}
+}
+
 // Time() is the core parser: empty is the zero value (no error), RFC3339 and
 // date-only both parse, anything else errors.
 func TestDate_TimeParsing(t *testing.T) {

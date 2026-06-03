@@ -15,7 +15,7 @@ func GetProcedurePrices(c echo.Context) error {
 	total, err := items.GetByProcedure(c.Param("id"), params)
 	if err != nil {
 		log.Println("Error: [GetProcedurePrices] failed to fetch prices:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch prices"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load prices"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }

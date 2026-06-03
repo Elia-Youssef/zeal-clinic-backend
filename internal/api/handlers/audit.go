@@ -24,7 +24,7 @@ func GetAllAuditLogs(c echo.Context) error {
 	)
 	if err != nil {
 		log.Println("Error: [GetAllAuditLogs] failed to fetch audit log:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch audit log"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load audit log"})
 	}
 	if entries == nil {
 		entries = []store.AuditLogEntry{}

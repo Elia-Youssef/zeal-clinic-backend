@@ -61,7 +61,7 @@ func TestCreateDiscount_GiftRejected(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "gift discounts can only be created through an invoice")
+	containsString(t, rec.Body.String(), "Gift cards can only be created through an invoice")
 }
 
 func TestCreateDiscount_ValidationFails(t *testing.T) {

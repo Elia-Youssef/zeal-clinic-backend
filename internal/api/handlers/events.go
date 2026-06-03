@@ -18,7 +18,7 @@ const heartbeatInterval = 25 * time.Second
 func StreamEvents(c echo.Context) error {
 	userID := currentUserID(c)
 	if userID == "" {
-		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Not Authorized"})
+		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Please sign in again"})
 	}
 
 	res := c.Response()
@@ -56,6 +56,11 @@ func StreamEvents(c echo.Context) error {
 				return nil
 			}
 		case <-heartbeat.C:
+			if client.TakePending() {
+				if err := writeSSE(res, realtime.Event{Type: "data_changed"}); err != nil {
+					return nil
+				}
+			}
 			if _, err := res.Write([]byte(": ping\n\n")); err != nil {
 				return nil
 			}

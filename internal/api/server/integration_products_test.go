@@ -65,7 +65,7 @@ func TestCreateProduct_ValidationFails(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "validation failed")
+	containsString(t, rec.Body.String(), "Please check your input")
 }
 
 func TestGetProductByID_FoundAndNotFound(t *testing.T) {
@@ -280,5 +280,33 @@ func TestProductCategory_ValidationFails(t *testing.T) {
 		asJSON(t, map[string]any{"name": ""}), tok)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestProductCategory_DuplicateName(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	createProductCategory(t, e, tok, "Unique")
+
+	rec := doRequest(t, e, http.MethodPost, "/api/product-categories",
+		asJSON(t, map[string]any{"name": "unique"}), tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestProductCategory_SelfParentRejected(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	id := createProductCategory(t, e, tok, "Parentable")
+
+	rec := doRequest(t, e, http.MethodPut, "/api/product-categories/"+id,
+		asJSON(t, map[string]any{"parentId": id}), tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }

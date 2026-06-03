@@ -15,7 +15,7 @@ func TestCreateUser_Success(t *testing.T) {
 	rec := doRequest(t, e, http.MethodPost, "/api/users",
 		asJSON(t, map[string]any{
 			"username": "newuser", "displayName": "New User",
-			"role": "user", "password": "pw-12345",
+			"role": "staff", "password": "pw-12345",
 		}), tok)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
@@ -47,8 +47,8 @@ func TestCreateUser_ValidationFails(t *testing.T) {
 		name string
 		body map[string]any
 	}{
-		{"short username", map[string]any{"username": "ab", "displayName": "X", "role": "user"}},
-		{"missing displayName", map[string]any{"username": "validname", "role": "user"}},
+		{"short username", map[string]any{"username": "ab", "displayName": "X", "role": "staff"}},
+		{"missing displayName", map[string]any{"username": "validname", "role": "staff"}},
 		{"bad role", map[string]any{"username": "validname", "displayName": "X", "role": "wizard"}},
 	}
 	for _, tc := range cases {
@@ -67,7 +67,7 @@ func TestGetUserByID_FoundAndNotFound(t *testing.T) {
 	tok := adminToken(t, e)
 
 	rec := doRequest(t, e, http.MethodPost, "/api/users",
-		asJSON(t, map[string]any{"username": "findme", "displayName": "Find Me", "role": "user"}), tok)
+		asJSON(t, map[string]any{"username": "findme", "displayName": "Find Me", "role": "staff"}), tok)
 	var u struct{ ID string }
 	decodeEnvelope(t, rec.Body, &u)
 
@@ -88,7 +88,7 @@ func TestUpdateUser_RoleChangeAndNotFound(t *testing.T) {
 	tok := adminToken(t, e)
 
 	rec := doRequest(t, e, http.MethodPost, "/api/users",
-		asJSON(t, map[string]any{"username": "promoteme", "displayName": "Promote", "role": "user"}), tok)
+		asJSON(t, map[string]any{"username": "promoteme", "displayName": "Promote", "role": "staff"}), tok)
 	var u struct{ ID string }
 	decodeEnvelope(t, rec.Body, &u)
 
@@ -152,9 +152,14 @@ func TestGetAllRoles_ListShape(t *testing.T) {
 		Total int              `json:"total"`
 	}
 	decodeEnvelope(t, rec.Body, &page)
-	// super-admin/admin/user are seeded.
+	// super-admin/admin/staff/nurse are seeded, but super-admin is hidden (dev/support only).
 	if page.Total < 3 {
-		t.Errorf("expected at least 3 seeded roles, got %d", page.Total)
+		t.Errorf("expected at least 3 visible roles, got %d", page.Total)
+	}
+	for _, r := range page.Items {
+		if r["name"] == "super-admin" {
+			t.Error("super-admin role should not be listed")
+		}
 	}
 }
 
@@ -179,7 +184,7 @@ func TestUpdateRole_ScopesAndNotFound(t *testing.T) {
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
-	rec := doRequest(t, e, http.MethodPut, "/api/roles/user",
+	rec := doRequest(t, e, http.MethodPut, "/api/roles/staff",
 		asJSON(t, map[string]any{"name": "stripped", "scopes": []string{"patients:read"}}), tok)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("update: %d body=%s", rec.Code, rec.Body.String())

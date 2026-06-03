@@ -6,12 +6,8 @@ import (
 	"time"
 
 	"github.com/johnfercher/maroto/v2"
-	"github.com/johnfercher/maroto/v2/pkg/components/row"
-	"github.com/johnfercher/maroto/v2/pkg/components/text"
 	"github.com/johnfercher/maroto/v2/pkg/config"
 	"github.com/johnfercher/maroto/v2/pkg/consts/align"
-	"github.com/johnfercher/maroto/v2/pkg/consts/border"
-	"github.com/johnfercher/maroto/v2/pkg/consts/fontstyle"
 	"github.com/johnfercher/maroto/v2/pkg/consts/orientation"
 	"github.com/johnfercher/maroto/v2/pkg/core"
 	"github.com/johnfercher/maroto/v2/pkg/props"
@@ -23,164 +19,118 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to string) (string
 		return "", fmt.Errorf("report is empty")
 	}
 
-	cfg := config.NewBuilder().
-		WithMaxGridSize(100).
-		WithOrientation(orientation.Horizontal).
-		WithLeftMargin(8).
-		WithRightMargin(8).
-		WithTopMargin(8).
-		WithBottomMargin(8).
-		WithPageNumber(props.PageNumber{
-			Pattern: "page  {current} / {total}",
-			Place:   props.RightTop,
-			Size:    8.5,
-			Style:   fontstyle.Bold,
-		}).
-		Build()
-	m := maroto.New(cfg)
+	m := newReportDoc("Revenue Report")
 
-	if err := m.RegisterHeader(revenueReportHeaderRows(report, from, to)...); err != nil {
+	hdr := &rowBuf{}
+	masthead(hdr, 100, "Revenue Report", []string{
+		fmt.Sprintf("%s — %s", reportRangeStart(from), reportRangeEnd(to)),
+		"Currency: USD",
+	})
+	titleBar(hdr, 100, revenueReportSheet(report.Level)+" — by "+revenueReportAccumulate(report.Level))
+	hdr.AddRow(8,
+		headerCell(6, "Rank", align.Center),
+		headerCell(50, reportNameHeader(report.Level), align.Left),
+		headerCell(14, "Quantity", align.Right),
+		headerCell(18, "Amount", align.Right),
+		headerCell(12, "%", align.Right),
+	)
+	if err := m.RegisterHeader(hdr.rows...); err != nil {
 		return "", err
 	}
 
-	rowTxt := props.Text{Size: 8.2, Left: 1, Top: 0.8}
-	numTxt := props.Text{Size: 8.2, Align: align.Right, Right: 1, Top: 0.8}
 	for i, g := range report.Items {
-		m.AddRow(6,
-			cellCol(6, fmt.Sprintf("%d", i+1), numTxt, border.Full),
-			cellCol(50, g.EntityName, rowTxt, border.Full),
-			cellCol(14, reportQuantity(g.Quantity), numTxt, border.Full),
-			cellCol(18, money(g.Amount), numTxt, border.Full),
-			cellCol(12, fmt.Sprintf("%.5f", g.Percentage), numTxt, border.Full),
+		m.AddRow(7,
+			bodyCell(6, fmt.Sprintf("%d", i+1), align.Center),
+			bodyCell(50, g.EntityName, align.Left),
+			bodyCell(14, reportQuantity(g.Quantity), align.Right),
+			bodyCell(18, money(g.Amount), align.Right),
+			bodyCell(12, fmt.Sprintf("%.2f", g.Percentage), align.Right),
 		)
 	}
-
-	m.AddRow(7,
-		cellCol(6, "", rowTxt, border.None),
-		cellCol(50, "Grand Total", props.Text{Size: 10, Style: fontstyle.Bold, Align: align.Center, Top: 1}, border.Full),
-		cellCol(14, reportQuantity(report.Totals.Quantity), props.Text{Size: 8.5, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1}, border.Full),
-		cellCol(18, money(report.Totals.Amount), props.Text{Size: 8.5, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1}, border.Full),
-		cellCol(12, "", rowTxt, border.None),
+	m.AddRow(8,
+		emphCell(6, "", align.Center),
+		emphCell(50, "Grand Total", align.Left),
+		emphCell(14, reportQuantity(report.Totals.Quantity), align.Right),
+		emphCell(18, money(report.Totals.Amount), align.Right),
+		emphCell(12, "", align.Right),
 	)
 
 	return save(m, fmt.Sprintf("revenue-report-%s-%s", from[:10], to[:10]))
 }
 
 // GenerateExpensesReport writes an expenses report PDF and returns its path.
-func GenerateExpensesReport(rows []store.ExpenseRow, from, to string) (string, error) {
+func GenerateExpensesReport(report store.ExpensesReport, from, to string) (string, error) {
+	m := newReportDoc("Expenses Report")
+
+	hdr := &rowBuf{}
+	masthead(hdr, 100, "Expenses Report", []string{
+		fmt.Sprintf("%s — %s", reportRangeStart(from), reportRangeEnd(to)),
+		"Currency: USD",
+	})
+	titleBar(hdr, 100, "Clinic Expenses")
+	hdr.AddRow(8,
+		headerCell(12, "Date", align.Left),
+		headerCell(20, "Supplier", align.Left),
+		headerCell(26, "Description", align.Left),
+		headerCell(10, "Quantity", align.Right),
+		headerCell(12, "Unit Price", align.Right),
+		headerCell(10, "Amount", align.Right),
+		headerCell(10, "Remaining", align.Right),
+	)
+	if err := m.RegisterHeader(hdr.rows...); err != nil {
+		return "", err
+	}
+
+	for _, r := range report.Rows {
+		m.AddRow(7,
+			bodyCell(12, clinicDate(r.Date), align.Left),
+			bodyCell(20, r.Supplier, align.Left),
+			bodyCell(26, r.Description, align.Left),
+			bodyCell(10, reportQuantity(r.Quantity), align.Right),
+			bodyCell(12, money(r.AmountPerUnit), align.Right),
+			bodyCell(10, money(r.Amount), align.Right),
+			bodyCell(10, money(r.RemainingBalance), align.Right),
+		)
+	}
+	m.AddRow(8,
+		emphCell(12, "", align.Left),
+		emphCell(20, "", align.Left),
+		emphCell(26, "Grand Total", align.Left),
+		emphCell(10, "", align.Right),
+		emphCell(12, "", align.Right),
+		emphCell(10, money(report.Totals.Amount), align.Right),
+		emphCell(10, money(report.Totals.Remaining), align.Right),
+	)
+
+	return save(m, fmt.Sprintf("expenses-report-%s-%s", from[:10], to[:10]))
+}
+
+func newReportDoc(label string) core.Maroto {
 	cfg := config.NewBuilder().
 		WithMaxGridSize(100).
 		WithOrientation(orientation.Horizontal).
 		WithLeftMargin(8).
 		WithRightMargin(8).
 		WithTopMargin(8).
-		WithBottomMargin(8).
+		WithBottomMargin(10).
 		WithPageNumber(props.PageNumber{
-			Pattern: "page  {current} / {total}",
-			Place:   props.RightTop,
-			Size:    8.5,
-			Style:   fontstyle.Bold,
+			Pattern: "Zeal Clinic — " + label + "      {current} / {total}",
+			Place:   props.RightBottom,
+			Size:    8,
+			Color:   clrMutedFg,
 		}).
 		Build()
-	m := maroto.New(cfg)
-
-	if err := m.RegisterHeader(expensesReportHeaderRows(from, to)...); err != nil {
-		return "", err
-	}
-
-	var amountTotal, remainingTotal float64
-	rowTxt := props.Text{Size: 8.2, Left: 1, Top: 0.8}
-	numTxt := props.Text{Size: 8.2, Align: align.Right, Right: 1, Top: 0.8}
-	for i, r := range rows {
-		m.AddRow(6,
-			cellCol(6, fmt.Sprintf("%d", i+1), numTxt, border.Full),
-			cellCol(12, clinicDate(r.Date), rowTxt, border.Full),
-			cellCol(20, r.Supplier, rowTxt, border.Full),
-			cellCol(30, r.Description, rowTxt, border.Full),
-			cellCol(10, reportQuantity(r.Quantity), numTxt, border.Full),
-			cellCol(12, money(r.Amount), numTxt, border.Full),
-			cellCol(10, money(r.RemainingBalance), numTxt, border.Full),
-		)
-		amountTotal += r.Amount
-		remainingTotal += r.RemainingBalance
-	}
-
-	m.AddRow(7,
-		cellCol(6, "", rowTxt, border.None),
-		cellCol(12, "", rowTxt, border.None),
-		cellCol(20, "", rowTxt, border.None),
-		cellCol(30, "Grand Total", props.Text{Size: 10, Style: fontstyle.Bold, Align: align.Center, Top: 1}, border.Full),
-		cellCol(10, "", rowTxt, border.Full),
-		cellCol(12, money(amountTotal), props.Text{Size: 8.5, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1}, border.Full),
-		cellCol(10, money(remainingTotal), props.Text{Size: 8.5, Style: fontstyle.Bold, Align: align.Right, Right: 1, Top: 1}, border.Full),
-	)
-
-	return save(m, fmt.Sprintf("expenses-report-%s-%s", from[:10], to[:10]))
-}
-
-func revenueReportHeaderRows(report *store.RevenueReport, from, to string) []core.Row {
-	sheet := revenueReportSheet(report.Level) + "  USD"
-
-	headerTxt := props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center, Top: 1.3}
-
-	return []core.Row{
-		row.New(7).Add(
-			text.NewCol(10, "Sheet", props.Text{Size: 9, Style: fontstyle.Bold}),
-			text.NewCol(20, sheet, props.Text{Size: 9}),
-		),
-		row.New(7).Add(
-			text.NewCol(10, "Accumulate By", props.Text{Size: 9, Style: fontstyle.Bold}),
-			text.NewCol(20, revenueReportAccumulate(report.Level), props.Text{Size: 9}),
-			text.NewCol(55, ""),
-			text.NewCol(15, fmt.Sprintf("%s - %s", reportRangeStart(from), reportRangeEnd(to)), props.Text{Size: 9, Align: align.Right, Right: 1}),
-		),
-		row.New(5),
-		row.New(9).Add(
-			cellCol(6, "Rank", headerTxt, border.Full),
-			cellCol(50, reportNameHeader(report.Level), headerTxt, border.Full),
-			cellCol(14, "Quantity", headerTxt, border.Full),
-			cellCol(18, "Amount", headerTxt, border.Full),
-			cellCol(12, "%", headerTxt, border.Full),
-		),
-	}
-}
-
-func expensesReportHeaderRows(from, to string) []core.Row {
-	sheet := "Clinic expenses  USD"
-	headerTxt := props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center, Top: 1.3}
-
-	return []core.Row{
-		row.New(7).Add(
-			text.NewCol(10, "Sheet", props.Text{Size: 9, Style: fontstyle.Bold}),
-			text.NewCol(20, sheet, props.Text{Size: 9}),
-		),
-		row.New(7).Add(
-			text.NewCol(10, "Accumulate By", props.Text{Size: 9, Style: fontstyle.Bold}),
-			text.NewCol(20, "Expense", props.Text{Size: 9}),
-			text.NewCol(55, ""),
-			text.NewCol(15, fmt.Sprintf("%s - %s", reportRangeStart(from), reportRangeEnd(to)), props.Text{Size: 9, Align: align.Right, Right: 1}),
-		),
-		row.New(5),
-		row.New(9).Add(
-			cellCol(6, "Rank", headerTxt, border.Full),
-			cellCol(12, "Date", headerTxt, border.Full),
-			cellCol(20, "Supplier", headerTxt, border.Full),
-			cellCol(30, "Description", headerTxt, border.Full),
-			cellCol(10, "Quantity", headerTxt, border.Full),
-			cellCol(12, "Amount", headerTxt, border.Full),
-			cellCol(10, "Remaining", headerTxt, border.Full),
-		),
-	}
+	return maroto.New(cfg)
 }
 
 func revenueReportSheet(level string) string {
 	switch level {
 	case "product", "product-category":
-		return "Clinic product"
-	case "kind":
+		return "Clinic Products"
+	case "kind", "all", "other":
 		return "Clinic"
 	default:
-		return "Clinic procedure"
+		return "Clinic Procedures"
 	}
 }
 
@@ -196,6 +146,10 @@ func revenueReportAccumulate(level string) string {
 		return "Procedure Type"
 	case "kind":
 		return "Kind"
+	case "all":
+		return "Item"
+	case "other":
+		return "Other"
 	default:
 		return "Procedure"
 	}
@@ -205,8 +159,10 @@ func reportNameHeader(level string) string {
 	switch level {
 	case "product", "product-category":
 		return "Product Name"
-	case "kind":
+	case "kind", "all":
 		return "Name"
+	case "other":
+		return "Description"
 	default:
 		return "Procedure Name"
 	}

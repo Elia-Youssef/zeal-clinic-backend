@@ -25,7 +25,8 @@ type InvoiceItem struct {
 	GiftName      string  `json:"giftName,omitempty"`
 
 	// Transient join
-	ItemName string `json:"itemName"`
+	ItemName     string `json:"itemName"`
+	CategoryName string `json:"categoryName,omitempty"`
 }
 
 const invoiceItemColumnsNoId = `invoice_id, item_type, item_id, quantity, amount, final_amount, notes, created_at`
@@ -71,7 +72,10 @@ func (ii *InvoiceItemList) GetByInvoice(invoiceID string) error {
 		case "product":
 			RDB.QueryRow(`SELECT name FROM products WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
 		case "procedure":
-			RDB.QueryRow(`SELECT name FROM procedures WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
+			RDB.QueryRow(`SELECT p.name, COALESCE(c.name, '')
+				FROM procedures p
+				LEFT JOIN procedure_categories c ON c.id = p.category_id
+				WHERE p.id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName, &(*ii)[idx].CategoryName)
 		case "gift":
 			RDB.QueryRow(`SELECT name FROM discounts WHERE id = ?`, i.ItemID).Scan(&(*ii)[idx].ItemName)
 		default:

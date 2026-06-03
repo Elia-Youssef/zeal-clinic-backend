@@ -27,10 +27,14 @@ type DropdownItem struct {
 // ListParams holds optional pagination, filtering, and sorting parameters for
 // list queries. Sort is the requested sort field (typically a JSON field name
 // that each list function maps to a SQL column); Order is "asc" or "desc".
+// From/To bound a created_at date range (half-open [From, To), see
+// DateRangeClause); each list function opts in by calling DateRangeClause.
 type ListParams struct {
 	Offset int
 	Limit  int
 	Filter string
 	Sort   string
 	Order  string
+	From   string
+	To     string
 }

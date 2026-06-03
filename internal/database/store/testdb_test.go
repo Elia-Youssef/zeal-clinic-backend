@@ -110,12 +110,11 @@ func seedSelfBalance(t *testing.T, currencyID, name string) Balance {
 	return b
 }
 
-// seededCurrency returns one of the currencies seeded by the migrations.
-// Returns the first currency by code.
+// seededCurrency returns the fixed USD currency seeded by the migrations.
 func seededCurrency(t *testing.T) Currency {
 	t.Helper()
 	var c Currency
-	if err := c.ScanRow(RDB.QueryRow(`SELECT ` + currencyColumns + ` FROM currencies ORDER BY code LIMIT 1`)); err != nil {
+	if err := c.ScanRow(RDB.QueryRow(`SELECT `+currencyColumns+` FROM currencies WHERE id = ?`, USDCurrencyID)); err != nil {
 		t.Fatalf("no seeded currency found: %v", err)
 	}
 	return c
@@ -182,7 +181,7 @@ func expenseBalance(t *testing.T, name, currencyID string) Balance {
 func fetchBalance(t *testing.T, id string) Balance {
 	t.Helper()
 	var b Balance
-	if err := b.ScanRow(RDB.QueryRow(`SELECT ` + balanceColumns + ` FROM balances WHERE id = ?`, id)); err != nil {
+	if err := b.ScanRow(RDB.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE id = ?`, id)); err != nil {
 		t.Fatalf("fetchBalance(%s): %v", id, err)
 	}
 	return b

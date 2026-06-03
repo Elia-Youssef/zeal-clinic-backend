@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -16,7 +17,7 @@ func GetAllProcedureTypes(c echo.Context) error {
 	total, err := items.GetAll(params)
 	if err != nil {
 		log.Println("Error: GetAllProcedureTypes failed to fetch types:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch types"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load types"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
@@ -26,7 +27,7 @@ func GetProcedureTypeDropdown(c echo.Context) error {
 	items, err := store.GetProcedureTypeDropdown(params)
 	if err != nil {
 		log.Println("Error: [GetProcedureTypeDropdown] failed to fetch type dropdown:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch type dropdown"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load options"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
@@ -35,15 +36,17 @@ func CreateProcedureType(c echo.Context) error {
 	var pt store.ProcedureType
 	if err := c.Bind(&pt); err != nil {
 		log.Println("Error: CreateProcedureType invalid request:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	if err := pt.IsValid(); err != nil {
 		log.Println("Error: CreateProcedureType validation failed:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
-	if err := pt.Create(); err != nil {
+	if err := pt.Create(); errors.Is(err, store.ErrConflict) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
+	} else if err != nil {
 		log.Println("Error: CreateProcedureType failed to create type:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create type"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create type"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: pt})
 }
@@ -52,15 +55,17 @@ func UpdateProcedureType(c echo.Context) error {
 	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: UpdateProcedureType invalid request:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	pt := store.ProcedureType{ID: c.Param("id")}
 	if err := pt.Update(updates); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: UpdateProcedureType type not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "type not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Type not found"})
+	} else if errors.Is(err, store.ErrConflict) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
 	} else if err != nil {
 		log.Println("Error: UpdateProcedureType failed to update type:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update type"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update type"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: pt})
 }
@@ -68,16 +73,16 @@ func UpdateProcedureType(c echo.Context) error {
 func DeleteProcedureType(c echo.Context) error {
 	id := c.Param("id")
 	if store.HasDependencies(id, map[string]string{"procedures": "type_id"}) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete type: has related records"})
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete type while it's in use"})
 	}
 
 	pt := store.ProcedureType{ID: id}
 	if err := pt.Delete(); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [DeleteProcedureType] type not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "type not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Type not found"})
 	} else if err != nil {
 		log.Println("Error: [DeleteProcedureType] failed to delete type:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete type"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete type"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

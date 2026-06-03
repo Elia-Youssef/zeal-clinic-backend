@@ -39,7 +39,7 @@ func TestCreateRoom_ValidationFails(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "validation failed")
+	containsString(t, rec.Body.String(), "Please check your input")
 }
 
 func TestUpdateRoom_PartialAndNotFound(t *testing.T) {

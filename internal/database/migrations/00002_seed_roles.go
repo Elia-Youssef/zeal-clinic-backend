@@ -41,28 +41,43 @@ func upSeedRoles(ctx context.Context, tx *sql.Tx) error {
 		"reports:read," +
 		"roles:read,roles:write," +
 		"rooms:read,rooms:write,rooms:delete," +
-		"schedule-availability:write,schedule-availability:delete," +
+		"employee-schedules:write,employee-schedules:delete," +
 		"suppliers:read,suppliers:write,suppliers:delete," +
 		"update:read,update:write," +
 		"users:read,users:write"
 
-	userScopes := "allergies:read,analytics:read," +
+	staffScopes := "allergies:read,analytics:read," +
 		"appointments:delete,appointments:read,appointments:write," +
-		"currencies:read,discounts:read,expenses:delete,expenses:read,expenses:write," +
-		"invoices:delete,invoices:read,invoices:write,medicines:read," +
-		"patient-allergies:read,patient-allergies:write,patient-medicines:read,patient-medicines:write," +
-		"patients:delete,patients:read,patients:write,payments:delete,payments:read,payments:write," +
-		"prescriptions:delete,prescriptions:read,prescriptions:write," +
+		"balances:read,currencies:read," +
+		"discounts:read,discounts:write," +
+		"expenses:read,expenses:write," +
+		"hr:read,invoices:read,invoices:write,medicines:read," +
+		"patient-allergies:read,patient-allergies:write," +
+		"patient-medicines:read,patient-medicines:write," +
+		"patients:read,patients:write,payments:read,payments:write," +
+		"prescriptions:read," +
 		"procedure-allergy-conflicts:read,procedure-categories:read,procedure-types:read,procedures:read," +
 		"product-allergy-conflicts:read,product-categories:read,products:read," +
-		"rooms:read,suppliers:delete,suppliers:read,suppliers:write"
+		"rooms:read,suppliers:read,suppliers:write,update:read"
+
+	nurseScopes := "allergies:read,analytics:read," +
+		"appointments:read,medicines:read,medicines:write," +
+		"patient-allergies:read,patient-allergies:write," +
+		"patient-medicines:read,patient-medicines:write," +
+		"patients:read,patients:write," +
+		"prescriptions:read,prescriptions:write," +
+		"procedure-allergy-conflicts:read,procedure-allergy-conflicts:write," +
+		"procedure-categories:read,procedure-types:read,procedures:read," +
+		"product-allergy-conflicts:read,product-categories:read,products:read," +
+		"rooms:read"
 
 	roles := []struct {
 		name, label, scopes string
 	}{
 		{"super-admin", "Super Admin", allScopes},
 		{"admin", "Admin", allScopes},
-		{"user", "User", userScopes},
+		{"staff", "Staff", staffScopes},
+		{"nurse", "Nurse", nurseScopes},
 	}
 
 	for _, r := range roles {
@@ -77,6 +92,6 @@ func upSeedRoles(ctx context.Context, tx *sql.Tx) error {
 }
 
 func downSeedRoles(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `DELETE FROM roles WHERE name IN ('super-admin','admin','user')`)
+	_, err := tx.ExecContext(ctx, `DELETE FROM roles WHERE name IN ('super-admin','admin','staff','nurse')`)
 	return err
 }

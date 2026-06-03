@@ -70,7 +70,7 @@ func TestCreateAppointment_ValidationFails(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "validation failed")
+	containsString(t, rec.Body.String(), "Please check your input")
 }
 
 func TestCreateAppointment_RoomConflict(t *testing.T) {
@@ -276,9 +276,9 @@ func TestAppointments_RequiresAuth(t *testing.T) {
 	}
 }
 
-// schedule-availability
+// employee-schedules
 
-func TestScheduleAvailability_CreateAndDelete(t *testing.T) {
+func TestEmployeeSchedule_CreateAndDelete(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
@@ -292,7 +292,7 @@ func TestScheduleAvailability_CreateAndDelete(t *testing.T) {
 		"endTime":    "17:00",
 		"startDate":  "2026-01-01",
 	})
-	rec := doRequest(t, e, http.MethodPost, "/api/schedule-availability", body, tok)
+	rec := doRequest(t, e, http.MethodPost, "/api/employee-schedules", body, tok)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create schedule: %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -308,34 +308,34 @@ func TestScheduleAvailability_CreateAndDelete(t *testing.T) {
 		t.Errorf("new schedule should be active")
 	}
 
-	rec = doRequest(t, e, http.MethodDelete, "/api/schedule-availability/"+sa.ID, nil, tok)
+	rec = doRequest(t, e, http.MethodDelete, "/api/employee-schedules/"+sa.ID, nil, tok)
 	if rec.Code != http.StatusOK {
 		t.Errorf("delete schedule: %d body=%s", rec.Code, rec.Body.String())
 	}
-	if n := countTableRows(t, "schedule_availability", "id = ?", sa.ID); n != 0 {
+	if n := countTableRows(t, "employee_schedules", "id = ?", sa.ID); n != 0 {
 		t.Errorf("schedule not deleted")
 	}
 }
 
-func TestScheduleAvailability_ValidationFails(t *testing.T) {
+func TestEmployeeSchedule_ValidationFails(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
 	// Missing employeeId and times, bad dayOfWeek.
-	rec := doRequest(t, e, http.MethodPost, "/api/schedule-availability",
+	rec := doRequest(t, e, http.MethodPost, "/api/employee-schedules",
 		asJSON(t, map[string]any{"dayOfWeek": 9}), tok)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "validation failed")
+	containsString(t, rec.Body.String(), "Please check your input")
 }
 
-func TestScheduleAvailability_DeleteNotFound(t *testing.T) {
+func TestEmployeeSchedule_DeleteNotFound(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
-	rec := doRequest(t, e, http.MethodDelete, "/api/schedule-availability/ghost", nil, tok)
+	rec := doRequest(t, e, http.MethodDelete, "/api/employee-schedules/ghost", nil, tok)
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", rec.Code)
 	}

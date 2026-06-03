@@ -1,6 +1,7 @@
 package server
 
 import (
+	"clinic-api/internal/database/store"
 	"net/http"
 	"testing"
 )
@@ -40,7 +41,7 @@ func TestCreateCurrency_ValidationFails(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "validation failed")
+	containsString(t, rec.Body.String(), "Please check your input")
 }
 
 func TestUpdateCurrency_Success(t *testing.T) {
@@ -88,20 +89,8 @@ func TestDeleteCurrency_BlockedByDependencies(t *testing.T) {
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
-	// All seeded currencies already have at least one self balance referencing
-	// them. Delete should 409.
-	rec := doRequest(t, e, http.MethodGet, "/api/currencies/dropdown", nil, tok)
-	if rec.Code != http.StatusOK {
-		t.Fatal(rec.Code)
-	}
-	var items []map[string]any
-	decodeEnvelope(t, rec.Body, &items)
-	if len(items) == 0 {
-		t.Fatal("no seeded currencies")
-	}
-	id := items[0]["id"].(string)
-
-	rec = doRequest(t, e, http.MethodDelete, "/api/currencies/"+id, nil, tok)
+	// USD has the seeded self balance referencing it. Delete should 409.
+	rec := doRequest(t, e, http.MethodDelete, "/api/currencies/"+store.USDCurrencyID, nil, tok)
 	if rec.Code != http.StatusConflict {
 		t.Errorf("expected 409, got %d body=%s", rec.Code, rec.Body.String())
 	}

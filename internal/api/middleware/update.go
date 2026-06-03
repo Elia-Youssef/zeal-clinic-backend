@@ -19,7 +19,7 @@ func UpdateGate() echo.MiddlewareFunc {
 			if updater.IsInstalling() {
 				p := c.Request().URL.Path
 				if strings.HasPrefix(p, "/api/") && p != "/api/update/status" {
-					return c.JSON(http.StatusServiceUnavailable, httpx.Response{Error: "update in progress"})
+					return c.JSON(http.StatusServiceUnavailable, httpx.Response{Error: "Update in progress, please wait"})
 				}
 			}
 			return next(c)
@@ -34,7 +34,7 @@ func requireKey(header, secret string) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			got := c.Request().Header.Get(header)
 			if secret == "" || subtle.ConstantTimeCompare([]byte(got), []byte(secret)) != 1 {
-				return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "unauthorized"})
+				return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Not authorized"})
 			}
 			return next(c)
 		}

@@ -202,6 +202,7 @@ Table appointment_procedures {
   patient_id string [ref: > patients.id]
   procedure_id string [ref: > procedures.id]
   appointment_id string [ref: > appointments.id]
+  assigned_to_id string [ref: > employees.id]
   notes string
   created_at datetime
   updated_at datetime
@@ -229,7 +230,7 @@ Table employee_salaries {
   id string [pk]
   employee_id string [ref: > employees.id]
   amount float
-  currency_id string [ref: > currencies.id]
+  currency_id string [ref: > currencies.id, note: 'Defaults to USD (currencies.id = ISO code)']
   is_active bool
   effective_date date
   notes string
@@ -244,7 +245,7 @@ Table employee_salary_preparations {
   period_end date
   salary_id string
   transaction_id string
-  currency_id string [ref: > currencies.id]
+  currency_id string [ref: > currencies.id, note: 'Defaults to USD (currencies.id = ISO code)']
   base_salary float
   adjustment float
   prepared_amount float
@@ -275,7 +276,7 @@ Table appointments {
 // SCHEDULE AVAILABILITY
 // ============================================================
 
-Table schedule_availability {
+Table employee_schedules {
   id string [pk]
   employee_id string [ref: > employees.id]
   day_of_week int [note: '0-6']
@@ -299,12 +300,13 @@ Table holidays {
   updated_at datetime
 }
 
-Table employee_vacations {
+Table employee_schedule_changes {
   id string [pk]
   employee_id string [ref: > employees.id]
+  type string [note: 'timeoff (subtracts hours) | overtime (adds hours)']
   start_date date
   end_date date
-  start_time string [note: 'optional, partial-day only when start_date == end_date']
+  start_time string [note: 'required for overtime; optional for timeoff (empty = full-day off). When set, the window applies to every day in [start_date, end_date]']
   end_time string
   status string [note: 'pending | accepted | rejected; only accepted affects schedule projection']
   notes string
@@ -407,7 +409,7 @@ Table expenses {
 // ============================================================
 
 Table currencies {
-  id string [pk]
+  id string [pk, note: 'ISO 4217 code (e.g. USD) — natural key, equals code']
   code string [unique]
   name string
   symbol string
@@ -421,7 +423,7 @@ Table balances {
   entity_type string [note: 'patient | employee | self | supplier | expense']
   entity_id string [note: 'Polymorphic FK to patients/employees/suppliers/expenses']
   entity_name string
-  currency_id string [ref: > currencies.id]
+  currency_id string [ref: > currencies.id, note: 'Defaults to USD (currencies.id = ISO code)']
   amount float [note: 'Cached projection from active balance_transactions']
   total_in float [note: 'Cached cash-flow projection from active balance_transactions']
   total_out float [note: 'Cached cash-flow projection from active balance_transactions']
@@ -438,7 +440,7 @@ Table balance_transactions {
   from_balance_id string [ref: > balances.id]
   to_balance_id string [ref: > balances.id]
   amount float
-  currency_id string [ref: > currencies.id]
+  currency_id string [ref: > currencies.id, note: 'Defaults to USD (currencies.id = ISO code)']
   transaction_type string [note: 'charge | payment | refund | adjustment | write-off']
   transaction_method string [note: 'cash | card | transfer | discount | other']
   source_type string [note: 'optional originating entity, e.g. employee_salary_preparation']
@@ -458,11 +460,12 @@ Table invoices {
   discount_id string [ref: > discounts.id, note: 'optional offer applied to whole invoice']
   discount_value float
   final_amount float [note: 'amount after discounts']
-  currency_id string [ref: > currencies.id]
+  currency_id string [ref: > currencies.id, note: 'Defaults to USD (currencies.id = ISO code)']
   notes string
   created_by string
   created_at datetime
   updated_at datetime
+  voided_at string [note: 'soft-delete marker; empty = active. Set on delete so it replicates']
 }
 
 Table invoice_items {

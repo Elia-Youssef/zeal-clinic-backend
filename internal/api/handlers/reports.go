@@ -17,14 +17,13 @@ import (
 //                 the frontend converts clinic-local boundaries to UTC) or
 //                 bare YYYY-MM-DD UTC dates (calendar-day inclusive on both
 //                 ends).
-//   itemKind:     "" | products | procedures (root toggle, drill mode)
+//   itemKind:     "" | products | procedures | other | all (root toggle, drill mode)
 //   typeId:       drill into a procedure type
 //   categoryId:   drill into a procedure or product category
 //   level:        "" | kind | procedure-type | procedure-category |
 //                 product-category | procedure | product. When set, the
 //                 report aggregates flat across the whole dataset at that
 //                 level; typeId / categoryId become scope filters.
-//   currencyId:   optional
 func GetRevenueReport(c echo.Context) error {
 	from, to := parseRange(c)
 	report, err := (&store.Reports{}).Revenue(store.RevenueParams{
@@ -34,11 +33,11 @@ func GetRevenueReport(c echo.Context) error {
 		TypeID:     c.QueryParam("typeId"),
 		CategoryID: c.QueryParam("categoryId"),
 		Level:      c.QueryParam("level"),
-		CurrencyID: c.QueryParam("currencyId"),
+		CurrencyID: store.USDCurrencyID,
 	})
 	if err != nil {
 		log.Println("Error: GetRevenueReport:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: err.Error()})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Couldn't load report"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: report})
 }
@@ -47,16 +46,16 @@ func GetRevenueReport(c echo.Context) error {
 // row per expense payment, sorted by date.
 func GetExpensesReport(c echo.Context) error {
 	from, to := parseRange(c)
-	rows, err := (&store.Reports{}).Expenses(store.ExpensesParams{
+	report, err := (&store.Reports{}).Expenses(store.ExpensesParams{
 		From:       from,
 		To:         to,
-		CurrencyID: c.QueryParam("currencyId"),
+		CurrencyID: store.USDCurrencyID,
 	})
 	if err != nil {
 		log.Println("Error: GetExpensesReport:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: err.Error()})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Couldn't load report"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: rows})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: report})
 }
 
 // parseRange reads from/to query params, defaulting to the last 30 days (UTC)

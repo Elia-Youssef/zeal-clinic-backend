@@ -3,6 +3,7 @@ package sync
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,6 +16,9 @@ import (
 
 // InvalidateCache is injected at startup to avoid a middleware import cycle.
 var InvalidateCache func(key string)
+
+// RecalcBalance is injected at startup to avoid a store import cycle.
+var RecalcBalance func(tx *sql.Tx, balanceID string) error
 
 // Apply writes a sync batch in one tx. Local builds use local-wins LWW;
 // cloud builds accept incoming rows. NoDelete tables reject deletes.
@@ -97,6 +101,10 @@ func Apply(db *sql.DB, batch []LogEntry) (maxApplied int64, conflicts []Conflict
 		}
 	}
 
+	if err = recalcBalancesForApplied(tx, byTable["balance_transactions"]); err != nil {
+		return 0, nil, err
+	}
+
 	if _, err = tx.Exec(`UPDATE _sync_applying SET applying = 0 WHERE rowid = 1`); err != nil {
 		return 0, nil, fmt.Errorf("lower sync guard: %w", err)
 	}
@@ -108,6 +116,39 @@ func Apply(db *sql.DB, batch []LogEntry) (maxApplied int64, conflicts []Conflict
 	reportApplyOutcome(len(batch), conflicts)
 	invalidateCachesFor(changedTables)
 	return maxApplied, conflicts, nil
+}
+
+// recalcBalancesForApplied rebuilds balances touched by applied transactions so
+// the projection can't drift from source. Missing balance rows are skipped.
+func recalcBalancesForApplied(tx *sql.Tx, entries []LogEntry) error {
+	if RecalcBalance == nil {
+		return nil
+	}
+	affected := map[string]struct{}{}
+	for _, e := range entries {
+		if e.Op == "delete" {
+			continue
+		}
+		var row struct {
+			From string `json:"from_balance_id"`
+			To   string `json:"to_balance_id"`
+		}
+		if json.Unmarshal(e.RowJSON, &row) != nil {
+			continue
+		}
+		if row.From != "" {
+			affected[row.From] = struct{}{}
+		}
+		if row.To != "" {
+			affected[row.To] = struct{}{}
+		}
+	}
+	for id := range affected {
+		if err := RecalcBalance(tx, id); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("recalc balance %s: %w", id, err)
+		}
+	}
+	return nil
 }
 
 // reportApplyOutcome fires only when an apply produced conflicts. Successful

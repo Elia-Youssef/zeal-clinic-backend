@@ -14,7 +14,7 @@ func validUser() User {
 	return User{
 		Username:    "alice",
 		DisplayName: "Alice",
-		Role:        "user",
+		Role:        "staff",
 		IsActive:    true,
 	}
 }
@@ -58,7 +58,7 @@ func TestUser_IsValid_Errors(t *testing.T) {
 }
 
 func TestUser_IsValid_AcceptsAllValidRoles(t *testing.T) {
-	for _, role := range []string{"super-admin", "admin", "user"} {
+	for _, role := range []string{"super-admin", "admin", "staff", "nurse"} {
 		u := validUser()
 		u.Role = role
 		if err := u.IsValid(); err != nil {
@@ -69,7 +69,7 @@ func TestUser_IsValid_AcceptsAllValidRoles(t *testing.T) {
 
 func TestUser_Create_AssignsIDAndTimestamps(t *testing.T) {
 	setupTestDB(t)
-	u := User{Username: "bob", DisplayName: "Bob", Role: "user", IsActive: true}
+	u := User{Username: "bob", DisplayName: "Bob", Role: "staff", IsActive: true}
 	if err := u.Create("hash"); err != nil {
 		t.Fatal(err)
 	}
@@ -95,8 +95,8 @@ func TestUser_Create_AssignsIDAndTimestamps(t *testing.T) {
 
 func TestUser_Create_DuplicateUsernameRejected(t *testing.T) {
 	setupTestDB(t)
-	u1 := User{Username: "dup", DisplayName: "X", Role: "user", IsActive: true}
-	u2 := User{Username: "dup", DisplayName: "Y", Role: "user", IsActive: true}
+	u1 := User{Username: "dup", DisplayName: "X", Role: "staff", IsActive: true}
+	u2 := User{Username: "dup", DisplayName: "Y", Role: "staff", IsActive: true}
 	if err := u1.Create("h1"); err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestUser_GetByUsername_NotFound(t *testing.T) {
 
 func TestUser_Update_PartialFieldsOnly(t *testing.T) {
 	setupTestDB(t)
-	u := User{Username: "old", DisplayName: "Old", Role: "user", IsActive: true}
+	u := User{Username: "old", DisplayName: "Old", Role: "staff", IsActive: true}
 	if err := u.Create("h"); err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestUser_Update_PartialFieldsOnly(t *testing.T) {
 
 func TestUser_Update_BoolIsActive(t *testing.T) {
 	setupTestDB(t)
-	u := User{Username: "act", DisplayName: "A", Role: "user", IsActive: true}
+	u := User{Username: "act", DisplayName: "A", Role: "staff", IsActive: true}
 	if err := u.Create("h"); err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestUser_Update_BoolIsActive(t *testing.T) {
 
 func TestUser_Update_EmptyMapJustReloads(t *testing.T) {
 	setupTestDB(t)
-	u := User{Username: "noop", DisplayName: "N", Role: "user", IsActive: true}
+	u := User{Username: "noop", DisplayName: "N", Role: "staff", IsActive: true}
 	if err := u.Create("h"); err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +221,7 @@ func TestUser_Update_EmptyMapJustReloads(t *testing.T) {
 
 func TestUser_UpdatePassword(t *testing.T) {
 	setupTestDB(t)
-	u := User{Username: "pw", DisplayName: "P", Role: "user", IsActive: true}
+	u := User{Username: "pw", DisplayName: "P", Role: "staff", IsActive: true}
 	if err := u.Create("oldhash"); err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestUserList_GetAll_PaginationAndFilter(t *testing.T) {
 	RDB.QueryRow("SELECT COUNT(*) FROM users").Scan(&preTotal)
 
 	for _, name := range []string{"alpha", "bravo", "charlie", "delta", "echo"} {
-		u := User{Username: name, DisplayName: name + " full", Role: "user", IsActive: true}
+		u := User{Username: name, DisplayName: name + " full", Role: "staff", IsActive: true}
 		if err := u.Create("h"); err != nil {
 			t.Fatal(err)
 		}
@@ -290,7 +290,7 @@ func TestUserList_GetAll_PaginationAndFilter(t *testing.T) {
 // userForTokens creates a user (FK target) and returns it.
 func userForTokens(t *testing.T) User {
 	t.Helper()
-	u := User{Username: "tok-user", DisplayName: "T", Role: "user", IsActive: true}
+	u := User{Username: "tok-user", DisplayName: "T", Role: "staff", IsActive: true}
 	if err := u.Create("h"); err != nil {
 		t.Fatal(err)
 	}

@@ -8,9 +8,13 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"slices"
 
 	"github.com/labstack/echo/v4"
 )
+
+// super-admin is seed-only and not grantable via the API.
+var assignableRoles = []string{"admin", "staff", "nurse"}
 
 func GetAllUsers(c echo.Context) error {
 	params := parseListParams(c)
@@ -18,7 +22,7 @@ func GetAllUsers(c echo.Context) error {
 	total, err := users.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllUsers] failed to fetch users:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch users"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load users"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: users, Total: total}})
 }
@@ -26,10 +30,10 @@ func GetAllUsers(c echo.Context) error {
 func GetUserByID(c echo.Context) error {
 	var item store.User
 	if err := item.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "user not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
 	} else if err != nil {
 		log.Println("Error: [GetUserByID] failed to fetch user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch user"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load user"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: item})
 }
@@ -41,26 +45,29 @@ func CreateUser(c echo.Context) error {
 	}
 	if err := c.Bind(&body); err != nil {
 		log.Println("Error: [CreateUser] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	body.User.IsActive = true
 
+	if !slices.Contains(assignableRoles, body.User.Role) {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid role"})
+	}
 	if err := body.User.IsValid(); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	var hash string
 	if body.Password != "" {
 		h, err := auth.HashPassword(body.Password)
 		if err != nil {
 			log.Println("Error: [CreateUser] failed to hash password:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create user"})
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user"})
 		}
 		hash = h
 	}
 
 	if err := body.User.Create(hash); err != nil {
 		log.Println("Error: [CreateUser] failed to create user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create user"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: body.User})
 }
@@ -69,7 +76,7 @@ func UpdateUser(c echo.Context) error {
 	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: [UpdateUser] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	delete(updates, "id")
 	delete(updates, "username")
@@ -82,24 +89,66 @@ func UpdateUser(c echo.Context) error {
 			h, err := auth.HashPassword(pwStr)
 			if err != nil {
 				log.Println("Error: [UpdateUser] failed to hash password:", err)
-				return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update user"})
+				return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
 			}
 			passwordHash = h
 		}
 	}
 
-	user := store.User{ID: c.Param("id")}
+	targetID := c.Param("id")
+	caller := c.Get("user").(store.User)
+
+	newRole, roleChanging := updates["role"].(string)
+	if roleChanging && !slices.Contains(assignableRoles, newRole) {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid role"})
+	}
+
+	deactivating := false
+	if active, ok := updates["isActive"].(bool); ok && !active {
+		deactivating = true
+	}
+
+	if targetID == caller.ID {
+		if roleChanging && newRole != caller.Role {
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "You can't change your own role"})
+		}
+		if deactivating {
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "You can't deactivate your own account"})
+		}
+	}
+
+	var current store.User
+	if err := current.GetByID(targetID); errors.Is(err, store.ErrNotFound) {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
+	} else if err != nil {
+		log.Println("Error: [UpdateUser] failed to load user:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
+	}
+
+	demoting := roleChanging && current.Role == "admin" && newRole != "admin"
+	if current.Role == "admin" && current.IsActive && (demoting || deactivating) {
+		count, err := store.CountActiveAdmins()
+		if err != nil {
+			log.Println("Error: [UpdateUser] failed to count admins:", err)
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
+		}
+		if count <= 1 {
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Can't remove the last active admin"})
+		}
+	}
+
+	user := store.User{ID: targetID}
 	if err := user.Update(updates); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "user not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
 	} else if err != nil {
 		log.Println("Error: [UpdateUser] failed to update user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update user"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
 	}
 
 	if passwordHash != "" {
 		if err := user.UpdatePassword(passwordHash); err != nil {
 			log.Println("Error: [UpdateUser] failed to update password:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update password"})
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update password"})
 		}
 	}
 
@@ -120,17 +169,17 @@ func UpdateUser(c echo.Context) error {
 func GetUserActions(c echo.Context) error {
 	var user store.User
 	if err := user.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "user not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
 	} else if err != nil {
 		log.Println("Error: [GetUserActions] failed to load user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch actions"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load activity"})
 	}
 	params := parseListParams(c)
 	entries := store.AuditLogEntryList{}
 	total, err := entries.GetByUserID(user.ID, params)
 	if err != nil {
 		log.Println("Error: [GetUserActions] failed to fetch actions:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch actions"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load activity"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: entries, Total: total}})
 }

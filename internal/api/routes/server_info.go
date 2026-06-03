@@ -7,5 +7,5 @@ import (
 )
 
 func SetupServerInfoRoutes(pub *echo.Group) {
-	pub.GET("/server-url", handlers.GetServerURL)
+	pub.GET("/server-url", handlers.GetServerURL, cache("server-url"))
 }

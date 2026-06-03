@@ -8,46 +8,25 @@ import (
 
 type Analytics struct{}
 
-func (a *Analytics) TotalPatients() (int, error) {
-	var n int
-	err := RDB.QueryRow(`SELECT COUNT(*) FROM patients`).Scan(&n)
-	return n, err
-}
-
-func (a *Analytics) NewPatientsThisMonth() (int, error) {
-	start, end := ClinicMonthBounds(ClinicNow())
+func (a *Analytics) NewPatients(from, to string) (int, error) {
 	var n int
 	err := RDB.QueryRow(`SELECT COUNT(*) FROM patients
-		WHERE created_at >= ? AND created_at < ?`, start, end).Scan(&n)
+		WHERE created_at >= ? AND created_at < ?`, RangeStart(from), RangeEnd(to)).Scan(&n)
 	return n, err
 }
 
-type AppointmentCounts struct {
-	Today     int `json:"today"`
-	ThisWeek  int `json:"thisWeek"`
-	ThisMonth int `json:"thisMonth"`
-}
-
-func (a *Analytics) AppointmentCounts() (AppointmentCounts, error) {
-	now := ClinicNow()
-	dayStart, dayEnd := ClinicDayBounds(now)
-	weekStart, weekEnd := ClinicWeekBounds(now)
-	monthStart, monthEnd := ClinicMonthBounds(now)
-	var c AppointmentCounts
+func (a *Analytics) AppointmentCount(from, to string) (int, error) {
+	var n int
 	err := RDB.QueryRow(`
-		SELECT
-			COALESCE(SUM(CASE WHEN start_time >= ? AND start_time < ? THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN start_time >= ? AND start_time < ? THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN start_time >= ? AND start_time < ? THEN 1 ELSE 0 END), 0)
+		SELECT COUNT(*)
 		FROM appointments
 		WHERE status NOT IN ('Cancelled','Rescheduled')
 		AND start_time >= ? AND start_time < ?
-	`, dayStart, dayEnd, weekStart, weekEnd, monthStart, monthEnd, monthStart, monthEnd).Scan(&c.Today, &c.ThisWeek, &c.ThisMonth)
-	return c, err
+	`, RangeStart(from), RangeEnd(to)).Scan(&n)
+	return n, err
 }
 
-func (a *Analytics) RevenueThisMonth() (float64, error) {
-	start, end := ClinicMonthBounds(ClinicNow())
+func (a *Analytics) Revenue(from, to string) (float64, error) {
 	var v float64
 	err := RDB.QueryRow(`
 		SELECT COALESCE(SUM(bt.amount), 0)
@@ -57,12 +36,11 @@ func (a *Analytics) RevenueThisMonth() (float64, error) {
 		AND bt.voided_at = ''
 		AND bt.transaction_type = 'payment'
 		AND bt.created_at >= ? AND bt.created_at < ?
-	`, start, end).Scan(&v)
+	`, RangeStart(from), RangeEnd(to)).Scan(&v)
 	return v, err
 }
 
-func (a *Analytics) ExpensesThisMonth() (float64, error) {
-	start, end := ClinicMonthBounds(ClinicNow())
+func (a *Analytics) Expenses(from, to string) (float64, error) {
 	var v float64
 	err := RDB.QueryRow(`
 		SELECT COALESCE(SUM(bt.amount), 0)
@@ -72,7 +50,7 @@ func (a *Analytics) ExpensesThisMonth() (float64, error) {
 		AND bt.voided_at = ''
 		AND bt.transaction_type = 'payment'
 		AND bt.created_at >= ? AND bt.created_at < ?
-	`, start, end).Scan(&v)
+	`, RangeStart(from), RangeEnd(to)).Scan(&v)
 	return v, err
 }
 
@@ -85,51 +63,12 @@ func (a *Analytics) OutstandingReceivables() (float64, error) {
 	return v, err
 }
 
-func (a *Analytics) ProceduresCompletedThisMonth() (int, error) {
-	start, end := ClinicMonthBounds(ClinicNow())
-	var n int
-	err := RDB.QueryRow(`
-		SELECT COALESCE(SUM(ii.quantity), 0)
-		FROM invoice_items ii
-		JOIN invoices i ON i.id = ii.invoice_id
-		WHERE ii.item_type = 'procedure'
-		AND i.created_at >= ? AND i.created_at < ?
-	`, start, end).Scan(&n)
-	return n, err
-}
-
 func (a *Analytics) LowStockCount() (int, error) {
 	var n int
 	err := RDB.QueryRow(`
 		SELECT COUNT(*) FROM products WHERE quantity <= min_threshold
 	`).Scan(&n)
 	return n, err
-}
-
-type AppointmentCancellationRate struct {
-	Total     int     `json:"total"`
-	Cancelled int     `json:"cancelled"`
-	Rate      float64 `json:"rate"`
-}
-
-func (a *Analytics) CancellationRateThisMonth() (AppointmentCancellationRate, error) {
-	start, end := ClinicMonthBounds(ClinicNow())
-	var r AppointmentCancellationRate
-	err := RDB.QueryRow(`
-		SELECT
-			COUNT(*),
-			COALESCE(SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END), 0)
-		FROM appointments
-		WHERE start_time >= ? AND start_time < ?
-		AND status != 'Rescheduled'
-	`, start, end).Scan(&r.Total, &r.Cancelled)
-	if err != nil {
-		return r, err
-	}
-	if r.Total > 0 {
-		r.Rate = float64(r.Cancelled) / float64(r.Total)
-	}
-	return r, nil
 }
 
 func (a *Analytics) RecentAppointmentsToday(limit int) (AppointmentList, error) {
@@ -183,25 +122,35 @@ func (a *Analytics) RecentTransactions(limit int) (BalanceTransactionList, error
 }
 
 type TopProcedure struct {
-	ProcedureID string `json:"procedureId"`
-	Name        string `json:"name"`
-	Count       int    `json:"count"`
+	ProcedureID string  `json:"procedureId"`
+	Name        string  `json:"name"`
+	Count       int     `json:"count"`
+	Amount      float64 `json:"amount"`
 }
 
-func (a *Analytics) TopProceduresThisMonth(limit int) ([]TopProcedure, error) {
+// TopProcedures ranks billed procedures over the range. by="revenue" orders by
+// total final_amount; any other value orders by quantity. Both figures are
+// always returned so the frontend can re-sort without a second query.
+func (a *Analytics) TopProcedures(from, to string, limit int, by string) ([]TopProcedure, error) {
 	if limit <= 0 {
 		limit = 5
 	}
-	start, end := ClinicMonthBounds(ClinicNow())
+	order := "cnt DESC"
+	if by == "revenue" {
+		order = "amt DESC"
+	}
 	rows, err := RDB.Query(`
-		SELECT ii.item_id, pr.name, COALESCE(SUM(ii.quantity), 0) AS cnt
+		SELECT ii.item_id, pr.name,
+			COALESCE(SUM(ii.quantity), 0) AS cnt,
+			COALESCE(SUM(ii.final_amount), 0) AS amt
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
 		JOIN procedures pr ON pr.id = ii.item_id
 		WHERE ii.item_type = 'procedure'
 		AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''
 		GROUP BY ii.item_id, pr.name
-		ORDER BY cnt DESC LIMIT ?`, start, end, limit)
+		ORDER BY `+order+` LIMIT ?`, RangeStart(from), RangeEnd(to), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +159,7 @@ func (a *Analytics) TopProceduresThisMonth(limit int) ([]TopProcedure, error) {
 	items := []TopProcedure{}
 	for rows.Next() {
 		var t TopProcedure
-		if err := rows.Scan(&t.ProcedureID, &t.Name, &t.Count); err != nil {
+		if err := rows.Scan(&t.ProcedureID, &t.Name, &t.Count, &t.Amount); err != nil {
 			continue
 		}
 		items = append(items, t)
@@ -250,6 +199,17 @@ func (a *Analytics) Series(p SeriesParams) ([]SeriesPoint, error) {
 			AND bt.created_at >= ? AND bt.created_at < ?
 			GROUP BY bucket ORDER BY bucket`, fmt.Sprintf(bucketExpr, "bt.created_at"))
 		args = []any{RangeStart(p.From), RangeEnd(p.To)}
+	case "expenses":
+		query = fmt.Sprintf(`
+			SELECT %s AS bucket, COALESCE(SUM(bt.amount), 0)
+			FROM balance_transactions bt
+			JOIN balances fb ON fb.id = bt.from_balance_id
+			WHERE fb.entity_type = 'self'
+			AND bt.voided_at = ''
+			AND bt.transaction_type = 'payment'
+			AND bt.created_at >= ? AND bt.created_at < ?
+			GROUP BY bucket ORDER BY bucket`, fmt.Sprintf(bucketExpr, "bt.created_at"))
+		args = []any{RangeStart(p.From), RangeEnd(p.To)}
 	case "appointments":
 		query = fmt.Sprintf(`
 			SELECT %s AS bucket, COUNT(*)
@@ -272,6 +232,7 @@ func (a *Analytics) Series(p SeriesParams) ([]SeriesPoint, error) {
 			JOIN invoices i ON i.id = ii.invoice_id
 			WHERE ii.item_type = 'procedure'
 			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''
 			GROUP BY bucket ORDER BY bucket`, fmt.Sprintf(bucketExpr, "i.created_at"))
 		args = []any{RangeStart(p.From), RangeEnd(p.To)}
 	default:

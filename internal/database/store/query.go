@@ -35,6 +35,28 @@ func (lp ListParams) FilterClause(columns ...string) (string, []any) {
 	return "(" + strings.Join(conditions, " OR ") + ")", args
 }
 
+// DateRangeClause builds a SQL condition fragment restricting column to the
+// half-open range [From, To). Bounds are normalized via RangeStart/RangeEnd so
+// a bare YYYY-MM-DD includes the whole calendar day. Either bound may be empty;
+// returns "" when both are unset. The fragment has no WHERE/AND prefix, so
+// callers join it like any other condition.
+func (lp ListParams) DateRangeClause(column string) (string, []any) {
+	var conditions []string
+	var args []any
+	if lp.From != "" {
+		conditions = append(conditions, column+" >= ?")
+		args = append(args, RangeStart(lp.From))
+	}
+	if lp.To != "" {
+		conditions = append(conditions, column+" < ?")
+		args = append(args, RangeEnd(lp.To))
+	}
+	if len(conditions) == 0 {
+		return "", nil
+	}
+	return strings.Join(conditions, " AND "), args
+}
+
 // OrderClause returns a SQL " ORDER BY ..." suffix. If Sort is set and matches
 // an entry in allowed, it sorts by that column with direction from Order
 // (default ASC). Otherwise it falls back to fallback (a raw SQL fragment); if
@@ -87,6 +109,23 @@ func HasDependencies(id string, deps map[string]string) bool {
 		}
 	}
 	return false
+}
+
+// NameExists reports whether a row in table already uses name
+// (case-insensitive), ignoring the row with id == excludeID (pass "" when
+// creating). Used to enforce unique names. Fail-closed like HasDependencies: a
+// query error returns true so callers reject the write rather than risk a duplicate.
+func NameExists(table, name, excludeID string) bool {
+	var count int
+	err := RDB.QueryRow(
+		fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE name = ? COLLATE NOCASE AND id != ?", table),
+		name, excludeID,
+	).Scan(&count)
+	if err != nil {
+		log.Printf("[store.NameExists] %s lookup failed (assuming exists): %v", table, err)
+		return true
+	}
+	return count > 0
 }
 
 // DeleteDependencies removes all rows that reference the given id in the

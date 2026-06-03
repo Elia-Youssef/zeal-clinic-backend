@@ -14,5 +14,5 @@ func SetupDiscountRoutes(api *echo.Group) {
 	api.DELETE("/discounts/:id", handlers.DeleteDiscount, scope("discounts:delete"), cache("discounts"))
 	// Standalone gift-card redemption: credits a patient's balance.
 	api.POST("/gift-cards/redeem", handlers.RedeemGiftCode, scope("discounts:write"),
-		cache("discounts", "balances", "client-payments"))
+		cache("discounts", "balances", "client-payments", "analytics"))
 }

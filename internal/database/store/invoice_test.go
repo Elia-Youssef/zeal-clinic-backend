@@ -419,11 +419,12 @@ func TestInvoice_Delete_ReversesStockAndCharge(t *testing.T) {
 	if !approxEqual(pAfter.Amount, 0) {
 		t.Errorf("patient balance after delete = %v want 0", pAfter.Amount)
 	}
-	if n := countRows(t, "invoice_items", "invoice_id = ?", inv.ID); n != 0 {
-		t.Errorf("items not cascaded, got %d", n)
+	// Soft-void: invoice row kept (voided_at) and items kept.
+	if n := countRows(t, "invoices", "id = ? AND voided_at != ''", inv.ID); n != 1 {
+		t.Errorf("invoice not soft-voided, got %d", n)
 	}
-	if n := countRows(t, "invoices", "id = ?", inv.ID); n != 0 {
-		t.Errorf("invoice not deleted")
+	if n := countRows(t, "invoice_items", "invoice_id = ?", inv.ID); n != 2 {
+		t.Errorf("invoice items should be retained, got %d", n)
 	}
 }
 
@@ -475,7 +476,7 @@ func TestInvoice_Delete_RefusesIfGiftRedeemed(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Redeem against the recipient.
-	if _, err := ApplyGiftByCode(code, recip.ID, cur.ID, "tester"); err != nil {
+	if _, err := ApplyGiftByCode(code, recip.ID, "tester"); err != nil {
 		t.Fatal(err)
 	}
 	if err := inv.Delete(); err == nil {
@@ -585,19 +586,21 @@ func TestInvoiceList_GetClientInvoices_FiltersByPatient(t *testing.T) {
 	}
 
 	var list InvoiceList
-	if err := list.GetClientInvoices(p1.ID); err != nil {
+	total, err := list.GetClientInvoices(p1.ID, ListParams{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 2 {
-		t.Errorf("p1 invoices = %d want 2", len(list))
+	if total != 2 || len(list) != 2 {
+		t.Errorf("p1 invoices = %d (total %d) want 2", len(list), total)
 	}
 
 	list = nil
-	if err := list.GetClientInvoices(""); err != nil {
+	total, err = list.GetClientInvoices("", ListParams{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 3 {
-		t.Errorf("all client invoices = %d want 3", len(list))
+	if total != 3 || len(list) != 3 {
+		t.Errorf("all client invoices = %d (total %d) want 3", len(list), total)
 	}
 }
 
@@ -626,11 +629,12 @@ func TestInvoiceList_GetSupplierInvoices_FiltersBySupplier(t *testing.T) {
 	}
 
 	var list InvoiceList
-	if err := list.GetSupplierInvoices(s1ID); err != nil {
+	total, err := list.GetSupplierInvoices(s1ID, ListParams{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0].ID != inv1.ID {
-		t.Errorf("got %+v", list)
+	if total != 1 || len(list) != 1 || list[0].ID != inv1.ID {
+		t.Errorf("got total=%d %+v", total, list)
 	}
 }
 
@@ -651,10 +655,11 @@ func TestInvoiceList_GetByItem(t *testing.T) {
 	}
 
 	var list InvoiceList
-	if err := list.GetByItem(prod.ID, "product"); err != nil {
+	total, err := list.GetByItem(prod.ID, "product", ListParams{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0].ID != inv.ID {
-		t.Errorf("got %+v", list)
+	if total != 1 || len(list) != 1 || list[0].ID != inv.ID {
+		t.Errorf("got total=%d %+v", total, list)
 	}
 }

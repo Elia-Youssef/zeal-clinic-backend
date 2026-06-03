@@ -56,10 +56,10 @@ func (l *RoleList) ScanRows(rows *sql.Rows) error {
 }
 
 func (r *RoleList) GetAll(params ListParams) (int, error) {
-	where := ""
+	where := " WHERE name != 'super-admin'"
 	var args []any
 	if fc, fa := params.FilterClause("name", "label"); fc != "" {
-		where = " WHERE " + fc
+		where += " AND " + fc
 		args = fa
 	}
 
@@ -84,10 +84,10 @@ func (r *RoleList) GetAll(params ListParams) (int, error) {
 }
 
 func GetRoleDropdown(params ListParams) ([]DropdownItem, error) {
-	where := ""
+	where := " WHERE name != 'super-admin'"
 	var args []any
 	if fc, fa := params.FilterClause("name", "label"); fc != "" {
-		where = " WHERE " + fc
+		where += " AND " + fc
 		args = fa
 	}
 	query := `SELECT name, label FROM roles` + where + ` ORDER BY name` + params.PaginationClause()

@@ -68,7 +68,7 @@ func TestCreateEmployee_WithUserAccount(t *testing.T) {
 	body := employeePayload("Linked", "User")
 	body["username"] = "linkeduser"
 	body["password"] = "pw-12345"
-	body["userRole"] = "user"
+	body["userRole"] = "staff"
 	rec := doRequest(t, e, http.MethodPost, "/api/employees", asJSON(t, body), tok)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
@@ -96,7 +96,7 @@ func TestCreateEmployee_ValidationFails(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "validation failed")
+	containsString(t, rec.Body.String(), "Please check your input")
 }
 
 func TestGetEmployeeByID_FoundAndNotFound(t *testing.T) {
@@ -211,7 +211,7 @@ func TestGetEmployeeSchedule_Projection(t *testing.T) {
 
 	empID := createEmployee(t, e, tok, "Proj", "Schedule")
 	// Add a Monday schedule template.
-	if rec := doRequest(t, e, http.MethodPost, "/api/schedule-availability",
+	if rec := doRequest(t, e, http.MethodPost, "/api/employee-schedules",
 		asJSON(t, map[string]any{
 			"employeeId": empID, "dayOfWeek": 1,
 			"startTime": "09:00", "endTime": "17:00", "startDate": "2026-01-01",
@@ -300,34 +300,38 @@ func TestHoliday_UpdateNotFound(t *testing.T) {
 	}
 }
 
-// employee vacations
+// schedule changes
 
-func TestEmployeeVacation_PendingThenAccepted(t *testing.T) {
+func TestEmployeeScheduleChange_TimeoffPendingThenAccepted(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
 	empID := createEmployee(t, e, tok, "Vac", "Taker")
 
-	rec := doRequest(t, e, http.MethodPost, "/api/employee-vacations",
+	rec := doRequest(t, e, http.MethodPost, "/api/employee-schedule-changes",
 		asJSON(t, map[string]any{
-			"employeeId": empID, "startDate": "2026-07-01", "endDate": "2026-07-05",
+			"employeeId": empID, "type": "timeoff",
+			"startDate": "2026-07-01", "endDate": "2026-07-05",
 			"notes": "summer",
 		}), tok)
 	if rec.Code != http.StatusCreated {
-		t.Fatalf("create vacation: %d body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("create schedule change: %d body=%s", rec.Code, rec.Body.String())
 	}
 	var v struct {
 		ID     string `json:"id"`
 		Status string `json:"status"`
+		Type   string `json:"type"`
 	}
 	decodeEnvelope(t, rec.Body, &v)
-	// New requests always start pending.
 	if v.Status != "pending" {
 		t.Errorf("status = %q want pending", v.Status)
 	}
+	if v.Type != "timeoff" {
+		t.Errorf("type = %q want timeoff", v.Type)
+	}
 
-	rec = doRequest(t, e, http.MethodPost, "/api/employee-vacations/"+v.ID+"/status",
+	rec = doRequest(t, e, http.MethodPost, "/api/employee-schedule-changes/"+v.ID+"/status",
 		asJSON(t, map[string]any{"status": "accepted"}), tok)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("set status: %d body=%s", rec.Code, rec.Body.String())
@@ -341,41 +345,63 @@ func TestEmployeeVacation_PendingThenAccepted(t *testing.T) {
 	}
 }
 
-func TestEmployeeVacation_InvalidStatus(t *testing.T) {
+func TestEmployeeScheduleChange_OvertimeRequiresTimes(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	empID := createEmployee(t, e, tok, "OT", "NoTimes")
+	rec := doRequest(t, e, http.MethodPost, "/api/employee-schedule-changes",
+		asJSON(t, map[string]any{
+			"employeeId": empID, "type": "overtime",
+			"startDate": "2026-07-01", "endDate": "2026-07-01",
+		}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for overtime without times, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestEmployeeScheduleChange_InvalidStatus(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
 	empID := createEmployee(t, e, tok, "BadStatus", "Vac")
-	rec := doRequest(t, e, http.MethodPost, "/api/employee-vacations",
-		asJSON(t, map[string]any{"employeeId": empID, "startDate": "2026-07-01", "endDate": "2026-07-02"}), tok)
+	rec := doRequest(t, e, http.MethodPost, "/api/employee-schedule-changes",
+		asJSON(t, map[string]any{
+			"employeeId": empID, "type": "timeoff",
+			"startDate": "2026-07-01", "endDate": "2026-07-02",
+		}), tok)
 	var v struct{ ID string }
 	decodeEnvelope(t, rec.Body, &v)
 
-	rec = doRequest(t, e, http.MethodPost, "/api/employee-vacations/"+v.ID+"/status",
+	rec = doRequest(t, e, http.MethodPost, "/api/employee-schedule-changes/"+v.ID+"/status",
 		asJSON(t, map[string]any{"status": "maybe"}), tok)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400 for invalid status, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 
-func TestEmployeeVacation_DeleteAndStatusNotFound(t *testing.T) {
+func TestEmployeeScheduleChange_DeleteAndStatusNotFound(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
 	empID := createEmployee(t, e, tok, "DelVac", "Taker")
-	rec := doRequest(t, e, http.MethodPost, "/api/employee-vacations",
-		asJSON(t, map[string]any{"employeeId": empID, "startDate": "2026-08-01", "endDate": "2026-08-02"}), tok)
+	rec := doRequest(t, e, http.MethodPost, "/api/employee-schedule-changes",
+		asJSON(t, map[string]any{
+			"employeeId": empID, "type": "timeoff",
+			"startDate": "2026-08-01", "endDate": "2026-08-02",
+		}), tok)
 	var v struct{ ID string }
 	decodeEnvelope(t, rec.Body, &v)
 
-	rec = doRequest(t, e, http.MethodDelete, "/api/employee-vacations/"+v.ID, nil, tok)
+	rec = doRequest(t, e, http.MethodDelete, "/api/employee-schedule-changes/"+v.ID, nil, tok)
 	if rec.Code != http.StatusOK {
 		t.Errorf("delete: %d body=%s", rec.Code, rec.Body.String())
 	}
 
-	rec = doRequest(t, e, http.MethodPost, "/api/employee-vacations/ghost/status",
+	rec = doRequest(t, e, http.MethodPost, "/api/employee-schedule-changes/ghost/status",
 		asJSON(t, map[string]any{"status": "accepted"}), tok)
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", rec.Code)
@@ -414,10 +440,13 @@ func TestEmployeeSalary_CreateListUpdateDelete(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list: %d", rec.Code)
 	}
-	var list []map[string]any
+	var list struct {
+		Items []map[string]any `json:"items"`
+		Total int              `json:"total"`
+	}
 	decodeEnvelope(t, rec.Body, &list)
-	if len(list) != 1 {
-		t.Errorf("expected 1 salary, got %d", len(list))
+	if len(list.Items) != 1 {
+		t.Errorf("expected 1 salary, got %d", len(list.Items))
 	}
 
 	// Update amount.
@@ -474,11 +503,11 @@ func TestEmployeeSalary_ValidationAndNotFound(t *testing.T) {
 	tok := adminToken(t, e)
 
 	empID := createEmployee(t, e, tok, "BadSalary", "Staff")
-	// Missing currencyId.
+	// Missing currencyId defaults to USD.
 	rec := doRequest(t, e, http.MethodPost, "/api/employees/"+empID+"/salaries",
 		asJSON(t, map[string]any{"amount": 100.0}), tok)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
 	rec = doRequest(t, e, http.MethodDelete, "/api/employee-salaries/ghost", nil, tok)
@@ -524,10 +553,13 @@ func TestSalaryPreparation_PrepareListAndDelete(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list prepared: %d body=%s", rec.Code, rec.Body.String())
 	}
-	var list []map[string]any
+	var list struct {
+		Items []map[string]any `json:"items"`
+		Total int              `json:"total"`
+	}
 	decodeEnvelope(t, rec.Body, &list)
-	if len(list) != 1 {
-		t.Errorf("expected 1 prepared salary, got %d", len(list))
+	if len(list.Items) != 1 {
+		t.Errorf("expected 1 prepared salary, got %d", len(list.Items))
 	}
 
 	// Adjust via PATCH.

@@ -45,7 +45,10 @@ func seedDemo(ctx context.Context, tx *sql.Tx) error {
 		{"discounts", seedDiscounts},
 		{"supplier invoices & expenses", seedSupplierInvoicesAndExpenses},
 		{"appointments & invoices", seedAppointmentsAndInvoices},
+		{"bulk patients", seedBulkPatients},
+		{"bulk history", seedBulkHistory},
 		{"notifications", seedNotifications},
+		{"recalc balances", func(_ context.Context, tx *sql.Tx, c *demoCtx) error { return recalcAllBalances(tx, c) }},
 	}
 	for _, s := range steps {
 		if err := s.fn(ctx, tx, c); err != nil {
@@ -156,11 +159,11 @@ func seedEmployees(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 		{"Julian", "Vance", "Plastic Surgeon", "+1 555 0107", "julian@example.org", "1978-04-12", "Full-time",
 			5000, true, "jvance", "Dr. Julian Vance", "admin"},
 		{"Lina", "Haddad", "Dermatologist", "+1 555 0108", "lina@example.org", "1984-09-03", "Full-time",
-			4200, true, "lhaddad", "Dr. Lina Haddad", "user"},
+			4200, true, "lhaddad", "Dr. Lina Haddad", "nurse"},
 		{"Tarek", "Mansour", "Laser Technician", "+1 555 0109", "tarek@example.org", "1988-01-21", "Full-time",
-			1800, false, "tmansour", "Tarek Mansour", "user"},
+			1800, false, "tmansour", "Tarek Mansour", "staff"},
 		{"Maya", "Aoun", "Nurse", "+1 555 0113", "maya@example.org", "1990-07-17", "Full-time",
-			1500, false, "maoun", "Maya Aoun", "user"},
+			1500, false, "maoun", "Maya Aoun", "nurse"},
 		{"Rita", "Saad", "Receptionist", "+1 555 0114", "rita@example.org", "1992-11-30", "Part-time",
 			900, false, "", "", ""},
 		{"Samir", "Nassar", "Accountant", "+1 555 0115", "samir@example.org", "1986-05-25", "Part-time",
@@ -219,7 +222,7 @@ func seedSchedules(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	for _, empID := range c.employeeIDs {
 		for day := 1; day <= 5; day++ {
 			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO schedule_availability (id, employee_id, day_of_week, start_time, end_time, start_date, created_at, updated_at)
+				`INSERT INTO employee_schedules (id, employee_id, day_of_week, start_time, end_time, start_date, created_at, updated_at)
 				 VALUES (?,?,?,?,?,?,?,?)`,
 				newID(), empID, day, "09:00", "18:00", c.today, c.now, c.now,
 			); err != nil {
@@ -236,18 +239,27 @@ func seedSchedules(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	}
 	if len(c.employeeIDs) > 1 {
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO employee_vacations (id, employee_id, start_date, end_date, start_time, end_time, status, notes, created_at, updated_at)
-			 VALUES (?,?,?,?,?,?,?,?,?,?)`,
-			newID(), c.employeeIDs[1], dateOffset(5), dateOffset(5), "13:00", "18:00", "accepted", "Conference afternoon", c.now, c.now,
+			`INSERT INTO employee_schedule_changes (id, employee_id, type, start_date, end_date, start_time, end_time, status, notes, created_at, updated_at)
+			 VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+			newID(), c.employeeIDs[1], "timeoff", dateOffset(5), dateOffset(5), "13:00", "18:00", "accepted", "Conference afternoon", c.now, c.now,
 		); err != nil {
 			return err
 		}
 	}
 	if len(c.employeeIDs) > 3 {
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO employee_vacations (id, employee_id, start_date, end_date, start_time, end_time, status, notes, created_at, updated_at)
-			 VALUES (?,?,?,?,?,?,?,?,?,?)`,
-			newID(), c.employeeIDs[3], dateOffset(9), dateOffset(11), "", "", "pending", "Family trip request", c.now, c.now,
+			`INSERT INTO employee_schedule_changes (id, employee_id, type, start_date, end_date, start_time, end_time, status, notes, created_at, updated_at)
+			 VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+			newID(), c.employeeIDs[3], "timeoff", dateOffset(9), dateOffset(11), "", "", "pending", "Family trip request", c.now, c.now,
+		); err != nil {
+			return err
+		}
+	}
+	if len(c.employeeIDs) > 2 {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO employee_schedule_changes (id, employee_id, type, start_date, end_date, start_time, end_time, status, notes, created_at, updated_at)
+			 VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+			newID(), c.employeeIDs[2], "overtime", dateOffset(3), dateOffset(7), "18:00", "21:00", "accepted", "Evening promo coverage", c.now, c.now,
 		); err != nil {
 			return err
 		}
@@ -660,9 +672,9 @@ func seedAppointmentsAndInvoices(ctx context.Context, tx *sql.Tx, c *demoCtx) er
 				amount: price, finalAmount: price,
 			})
 			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO appointment_procedures (id, patient_id, procedure_id, appointment_id, notes, created_at, updated_at)
-				 VALUES (?,?,?,?,?,?,?)`,
-				newID(), patientID, procID, aptID, "", c.now, c.now,
+				`INSERT INTO appointment_procedures (id, patient_id, procedure_id, appointment_id, assigned_to_id, notes, created_at, updated_at)
+				 VALUES (?,?,?,?,?,?,?,?)`,
+				newID(), patientID, procID, aptID, nil, "", c.now, c.now,
 			); err != nil {
 				return err
 			}
@@ -686,7 +698,7 @@ func seedAppointmentsAndInvoices(ctx context.Context, tx *sql.Tx, c *demoCtx) er
 		if a.applyOfferToBotox {
 			discountID, _ = botoxOffer(ctx, tx)
 		}
-		invoiceID, total, err := createInvoice(ctx, tx, c, patientBal, items, discountID)
+		invoiceID, total, err := createInvoice(ctx, tx, c, patientBal, items, discountID, startStr)
 		if err != nil {
 			return err
 		}
@@ -714,7 +726,7 @@ type invoiceItem struct {
 	finalAmount      float64
 }
 
-func createInvoice(ctx context.Context, tx *sql.Tx, c *demoCtx, patientBal string, items []invoiceItem, discountID string) (string, float64, error) {
+func createInvoice(ctx context.Context, tx *sql.Tx, c *demoCtx, patientBal string, items []invoiceItem, discountID, at string) (string, float64, error) {
 	var nextNumber int
 	if err := tx.QueryRowContext(ctx,
 		`SELECT COALESCE(MAX(invoice_number), 0) + 1 FROM invoices`,
@@ -755,7 +767,7 @@ func createInvoice(ctx context.Context, tx *sql.Tx, c *demoCtx, patientBal strin
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO invoices (id, invoice_number, from_balance_id, to_balance_id, amount, discount_id, discount_value, final_amount, currency_id, notes, created_by, created_at, updated_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		invID, nextNumber, c.selfBalanceID, patientBal, amount, discountID, discountValue, finalAmount, c.currencyID, "", c.adminUserID, c.now, c.now,
+		invID, nextNumber, c.selfBalanceID, patientBal, amount, discountID, discountValue, finalAmount, c.currencyID, "", c.adminUserID, at, at,
 	); err != nil {
 		return "", 0, err
 	}
@@ -765,7 +777,7 @@ func createInvoice(ctx context.Context, tx *sql.Tx, c *demoCtx, patientBal strin
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO invoice_items (id, invoice_id, item_type, item_id, quantity, amount, final_amount, notes, created_at)
 			 VALUES (?,?,?,?,?,?,?,?,?)`,
-			itemID, invID, it.itemType, it.itemID, it.qty, it.amount, it.finalAmount, "", c.now,
+			itemID, invID, it.itemType, it.itemID, it.qty, it.amount, it.finalAmount, "", at,
 		); err != nil {
 			return "", 0, err
 		}

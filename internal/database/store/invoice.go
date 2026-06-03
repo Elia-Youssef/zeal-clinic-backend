@@ -67,7 +67,7 @@ func (l *InvoiceList) ScanRows(rows *sql.Rows) error {
 			&item.DiscountID, &item.DiscountValue, &item.FinalAmount, &item.CurrencyID,
 			&item.Notes, &item.CreatedBy, &item.CreatedAt, &item.UpdatedAt)
 		if err != nil {
-			continue
+			return err
 		}
 		*l = append(*l, item)
 	}
@@ -75,10 +75,10 @@ func (l *InvoiceList) ScanRows(rows *sql.Rows) error {
 }
 
 func (inv *InvoiceList) GetAll(filterBalanceID string) error {
-	query := `SELECT ` + invoiceColumns + ` FROM invoices`
+	query := `SELECT ` + invoiceColumns + ` FROM invoices WHERE voided_at = ''`
 	var args []any
 	if filterBalanceID != "" {
-		query += " WHERE from_balance_id = ? OR to_balance_id = ?"
+		query += " AND (from_balance_id = ? OR to_balance_id = ?)"
 		args = append(args, filterBalanceID, filterBalanceID)
 	}
 	query += " ORDER BY created_at DESC"
@@ -125,6 +125,9 @@ func (inv *Invoice) GetByID(id string) error {
 }
 
 func (inv *Invoice) Create() error {
+	if inv.CurrencyID == "" {
+		inv.CurrencyID = USDCurrencyID
+	}
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
@@ -159,7 +162,7 @@ func (inv *Invoice) Create() error {
 			return fmt.Errorf("check invoice number: %w", err)
 		}
 		if dup > 0 {
-			return fmt.Errorf("%w: invoice number %d already exists", ErrConflict, inv.InvoiceNumber)
+			return fmt.Errorf("%w: Invoice number %d already exists", ErrConflict, inv.InvoiceNumber)
 		}
 	} else {
 		if err := tx.QueryRow(`SELECT COALESCE(MAX(i.invoice_number), 0) + 1
@@ -184,6 +187,7 @@ func (inv *Invoice) Create() error {
 		item.ID = uuid.Must(uuid.NewV7()).String()
 		item.InvoiceID = inv.ID
 		item.CreatedAt = now
+		item.Amount = Round2(item.Amount)
 		item.FinalAmount = item.Amount
 
 		if item.ItemType == "gift" {
@@ -195,7 +199,7 @@ func (inv *Invoice) Create() error {
 		}
 		total += item.Amount
 	}
-	inv.Amount = total
+	inv.Amount = Round2(total)
 
 	// 2) Resolve invoice-level offer discount (if any). Caps at Amount.
 	if inv.DiscountID != "" {
@@ -209,16 +213,16 @@ func (inv *Invoice) Create() error {
 		}
 		var dv float64
 		if vType == "percentage" {
-			dv = inv.Amount * value / 100
+			dv = Round2(inv.Amount * value / 100)
 		} else {
-			dv = value
+			dv = Round2(value)
 		}
 		if dv > inv.Amount {
 			dv = inv.Amount
 		}
 		inv.DiscountValue = dv
 	}
-	inv.FinalAmount = inv.Amount - inv.DiscountValue
+	inv.FinalAmount = Round2(inv.Amount - inv.DiscountValue)
 
 	// 3) Insert invoice + items.
 	if _, err := tx.Exec(`INSERT INTO invoices (`+invoiceColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -258,7 +262,7 @@ func (inv *Invoice) Create() error {
 				return fmt.Errorf("check product stock: %w", err)
 			}
 			if qty+delta < 0 {
-				return fmt.Errorf("%w: insufficient stock for %q (have %d, need %d)", ErrConflict, name, qty, -delta)
+				return fmt.Errorf("%w: Not enough stock for %q (have %d, need %d)", ErrConflict, name, qty, -delta)
 			}
 		}
 		if delta != 0 {
@@ -371,10 +375,11 @@ func applyGiftToPatientWithTx(tx *sql.Tx, patientID, currencyID string, amount f
 
 // ApplyGiftByCode redeems a gift by its code, crediting the given patient's
 // balance. Returns the updated discount.
-func ApplyGiftByCode(code, patientID, currencyID, createdBy string) (*Discount, error) {
-	if code == "" || patientID == "" || currencyID == "" {
-		return nil, errors.New("code, patientId and currencyId are required")
+func ApplyGiftByCode(code, patientID, createdBy string) (*Discount, error) {
+	if code == "" || patientID == "" {
+		return nil, errors.New("Gift code and patient are required")
 	}
+	currencyID := USDCurrencyID
 	tx, err := DB.Begin()
 	if err != nil {
 		return nil, err
@@ -390,13 +395,13 @@ func ApplyGiftByCode(code, patientID, currencyID, createdBy string) (*Discount, 
 		return nil, err
 	}
 	if gift.DiscountType != "gift" {
-		return nil, errors.New("not a gift discount")
+		return nil, errors.New("Not a valid gift card")
 	}
 	if gift.RedeemedAt != nil {
-		return nil, errors.New("gift already redeemed")
+		return nil, errors.New("This gift card has already been used")
 	}
 	if gift.IsActive == 0 {
-		return nil, errors.New("gift is inactive")
+		return nil, errors.New("This gift card is inactive")
 	}
 
 	if err := applyGiftToPatientWithTx(tx, patientID, currencyID, gift.Value,
@@ -419,6 +424,9 @@ func ApplyGiftByCode(code, patientID, currencyID, createdBy string) (*Discount, 
 }
 
 func resolvePatientBalanceWithTx(tx *sql.Tx, patientID, currencyID string) (*Balance, error) {
+	if currencyID == "" {
+		currencyID = USDCurrencyID
+	}
 	var firstName, lastName string
 	if err := tx.QueryRow(`SELECT first_name, last_name FROM patients WHERE id = ?`, patientID).Scan(&firstName, &lastName); err != nil {
 		return nil, fmt.Errorf("patient %s: %w", patientID, err)
@@ -437,6 +445,9 @@ func resolvePatientBalanceWithTx(tx *sql.Tx, patientID, currencyID string) (*Bal
 }
 
 func selfBalanceIDForCurrency(tx *sql.Tx, currencyID string) (string, error) {
+	if currencyID == "" {
+		currencyID = USDCurrencyID
+	}
 	var id string
 	if err := tx.QueryRow(`SELECT id FROM balances WHERE entity_type = 'self' AND currency_id = ? LIMIT 1`, currencyID).Scan(&id); err != nil {
 		return "", fmt.Errorf("self balance for currency %s: %w", currencyID, err)
@@ -473,6 +484,7 @@ func (inv *Invoice) UpdateItemAmount(itemID string, amount float64) error {
 		return err
 	}
 
+	amount = Round2(amount)
 	res, err := tx.Exec(`UPDATE invoice_items
 		SET amount = ?, final_amount = ?
 		WHERE id = ? AND invoice_id = ?`, amount, amount, itemID, inv.ID)
@@ -487,6 +499,7 @@ func (inv *Invoice) UpdateItemAmount(itemID string, amount float64) error {
 	if err := tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM invoice_items WHERE invoice_id = ?`, inv.ID).Scan(&newAmount); err != nil {
 		return err
 	}
+	newAmount = Round2(newAmount)
 
 	var newDiscountValue float64
 	if discountID != "" {
@@ -496,15 +509,15 @@ func (inv *Invoice) UpdateItemAmount(itemID string, amount float64) error {
 			return fmt.Errorf("discount %s: %w", discountID, err)
 		}
 		if vType == "percentage" {
-			newDiscountValue = newAmount * value / 100
+			newDiscountValue = Round2(newAmount * value / 100)
 		} else {
-			newDiscountValue = value
+			newDiscountValue = Round2(value)
 		}
 		if newDiscountValue > newAmount {
 			newDiscountValue = newAmount
 		}
 	}
-	newFinalAmount := newAmount - newDiscountValue
+	newFinalAmount := Round2(newAmount - newDiscountValue)
 
 	now := DateNow()
 	if _, err := tx.Exec(`UPDATE invoices SET amount = ?, discount_value = ?, final_amount = ?, updated_at = ? WHERE id = ?`,
@@ -581,73 +594,85 @@ func (inv *Invoice) Update(updates map[string]any) error {
 	return inv.GetByID(inv.ID)
 }
 
-func (inv *InvoiceList) GetClientInvoices(patientID string) error {
-	query := `SELECT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
-		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
-		i.notes, i.created_by, i.created_at, i.updated_at
-		FROM invoices i
+func (inv *InvoiceList) GetClientInvoices(patientID string, params ListParams) (int, error) {
+	baseFrom := ` FROM invoices i
 		JOIN balances tb ON tb.id = i.to_balance_id
-		WHERE tb.entity_type = 'patient'`
+		WHERE tb.entity_type = 'patient' AND i.voided_at = ''`
 	var args []any
 	if patientID != "" {
-		query += ` AND tb.entity_id = ?`
+		baseFrom += ` AND tb.entity_id = ?`
 		args = append(args, patientID)
 	}
-	query += ` ORDER BY i.created_at DESC`
 
-	rows, err := RDB.Query(query, args...)
-	if err != nil {
-		return err
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*)"+baseFrom, args...).Scan(&total); err != nil {
+		return 0, err
 	}
-	defer rows.Close()
 
-	if err := inv.ScanRows(rows); err != nil {
-		return err
-	}
-	for i := range *inv {
-		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
-		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
-		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
-	}
-	return nil
-}
-
-func (inv *InvoiceList) GetSupplierInvoices(supplierID string) error {
 	query := `SELECT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
 		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
-		i.notes, i.created_by, i.created_at, i.updated_at
-		FROM invoices i
-		JOIN balances fb ON fb.id = i.from_balance_id
-		WHERE fb.entity_type = 'supplier'`
-	var args []any
-	if supplierID != "" {
-		query += ` AND fb.entity_id = ?`
-		args = append(args, supplierID)
-	}
-	query += ` ORDER BY i.created_at DESC`
+		i.notes, i.created_by, i.created_at, i.updated_at` +
+		baseFrom + ` ORDER BY i.created_at DESC` + params.PaginationClause()
 
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer rows.Close()
 
 	if err := inv.ScanRows(rows); err != nil {
-		return err
+		return 0, err
 	}
 	for i := range *inv {
 		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
 		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
 		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
 	}
-	return nil
+	return total, nil
+}
+
+func (inv *InvoiceList) GetSupplierInvoices(supplierID string, params ListParams) (int, error) {
+	baseFrom := ` FROM invoices i
+		JOIN balances fb ON fb.id = i.from_balance_id
+		WHERE fb.entity_type = 'supplier' AND i.voided_at = ''`
+	var args []any
+	if supplierID != "" {
+		baseFrom += ` AND fb.entity_id = ?`
+		args = append(args, supplierID)
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(*)"+baseFrom, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
+		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
+		i.notes, i.created_by, i.created_at, i.updated_at` +
+		baseFrom + ` ORDER BY i.created_at DESC` + params.PaginationClause()
+
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	if err := inv.ScanRows(rows); err != nil {
+		return 0, err
+	}
+	for i := range *inv {
+		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
+		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
+		RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
+	}
+	return total, nil
 }
 
 func (inv *InvoiceList) GetAllByType(entityType string, params ListParams) (int, error) {
 	baseFrom := ` FROM invoices i
 		JOIN balances fb ON fb.id = i.from_balance_id
 		JOIN balances tb ON tb.id = i.to_balance_id`
-	where := " WHERE 1=1"
+	where := " WHERE i.voided_at = ''"
 	var args []any
 	if entityType != "" {
 		where += " AND (fb.entity_type = ? OR tb.entity_type = ?)"
@@ -656,6 +681,10 @@ func (inv *InvoiceList) GetAllByType(entityType string, params ListParams) (int,
 	if fc, fa := params.FilterClause("fb.entity_name", "tb.entity_name", "i.notes"); fc != "" {
 		where += " AND " + fc
 		args = append(args, fa...)
+	}
+	if dc, da := params.DateRangeClause("i.created_at"); dc != "" {
+		where += " AND " + dc
+		args = append(args, da...)
 	}
 
 	var total int
@@ -699,23 +728,30 @@ func (inv *InvoiceList) GetAllByType(entityType string, params ListParams) (int,
 	return total, nil
 }
 
-func (inv *InvoiceList) GetByItem(itemID, itemType string) error {
+func (inv *InvoiceList) GetByItem(itemID, itemType string, params ListParams) (int, error) {
+	baseFrom := ` FROM invoices i
+		JOIN invoice_items ii ON ii.invoice_id = i.id
+		WHERE ii.item_id = ? AND ii.item_type = ? AND i.voided_at = ''`
+	args := []any{itemID, itemType}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(DISTINCT i.id)"+baseFrom, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
 	query := `SELECT DISTINCT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
 		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
-		i.notes, i.created_by, i.created_at, i.updated_at
-		FROM invoices i
-		JOIN invoice_items ii ON ii.invoice_id = i.id
-		WHERE ii.item_id = ? AND ii.item_type = ?
-		ORDER BY i.created_at DESC`
+		i.notes, i.created_by, i.created_at, i.updated_at` +
+		baseFrom + " ORDER BY i.created_at DESC" + params.PaginationClause()
 
-	rows, err := RDB.Query(query, itemID, itemType)
+	rows, err := RDB.Query(query, args...)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer rows.Close()
 
 	if err := inv.ScanRows(rows); err != nil {
-		return err
+		return 0, err
 	}
 	for i := range *inv {
 		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
@@ -726,14 +762,11 @@ func (inv *InvoiceList) GetByItem(itemID, itemType string) error {
 			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
 		}
 	}
-	return nil
+	return total, nil
 }
 
-// Delete reverses every side effect of Invoice.Create (product stock, the
-// charge transaction, any auto-applied gift transactions), then removes the
-// invoice and any gift discounts it created. Refuses if a gift was already
-// redeemed (via code) outside this invoice's flow, since the redemption tx
-// would be left dangling.
+// Delete reverses Invoice.Create's side effects, then soft-voids the invoice
+// (voided_at) so the deletion replicates. Refuses if a created gift was redeemed.
 func (inv *Invoice) Delete() error {
 	tx, err := DB.Begin()
 	if err != nil {
@@ -742,7 +775,7 @@ func (inv *Invoice) Delete() error {
 	defer tx.Rollback()
 
 	var fromBalance, toBalance string
-	err = tx.QueryRow(`SELECT from_balance_id, to_balance_id FROM invoices WHERE id = ?`, inv.ID).
+	err = tx.QueryRow(`SELECT from_balance_id, to_balance_id FROM invoices WHERE id = ? AND voided_at = ''`, inv.ID).
 		Scan(&fromBalance, &toBalance)
 	if err == sql.ErrNoRows {
 		return ErrNotFound
@@ -831,14 +864,16 @@ func (inv *Invoice) Delete() error {
 		}
 	}
 
-	// Drop gift discount rows. Items cascade with the invoice.
+	// Drop gift discount rows.
 	for _, gid := range giftIDs {
 		if _, err := tx.Exec(`DELETE FROM discounts WHERE id = ?`, gid); err != nil {
 			return fmt.Errorf("delete gift discount: %w", err)
 		}
 	}
 
-	res, err := tx.Exec(`DELETE FROM invoices WHERE id = ?`, inv.ID)
+	now := DateNow()
+	res, err := tx.Exec(`UPDATE invoices SET voided_at = ?, updated_at = ? WHERE id = ? AND voided_at = ''`,
+		now, now, inv.ID)
 	if err != nil {
 		return err
 	}

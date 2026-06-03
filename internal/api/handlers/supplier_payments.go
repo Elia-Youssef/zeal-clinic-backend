@@ -19,7 +19,7 @@ func GetSupplierPayments(c echo.Context) error {
 	total, err := items.GetEntityPayments("supplier", c.Param("id"), params)
 	if err != nil {
 		log.Println("Error: GetSupplierPayments:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch supplier payments"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load supplier payments"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
@@ -30,44 +30,45 @@ func CreateSupplierPayment(c echo.Context) error {
 	var req struct {
 		SupplierID        string  `json:"supplierId"`
 		Amount            float64 `json:"amount"`
-		CurrencyID        string  `json:"currencyId"`
 		TransactionMethod string  `json:"transactionMethod"`
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		tracking.Warn(c, "[CreateSupplierPayment] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	errs := make(validation.Errors)
 	if msg := validation.Required(req.SupplierID, "Supplier ID"); msg != "" {
 		errs["supplierId"] = msg
 	}
-	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
-		errs["currencyId"] = msg
-	}
 	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
 	}
+	if msg := validation.OneOf(req.TransactionMethod, []string{"cash", "card", "transfer", "discount", "other"}, "Method"); msg != "" {
+		errs["transactionMethod"] = msg
+	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateSupplierPayment] validation failed")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
+
+	currencyID := store.USDCurrencyID
 
 	// Look up supplier and resolve (or create) its balance
 	var supplier store.Supplier
 	if err := supplier.GetByID(req.SupplierID); err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "supplier not found"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Supplier not found"})
 	}
 	supplierBalance := store.Balance{
 		EntityType: "supplier",
 		EntityID:   &req.SupplierID,
 		EntityName: supplier.Name,
-		CurrencyID: req.CurrencyID,
+		CurrencyID: currencyID,
 	}
 	if err := supplierBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateSupplierPayment supplier balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve supplier balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load supplier balance"})
 	}
 
 	// Resolve self balance (FROM)
@@ -76,11 +77,11 @@ func CreateSupplierPayment(c echo.Context) error {
 		EntityType: "self",
 		EntityID:   &selfID,
 		EntityName: "Clinic",
-		CurrencyID: req.CurrencyID,
+		CurrencyID: currencyID,
 	}
 	if err := selfBalance.GetOrCreate(); err != nil {
 		log.Println("Error: CreateSupplierPayment self balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve self balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load clinic balance"})
 	}
 
 	user := c.Get("user").(store.User)
@@ -89,7 +90,7 @@ func CreateSupplierPayment(c echo.Context) error {
 		FromBalanceID:     selfBalance.ID,
 		ToBalanceID:       supplierBalance.ID,
 		Amount:            req.Amount,
-		CurrencyID:        req.CurrencyID,
+		CurrencyID:        currencyID,
 		TransactionType:   "payment",
 		TransactionMethod: req.TransactionMethod,
 		Description:       req.Description,
@@ -97,7 +98,7 @@ func CreateSupplierPayment(c echo.Context) error {
 	}
 	if err := bt.Create(); err != nil {
 		log.Println("Error: CreateSupplierPayment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create payment: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create payment"})
 	}
 
 	bt.FromEntityName = selfBalance.EntityName
@@ -113,22 +114,18 @@ func CreateSupplierAdjustment(c echo.Context) error {
 	var req struct {
 		SupplierID        string  `json:"supplierId"`
 		Amount            float64 `json:"amount"`
-		CurrencyID        string  `json:"currencyId"`
 		TransactionMethod string  `json:"transactionMethod"`
 		Direction         string  `json:"direction"`
 		Description       string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		tracking.Warn(c, "[CreateSupplierAdjustment] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	errs := make(validation.Errors)
 	if msg := validation.Required(req.SupplierID, "Supplier ID"); msg != "" {
 		errs["supplierId"] = msg
-	}
-	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
-		errs["currencyId"] = msg
 	}
 	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
@@ -139,16 +136,20 @@ func CreateSupplierAdjustment(c echo.Context) error {
 	if msg := validation.OneOf(req.Direction, []string{"incoming", "outgoing"}, "Direction"); msg != "" {
 		errs["direction"] = msg
 	}
+	if msg := validation.OneOf(req.TransactionMethod, []string{"cash", "card", "transfer", "discount", "other"}, "Method"); msg != "" {
+		errs["transactionMethod"] = msg
+	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateSupplierAdjustment] validation failed")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
-	bt, err := createEntityBalanceCorrection(c, "supplier", req.SupplierID, req.CurrencyID,
+	currencyID := store.USDCurrencyID
+	bt, err := createEntityBalanceCorrection(c, "supplier", req.SupplierID, currencyID,
 		req.Amount, req.Direction, "adjustment", req.TransactionMethod, req.Description)
 	if err != nil {
 		log.Println("Error: CreateSupplierAdjustment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create adjustment: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create adjustment"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }
@@ -160,21 +161,17 @@ func CreateSupplierWriteOff(c echo.Context) error {
 	var req struct {
 		SupplierID  string  `json:"supplierId"`
 		Amount      float64 `json:"amount"`
-		CurrencyID  string  `json:"currencyId"`
 		Direction   string  `json:"direction"`
 		Description string  `json:"description"`
 	}
 	if err := c.Bind(&req); err != nil {
 		tracking.Warn(c, "[CreateSupplierWriteOff] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	errs := make(validation.Errors)
 	if msg := validation.Required(req.SupplierID, "Supplier ID"); msg != "" {
 		errs["supplierId"] = msg
-	}
-	if msg := validation.Required(req.CurrencyID, "Currency ID"); msg != "" {
-		errs["currencyId"] = msg
 	}
 	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
@@ -187,14 +184,15 @@ func CreateSupplierWriteOff(c echo.Context) error {
 	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateSupplierWriteOff] validation failed")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
-	bt, err := createEntityBalanceCorrection(c, "supplier", req.SupplierID, req.CurrencyID,
+	currencyID := store.USDCurrencyID
+	bt, err := createEntityBalanceCorrection(c, "supplier", req.SupplierID, currencyID,
 		req.Amount, req.Direction, "write-off", "other", req.Description)
 	if err != nil {
 		log.Println("Error: CreateSupplierWriteOff:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create write-off: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create write-off"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }

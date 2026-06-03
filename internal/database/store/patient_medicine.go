@@ -62,16 +62,21 @@ func (l *PatientMedicineList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (pm *PatientMedicineList) GetByPatient(patientID string) error {
+func (pm *PatientMedicineList) GetByPatient(patientID string, params ListParams) (int, error) {
+	var total int
+	if err := RDB.QueryRow(`SELECT COUNT(*) FROM patient_medicines WHERE patient_id = ?`, patientID).Scan(&total); err != nil {
+		return 0, err
+	}
+
 	rows, err := RDB.Query(`SELECT pm.id, pm.patient_id, pm.medicine_id, pm.is_active, pm.notes, pm.created_at, m.name
 		FROM patient_medicines pm JOIN medicines m ON m.id = pm.medicine_id
-		WHERE pm.patient_id = ? ORDER BY m.name`, patientID)
+		WHERE pm.patient_id = ? ORDER BY m.name`+params.PaginationClause(), patientID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer rows.Close()
 
-	return pm.ScanRows(rows)
+	return total, pm.ScanRows(rows)
 }
 
 func (pm *PatientMedicine) Create() error {

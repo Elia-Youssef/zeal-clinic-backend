@@ -9,5 +9,6 @@ import (
 func SetupProductAllergyConflictRoutes(api *echo.Group) {
 	api.GET("/products/:id/allergy-conflicts", handlers.GetProductAllergyConflicts, scope("product-allergy-conflicts:read"))
 	api.POST("/products/:id/allergy-conflicts", handlers.AddProductAllergyConflict, scope("product-allergy-conflicts:write"))
+	api.PUT("/product-allergy-conflicts/:id", handlers.UpdateProductAllergyConflictNotes, scope("product-allergy-conflicts:write"))
 	api.DELETE("/product-allergy-conflicts/:id", handlers.RemoveProductAllergyConflict, scope("product-allergy-conflicts:write"))
 }

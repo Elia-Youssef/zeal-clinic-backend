@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -27,6 +28,8 @@ type Config struct {
 
 var current *Config
 
+const devJWTSecret = "dev-only-clinic-jwt-secret-not-for-release"
+
 func Load() *Config {
 	_ = godotenv.Load()
 	if exe, err := os.Executable(); err == nil {
@@ -35,7 +38,7 @@ func Load() *Config {
 
 	cfg := &Config{
 		Port:            getEnv("PORT", "55555"),
-		JWTSecret:       getEnv("JWT_SECRET", "dev-only-clinic-jwt-secret-not-for-release"),
+		JWTSecret:       getEnv("JWT_SECRET", devJWTSecret),
 		JWTLifetime:     parseDuration(getEnv("JWT_LIFETIME", "14h")),
 		DBEncryptionKey: getEnv("DB_ENCRYPTION_KEY", ""),
 		PeerURL:         getEnv("PEER_URL", ""),
@@ -47,6 +50,10 @@ func Load() *Config {
 
 	if cfg.DBEncryptionKey == "" {
 		log.Fatal("[config] DB_ENCRYPTION_KEY is required (64 hex chars / 32 bytes)")
+	}
+
+	if !isDevBuild() && (cfg.JWTSecret == "" || cfg.JWTSecret == devJWTSecret) {
+		log.Fatal("[config] JWT_SECRET must be set for release builds")
 	}
 
 	current = cfg
@@ -79,6 +86,10 @@ func DataDir() string {
 		}
 	}
 	return "./tmp"
+}
+
+func isDevBuild() bool {
+	return buildmode.Version == "dev" || strings.Contains(buildmode.Version, "-dev")
 }
 
 func getEnv(key, fallback string) string {

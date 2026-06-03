@@ -38,14 +38,14 @@ func TestScope_ReadOnlyUserCannotWritePatients(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 
-	// Narrow the user role to read-only patient scopes for this test so we can
-	// exercise the scope-deny path on POST /api/patients. The seeded `user` role
+	// Narrow the staff role to read-only patient scopes for this test so we can
+	// exercise the scope-deny path on POST /api/patients. The seeded `staff` role
 	// actually carries patients:write, so we strip it here.
-	if _, err := store.DB.Exec(`UPDATE roles SET scopes = 'patients:read' WHERE name = 'user'`); err != nil {
+	if _, err := store.DB.Exec(`UPDATE roles SET scopes = 'patients:read' WHERE name = 'staff'`); err != nil {
 		t.Fatal(err)
 	}
 
-	tok := generateTokenForRole(t, "user", "ro")
+	tok := generateTokenForRole(t, "staff", "ro")
 
 	body := asJSON(t, map[string]any{
 		"firstName":   "Scope",
@@ -58,7 +58,7 @@ func TestScope_ReadOnlyUserCannotWritePatients(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("expected 403, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "missing required scope") {
+	if !strings.Contains(rec.Body.String(), "You don't have permission") {
 		t.Errorf("body should report a missing scope, got %s", rec.Body.String())
 	}
 }
@@ -67,7 +67,7 @@ func TestScope_ReadOnlyUserCanReadPatients(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 
-	tok := generateTokenForRole(t, "user", "ro")
+	tok := generateTokenForRole(t, "staff", "ro")
 
 	rec := doRequest(t, e, http.MethodGet, "/api/patients", nil, tok)
 	if rec.Code != http.StatusOK {
@@ -114,20 +114,20 @@ func TestScope_EmptyScopesUserGetsForbidden(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Update the role check constraint isn't relevant; the users table CHECK
-	// only allows super-admin/admin/user. Insert directly bypassing the model.
+	// only allows super-admin/admin/staff/nurse. Insert directly bypassing the model.
 	// Insert a user via direct SQL since the User.IsValid blocks unknown roles.
 	if _, err := store.DB.Exec(
 		`INSERT INTO users (id, username, password_hash, display_name, role, is_active, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		"emptyrole-user-id", "emptyrole", "h", "Empty", "user", 1, store.DateNow(), store.DateNow()); err != nil {
+		"emptyrole-user-id", "emptyrole", "h", "Empty", "staff", 1, store.DateNow(), store.DateNow()); err != nil {
 		t.Fatal(err)
 	}
 	// Generate a token with explicit empty scopes (the JWT carries scopes from
 	// auth.GenerateToken, and the auth middleware uses role.Scopes from DB).
-	// Easier: update the seeded `user` role to have no scopes and login as
-	// that user, but `user` role is seeded earlier. Use AdminToken's flow on
+	// Easier: update the seeded `staff` role to have no scopes and login as
+	// that user, but `staff` role is seeded earlier. Use AdminToken's flow on
 	// a freshly built user with its role's scopes set to empty.
-	if _, err := store.DB.Exec(`UPDATE roles SET scopes = '' WHERE name = 'user'`); err != nil {
+	if _, err := store.DB.Exec(`UPDATE roles SET scopes = '' WHERE name = 'staff'`); err != nil {
 		t.Fatal(err)
 	}
 	var u store.User

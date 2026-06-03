@@ -38,13 +38,13 @@ func Login(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		log.Println("Error: [Login] invalid request body")
 		tracking.Warn(c, "[Login] invalid request body")
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 
 	if err := req.IsValid(); err != nil {
 		log.Println("Error: [Login] missing username or password")
 		tracking.Warn(c, "[Login] missing username or password")
-		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "username and password required"})
+		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Enter your username and password"})
 	}
 
 	username := strings.TrimSpace(req.Username)
@@ -55,27 +55,27 @@ func Login(c echo.Context) error {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [Login] user not found:", username)
 			tracking.Warn(c, "[Login] user not found: "+username)
-			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "invalid username or password"})
+			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Invalid username or password"})
 		}
 		log.Println("Error: [Login] db error:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "authentication failed"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't sign you in"})
 	}
 
 	if !user.IsActive {
 		log.Println("Error: [Login] account disabled:", username)
 		tracking.Warn(c, "[Login] account disabled: "+username)
-		return c.JSON(http.StatusForbidden, httpx.Response{Error: "account is disabled"})
+		return c.JSON(http.StatusForbidden, httpx.Response{Error: "Your account is disabled"})
 	}
 
 	if user.PasswordHash == "" {
 		hash, err := auth.HashPassword(password)
 		if err != nil {
 			log.Println("Error: [Login] failed to hash initial password:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "authentication failed"})
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't sign you in"})
 		}
 		if err := user.UpdatePassword(hash); err != nil {
 			log.Println("Error: [Login] failed to set initial password:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "authentication failed"})
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't sign you in"})
 		}
 		user.PasswordHash = hash
 	} else {
@@ -83,20 +83,20 @@ func Login(c echo.Context) error {
 		if err != nil || !match {
 			log.Println("Error: [Login] invalid password for:", username)
 			tracking.Warn(c, "[Login] invalid password for: "+username)
-			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "invalid username or password"})
+			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Invalid username or password"})
 		}
 	}
 
 	role := store.Role{}
 	if err := role.GetByName(user.Role); err != nil {
 		log.Println("Error: [Login] role not found:", user.Role)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to resolve user role"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't sign you in"})
 	}
 
 	tokenResult, err := auth.GenerateToken(user, role.Scopes)
 	if err != nil {
 		log.Println("Error: [Login] token generation failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to generate token"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't sign you in"})
 	}
 
 	return c.JSON(http.StatusOK, httpx.Response{
@@ -112,16 +112,21 @@ func Verify(c echo.Context) error {
 func Me(c echo.Context) error {
 	user, ok := c.Get("user").(store.User)
 	if !ok {
-		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Not Authorized"})
+		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Please sign in again"})
 	}
 	scopes, _ := c.Get("scopes").([]string)
+	data := map[string]any{
+		"userId": user.ID,
+		"user":   user.DisplayName,
+		"role":   user.Role,
+		"scopes": scopes,
+	}
+	if empID, err := store.EmployeeIDForUser(user.ID); err == nil {
+		data["employeeId"] = empID
+	}
 	return c.JSON(http.StatusOK, httpx.Response{
 		Success: true,
-		Data: map[string]any{
-			"user":   user.DisplayName,
-			"role":   user.Role,
-			"scopes": scopes,
-		},
+		Data:    data,
 	})
 }
 

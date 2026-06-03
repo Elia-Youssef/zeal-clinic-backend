@@ -168,6 +168,7 @@ func (d *Discount) CreateWithTx(tx *sql.Tx) error {
 	if d.IsActive == 0 {
 		d.IsActive = 1
 	}
+	d.Value = Round2(d.Value)
 
 	if _, err := tx.Exec(`INSERT INTO discounts (`+discountColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		d.ID, d.Name, d.Description, d.DiscountType, d.ValueType, d.Value,
@@ -191,6 +192,11 @@ func (d *Discount) Update(updates map[string]any) error {
 	var args []any
 	for jsonKey, dbCol := range cols {
 		if val, ok := updates[jsonKey]; ok {
+			if dbCol == "value" {
+				if f, ok := val.(float64); ok {
+					val = Round2(f)
+				}
+			}
 			if setClauses != "" {
 				setClauses += ", "
 			}

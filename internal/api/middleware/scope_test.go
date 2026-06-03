@@ -43,7 +43,7 @@ func TestRequireScope_NoScopesContext(t *testing.T) {
 	if code != http.StatusForbidden {
 		t.Errorf("code = %d", code)
 	}
-	if !strings.Contains(body, "no scopes found") {
+	if !strings.Contains(body, "You don't have permission") {
 		t.Errorf("body = %s", body)
 	}
 }
@@ -62,7 +62,7 @@ func TestRequireScope_WrongTypeInContext(t *testing.T) {
 			if code != http.StatusForbidden {
 				t.Errorf("code = %d", code)
 			}
-			if !strings.Contains(body, "no scopes found") {
+			if !strings.Contains(body, "You don't have permission") {
 				t.Errorf("body = %s", body)
 			}
 		})
@@ -74,7 +74,7 @@ func TestRequireScope_EmptyScopesSlice(t *testing.T) {
 	if code != http.StatusForbidden {
 		t.Errorf("code = %d", code)
 	}
-	if !strings.Contains(body, "no scopes found") {
+	if !strings.Contains(body, "You don't have permission") {
 		t.Errorf("body = %s", body)
 	}
 }
@@ -84,7 +84,7 @@ func TestRequireScope_MissingRequired(t *testing.T) {
 	if code != http.StatusForbidden {
 		t.Errorf("code = %d", code)
 	}
-	if !strings.Contains(body, "missing required scope") {
+	if !strings.Contains(body, "You don't have permission") {
 		t.Errorf("body = %s", body)
 	}
 }

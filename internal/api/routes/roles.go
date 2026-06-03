@@ -7,8 +7,8 @@ import (
 )
 
 func SetupRoleRoutes(api *echo.Group) {
-	api.GET("/roles", handlers.GetAllRoles, cache("roles"))
-	api.GET("/roles/dropdown", handlers.GetRoleDropdown, cache("roles"))
-	api.GET("/roles/:name", handlers.GetRoleByName, cache("roles"))
+	api.GET("/roles", handlers.GetAllRoles, scope("roles:read"), cache("roles"))
+	api.GET("/roles/dropdown", handlers.GetRoleDropdown, scope("roles:read"), cache("roles"))
+	api.GET("/roles/:name", handlers.GetRoleByName, scope("roles:read"), cache("roles"))
 	api.PUT("/roles/:name", handlers.UpdateRole, scope("roles:write"), cache("roles"))
 }

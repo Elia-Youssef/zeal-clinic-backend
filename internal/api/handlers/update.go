@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/buildmode"
 	"clinic-api/internal/config"
 	"clinic-api/internal/database/store"
 	syncpkg "clinic-api/internal/sync"
@@ -21,7 +22,7 @@ func GetUpdateStatus(c echo.Context) error {
 	st, err := updater.GetStatus()
 	if err != nil {
 		log.Println("Error: [GetUpdateStatus] failed to read update status:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to read update status"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't check for updates"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: st})
 }
@@ -35,7 +36,7 @@ func StartUpdate(c echo.Context) error {
 	// version-gated, so both must start from a synced slate. Abort if it fails.
 	if err := syncpkg.RunNow(c.Request().Context()); err != nil {
 		log.Println("Error: [StartUpdate] pre-update sync failed:", err)
-		return c.JSON(http.StatusBadGateway, httpx.Response{Error: "pre-update sync failed; update aborted"})
+		return c.JSON(http.StatusBadGateway, httpx.Response{Error: "Sync failed, update canceled"})
 	}
 
 	var peerWarn string
@@ -49,12 +50,12 @@ func StartUpdate(c echo.Context) error {
 	if err := updater.Start(); err != nil {
 		switch {
 		case errors.Is(err, updater.ErrNoUpdate):
-			return c.JSON(http.StatusConflict, httpx.Response{Error: "no update available"})
+			return c.JSON(http.StatusConflict, httpx.Response{Error: "No update available"})
 		case errors.Is(err, updater.ErrAlreadyInstalling):
-			return c.JSON(http.StatusConflict, httpx.Response{Error: "update already in progress"})
+			return c.JSON(http.StatusConflict, httpx.Response{Error: "Update already in progress"})
 		default:
 			log.Println("Error: [StartUpdate] failed to start update:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to start update"})
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't start update"})
 		}
 	}
 
@@ -66,16 +67,22 @@ func StartUpdate(c echo.Context) error {
 }
 
 // PeerStartUpdate is the cloud-only endpoint a local node calls to update the cloud.
+// If the cloud has no update but the caller is on a different version, report
+// success: sync is version-gated, so the caller proceeding to its own update
+// is enough to reconcile.
 func PeerStartUpdate(c echo.Context) error {
 	if err := updater.Start(); err != nil {
 		switch {
 		case errors.Is(err, updater.ErrNoUpdate):
-			return c.JSON(http.StatusConflict, httpx.Response{Error: "no update available"})
+			if peerVer := c.Request().Header.Get("X-Sync-Version"); peerVer != "" && peerVer != buildmode.Version {
+				return c.JSON(http.StatusAccepted, httpx.Response{Success: true, Data: map[string]string{"status": "no update needed"}})
+			}
+			return c.JSON(http.StatusConflict, httpx.Response{Error: "No update available"})
 		case errors.Is(err, updater.ErrAlreadyInstalling):
 			return c.JSON(http.StatusAccepted, httpx.Response{Success: true, Data: map[string]string{"status": "already installing"}})
 		default:
 			log.Println("Error: [PeerStartUpdate] failed to start update:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to start update"})
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't start update"})
 		}
 	}
 	return c.JSON(http.StatusAccepted, httpx.Response{Success: true, Data: map[string]string{"status": "installing"}})
@@ -86,15 +93,15 @@ func PublishVersion(c echo.Context) error {
 	var v store.Version
 	if err := c.Bind(&v); err != nil {
 		log.Println("Error: [PublishVersion] invalid request:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	if err := v.IsValid(); err != nil {
 		log.Println("Error: [PublishVersion] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	if err := v.Create(); err != nil {
 		log.Println("Error: [PublishVersion] failed to save version:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to save version"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't save version"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: v})
 }
@@ -108,6 +115,7 @@ func triggerPeerUpdate(cfg *config.Config) error {
 		return err
 	}
 	req.Header.Set("X-Sync-Secret", cfg.SyncSecret)
+	req.Header.Set("X-Sync-Version", buildmode.Version)
 
 	resp, err := peerClient.Do(req)
 	if err != nil {

@@ -16,19 +16,19 @@ import (
 func GetAllAppointments(c echo.Context) error {
 	date := c.QueryParam("date")
 	if date == "" {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "date query parameter is required"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Date is required"})
 	}
 	params := parseListParams(c)
 	apts := store.AppointmentList{}
 	total, err := apts.GetAll(date, params)
 	if err != nil {
 		log.Println("Error: GetAllAppointments failed to fetch appointments:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch appointments"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load appointments"})
 	}
 	holidays, err := store.HolidaysOverlappingRange(store.Date(date), store.Date(date))
 	if err != nil {
 		log.Println("Error: GetAllAppointments failed to fetch holidays:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch holidays"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load holidays"})
 	}
 	if holidays == nil {
 		holidays = store.HolidayList{}
@@ -43,11 +43,11 @@ func GetAllAppointments(c echo.Context) error {
 func GetAppointmentCountPerRoom(c echo.Context) error {
 	date := c.QueryParam("date")
 	if date == "" {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "date query parameter is required"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Date is required"})
 	}
 	t, err := time.Parse(store.DateFormat, date)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid date format"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid date"})
 	}
 	offset := int(t.Weekday() - time.Monday)
 	if offset < 0 {
@@ -59,12 +59,12 @@ func GetAppointmentCountPerRoom(c echo.Context) error {
 	items, err := store.GetAppointmentCountPerRoom(weekStart, weekEnd)
 	if err != nil {
 		log.Println("Error: [GetAppointmentCountPerRoom] failed to fetch counts:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch appointment counts"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load appointment counts"})
 	}
 	holidays, err := store.HolidaysOverlappingRange(weekStart, weekEnd)
 	if err != nil {
 		log.Println("Error: [GetAppointmentCountPerRoom] failed to fetch holidays:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch holidays"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load holidays"})
 	}
 	if items == nil {
 		items = []store.RoomDayCount{}
@@ -85,7 +85,20 @@ func GetPatientAppointments(c echo.Context) error {
 	total, err := apts.GetByPatientID(patientID, params)
 	if err != nil {
 		log.Println("Error: GetPatientAppointments failed to fetch appointments:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch appointments"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load appointments"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: apts, Total: total}})
+}
+
+func GetEmployeeAppointments(c echo.Context) error {
+	employeeID := c.Param("id")
+	date := c.QueryParam("date")
+	params := parseListParams(c)
+	apts := store.AppointmentList{}
+	total, err := apts.GetByEmployeeWeek(employeeID, date, params)
+	if err != nil {
+		log.Println("Error: GetEmployeeAppointments failed to fetch appointments:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load appointments"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: apts, Total: total}})
 }
@@ -95,7 +108,7 @@ func CreateAppointment(c echo.Context) error {
 	if err := c.Bind(&a); err != nil {
 		log.Println("Error: CreateAppointment invalid request:", err)
 		tracking.Warn(c, "[CreateAppointment] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	if a.Status == "" {
 		a.Status = "Scheduled"
@@ -103,12 +116,12 @@ func CreateAppointment(c echo.Context) error {
 	if err := a.IsValid(); err != nil {
 		log.Println("Error: CreateAppointment validation failed:", err)
 		tracking.Warn(c, "[CreateAppointment] validation failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
 	if err := a.Create(); err != nil {
 		log.Println("Error: CreateAppointment failed to create appointment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create appointment"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create appointment"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: a})
 }
@@ -118,7 +131,7 @@ func UpdateAppointment(c echo.Context) error {
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: UpdateAppointment invalid request:", err)
 		tracking.Warn(c, "[UpdateAppointment] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	delete(updates, "id")
 
@@ -126,15 +139,15 @@ func UpdateAppointment(c echo.Context) error {
 	if err := apt.Update(updates); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: UpdateAppointment appointment not found:", err)
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "appointment not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Appointment not found"})
 		}
 		if strings.Contains(err.Error(), "room conflict") {
 			log.Println("Error: UpdateAppointment room conflict:", err)
 			tracking.Warn(c, "[UpdateAppointment] room conflict: "+err.Error())
-			return c.JSON(http.StatusConflict, httpx.Response{Error: err.Error()})
+			return c.JSON(http.StatusConflict, httpx.Response{Error: "This room is already booked for that time"})
 		}
 		log.Println("Error: UpdateAppointment failed to update appointment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update appointment"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update appointment"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: apt})
 }
@@ -144,7 +157,7 @@ func RescheduleAppointment(c echo.Context) error {
 	if err := c.Bind(&overrides); err != nil {
 		log.Println("Error: RescheduleAppointment invalid request:", err)
 		tracking.Warn(c, "[RescheduleAppointment] bind failed: "+err.Error())
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	delete(overrides, "id")
 	delete(overrides, "rescheduledFrom")
@@ -153,20 +166,20 @@ func RescheduleAppointment(c echo.Context) error {
 	if err := apt.Reschedule(overrides); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: RescheduleAppointment appointment not found:", err)
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "appointment not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Appointment not found"})
 		}
 		if strings.Contains(err.Error(), "room conflict") {
 			log.Println("Error: RescheduleAppointment room conflict:", err)
 			tracking.Warn(c, "[RescheduleAppointment] room conflict: "+err.Error())
-			return c.JSON(http.StatusConflict, httpx.Response{Error: err.Error()})
+			return c.JSON(http.StatusConflict, httpx.Response{Error: "This room is already booked for that time"})
 		}
 		if strings.Contains(err.Error(), "cannot reschedule") {
 			log.Println("Error: RescheduleAppointment invalid state:", err)
 			tracking.Warn(c, "[RescheduleAppointment] invalid state: "+err.Error())
-			return c.JSON(http.StatusBadRequest, httpx.Response{Error: err.Error()})
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "This appointment can no longer be rescheduled"})
 		}
 		log.Println("Error: RescheduleAppointment failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to reschedule appointment"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't reschedule appointment"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: apt})
 }
@@ -177,10 +190,10 @@ func DeleteAppointment(c echo.Context) error {
 	if err := apt.Delete(); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [DeleteAppointment] appointment not found:", err)
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "appointment not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Appointment not found"})
 		}
 		log.Println("Error: [DeleteAppointment] failed to delete appointment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete appointment"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete appointment"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

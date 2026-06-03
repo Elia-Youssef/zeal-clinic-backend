@@ -108,11 +108,15 @@ func (l *PatientList) ScanRows(rows *sql.Rows) error {
 }
 
 func (p *PatientList) GetAll(params ListParams) (int, error) {
-	where := ""
+	where := " WHERE 1=1"
 	var args []any
 	if fc, fa := params.FilterClause("first_name", "middle_name", "last_name", "contact", "email"); fc != "" {
-		where = " WHERE " + fc
-		args = fa
+		where += " AND " + fc
+		args = append(args, fa...)
+	}
+	if dc, da := params.DateRangeClause("created_at"); dc != "" {
+		where += " AND " + dc
+		args = append(args, da...)
 	}
 
 	var total int
@@ -180,7 +184,13 @@ func (p *Patient) Create() error {
 	}
 	p.UpdatedAt = now
 
-	_, err := DB.Exec(`INSERT INTO patients (
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`INSERT INTO patients (
 		id, first_name, middle_name, last_name, gender, date_of_birth,
 		contact, email, emergency_contact_name, emergency_contact_phone,
 		weight, height, blood_type, country_id, city_id, address, referral_id, referral_source, notes, created_at, updated_at
@@ -189,27 +199,15 @@ func (p *Patient) Create() error {
 		p.Contact, p.Email, p.EmergencyContactName, p.EmergencyContactPhone,
 		p.Weight, p.Height, p.BloodType, p.CountryID, p.CityID,
 		p.Address, p.ReferralID, p.ReferralSource, p.Notes, p.CreatedAt, p.UpdatedAt,
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 
-	// Create a balance for the patient in each currency
-	var currencies CurrencyList
-	if _, err := currencies.GetAll(ListParams{}); err == nil {
-		entityName := p.FirstName + " " + p.LastName
-		for _, cur := range currencies {
-			bal := Balance{
-				EntityType: "patient",
-				EntityID:   &p.ID,
-				EntityName: entityName,
-				CurrencyID: cur.ID,
-			}
-			bal.GetOrCreate()
-		}
+	if _, err := getOrCreateBalanceWithTx(tx, "patient", p.ID, p.FirstName+" "+p.LastName, USDCurrencyID); err != nil {
+		return err
 	}
 
-	return nil
+	return tx.Commit()
 }
 
 func (p *Patient) Update(updates map[string]any) error {

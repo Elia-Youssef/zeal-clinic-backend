@@ -119,6 +119,10 @@ func (e *AuditLogEntryList) GetAll(entityType, entityID, action, userID string, 
 		where += " AND " + fc
 		args = append(args, fa...)
 	}
+	if dc, da := params.DateRangeClause("a.created_at"); dc != "" {
+		where += " AND " + dc
+		args = append(args, da...)
+	}
 
 	var total int
 	if err := RDB.QueryRow("SELECT COUNT(*)"+auditLogFromJoin+where, args...).Scan(&total); err != nil {

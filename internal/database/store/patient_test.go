@@ -72,14 +72,12 @@ func TestPatient_Create_AssignsIDsAndCreatesBalance(t *testing.T) {
 	if p.ID == "" {
 		t.Errorf("ID not assigned")
 	}
-	// Patient balance row should exist for every existing currency.
-	currencies := countRows(t, "currencies", "")
+	// Patient balance row should exist for the fixed USD currency.
 	postBalances := countRows(t, "balances", "entity_type='patient'")
-	if postBalances-preBalances != currencies {
-		t.Errorf("expected %d new patient balance(s), got %d", currencies, postBalances-preBalances)
+	if postBalances-preBalances != 1 {
+		t.Errorf("expected 1 new patient balance, got %d", postBalances-preBalances)
 	}
 
-	// Specifically for the seeded currency:
 	bal := patientBalance(t, p.ID, cur.ID)
 	if bal.EntityName != "Anne Smith" {
 		t.Errorf("balance entity_name = %q want %q", bal.EntityName, "Anne Smith")

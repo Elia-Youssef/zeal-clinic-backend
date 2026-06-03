@@ -91,16 +91,22 @@ func Start() error {
 func run(v store.Version) {
 	defer tracking.Recover()
 
+	if v.SHA256 == "" {
+		fail("verify", errors.New("missing sha256"))
+		return
+	}
+	if !strings.HasPrefix(v.URL, "https://") {
+		fail("download", errors.New("update url must be https"))
+		return
+	}
 	dest, err := download(v.URL)
 	if err != nil {
 		fail("download", err)
 		return
 	}
-	if v.SHA256 != "" {
-		if err := verifySHA256(dest, v.SHA256); err != nil {
-			fail("verify", err)
-			return
-		}
+	if err := verifySHA256(dest, v.SHA256); err != nil {
+		fail("verify", err)
+		return
 	}
 	log.Printf("[update] downloaded %s, applying", v.Version)
 	if err := applyUpdate(dest); err != nil {
@@ -147,8 +153,9 @@ func cleanupBackups() {
 	}
 }
 
+// downloadDir is separate from pdf.TmpDir() so the artifact isn't served by /files/*.
 func downloadDir() string {
-	dir := filepath.Join(config.DataDir(), "tmp")
+	dir := filepath.Join(config.DataDir(), "update")
 	_ = os.MkdirAll(dir, 0700)
 	return dir
 }

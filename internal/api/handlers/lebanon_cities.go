@@ -16,7 +16,7 @@ func GetAllLebanonCities(c echo.Context) error {
 	total, err := cities.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllLebanonCities] failed to fetch lebanon cities:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch lebanon cities"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load cities"})
 	}
 	if cities == nil {
 		cities = []store.LebanonCity{}
@@ -30,7 +30,7 @@ func GetLebanonCityDropdown(c echo.Context) error {
 	_, err := cities.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetLebanonCityDropdown] failed to fetch lebanon city dropdown:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch lebanon city dropdown"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load options"})
 	}
 	items := []store.DropdownItem{}
 	for _, city := range cities {

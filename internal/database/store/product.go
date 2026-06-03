@@ -159,6 +159,7 @@ func (p *Product) Create() error {
 
 	p.ID = uuid.Must(uuid.NewV7()).String()
 	p.CreatedAt = DateNow()
+	p.UnitPrice = Round2(p.UnitPrice)
 	if _, err := tx.Exec(`INSERT INTO products (id, name, category_id, quantity, min_threshold, created_at) VALUES (?,?,?,?,?,?)`,
 		p.ID, p.Name, p.CategoryID, p.Quantity, p.MinThreshold, p.CreatedAt); err != nil {
 		return err
@@ -192,6 +193,7 @@ func (p *Product) Update(updates map[string]any) error {
 		case int64:
 			price = float64(v)
 		}
+		price = Round2(price)
 		var current float64
 		_ = tx.QueryRow(`SELECT price FROM product_prices WHERE product_id = ? AND is_active = 1`, p.ID).Scan(&current)
 		if current != price {

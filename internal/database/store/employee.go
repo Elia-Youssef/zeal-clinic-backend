@@ -125,7 +125,7 @@ func (m *EmployeeList) GetAll(params ListParams) (int, error) {
 	}
 
 	for i := range *m {
-		(*m)[i].Salaries.GetByEmployee((*m)[i].ID)
+		(*m)[i].Salaries.GetByEmployee((*m)[i].ID, ListParams{})
 	}
 	return total, nil
 }
@@ -170,7 +170,6 @@ func (m *Employee) GetByID(id string) error {
 	if err != nil {
 		return err
 	}
-	m.Salaries.GetByEmployee(m.ID)
 	// Load user
 	if m.UserID != nil && *m.UserID != "" {
 		var user User
@@ -187,29 +186,23 @@ func (m *Employee) Create() error {
 	m.CreatedAt = now
 	m.UpdatedAt = now
 
-	_, err := DB.Exec(`INSERT INTO employees (`+employeeColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		m.ID, m.UserID, m.FirstName, m.LastName, m.Role, m.Contact, m.Email, m.DateOfBirth,
-		m.EmploymentType, m.CreatedAt, m.UpdatedAt)
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 
-	// Create a balance for the employee in each currency
-	var currencies CurrencyList
-	if _, err := currencies.GetAll(ListParams{}); err == nil {
-		entityName := m.FirstName + " " + m.LastName
-		for _, cur := range currencies {
-			bal := Balance{
-				EntityType: "employee",
-				EntityID:   &m.ID,
-				EntityName: entityName,
-				CurrencyID: cur.ID,
-			}
-			bal.GetOrCreate()
-		}
+	if _, err := tx.Exec(`INSERT INTO employees (`+employeeColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		m.ID, m.UserID, m.FirstName, m.LastName, m.Role, m.Contact, m.Email, m.DateOfBirth,
+		m.EmploymentType, m.CreatedAt, m.UpdatedAt); err != nil {
+		return err
 	}
 
-	return nil
+	if _, err := getOrCreateBalanceWithTx(tx, "employee", m.ID, m.FirstName+" "+m.LastName, USDCurrencyID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (m *Employee) Update(updates map[string]any) error {

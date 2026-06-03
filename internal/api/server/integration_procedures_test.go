@@ -39,7 +39,7 @@ func TestCreateProcedure_Success(t *testing.T) {
 	tok := adminToken(t, e)
 
 	typeID := createProcedureType(t, e, tok, "Laser")
-	catID := createProcedureCategory(t, e, tok, "Face")
+	catID := createProcedureCategory(t, e, tok, "TestFace")
 
 	body := asJSON(t, map[string]any{
 		"name":       "Laser Facial",
@@ -79,7 +79,7 @@ func TestCreateProcedure_ValidationFails(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "validation failed")
+	containsString(t, rec.Body.String(), "Please check your input")
 }
 
 func TestGetProcedureByID_FoundAndNotFound(t *testing.T) {
@@ -261,6 +261,21 @@ func TestProcedureType_ValidationFails(t *testing.T) {
 	}
 }
 
+func TestProcedureType_DuplicateName(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	createProcedureType(t, e, tok, "Unique")
+
+	// Same name (case-insensitive) is rejected with 409.
+	rec := doRequest(t, e, http.MethodPost, "/api/procedure-types",
+		asJSON(t, map[string]any{"name": "unique"}), tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 // procedure categories
 
 func TestProcedureCategory_CRUD(t *testing.T) {
@@ -284,5 +299,33 @@ func TestProcedureCategory_CRUD(t *testing.T) {
 	rec = doRequest(t, e, http.MethodDelete, "/api/procedure-categories/"+id, nil, tok)
 	if rec.Code != http.StatusOK {
 		t.Errorf("delete: %d", rec.Code)
+	}
+}
+
+func TestProcedureCategory_DuplicateName(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	createProcedureCategory(t, e, tok, "Unique")
+
+	rec := doRequest(t, e, http.MethodPost, "/api/procedure-categories",
+		asJSON(t, map[string]any{"name": "unique"}), tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestProcedureCategory_SelfParentRejected(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	id := createProcedureCategory(t, e, tok, "Parentable")
+
+	rec := doRequest(t, e, http.MethodPut, "/api/procedure-categories/"+id,
+		asJSON(t, map[string]any{"parentId": id}), tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }

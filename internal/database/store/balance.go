@@ -44,7 +44,7 @@ func (l *BalanceList) ScanRows(rows *sql.Rows) error {
 		var item Balance
 		err := rows.Scan(&item.ID, &item.EntityType, &item.EntityID, &item.EntityName, &item.CurrencyID, &item.Amount, &item.TotalIn, &item.TotalOut, &item.CreatedAt, &item.UpdatedAt)
 		if err != nil {
-			continue
+			return err
 		}
 		*l = append(*l, item)
 	}
@@ -73,6 +73,9 @@ func (b *Balance) GetEntityType(id string, tx *sql.Tx) string {
 // Balance
 
 func (b *Balance) GetOrCreate() error {
+	if b.CurrencyID == "" {
+		b.CurrencyID = USDCurrencyID
+	}
 	now := DateNow()
 	id := uuid.Must(uuid.NewV7()).String()
 	// INSERT OR IGNORE avoids race conditions with the UNIQUE(entity_type, entity_id, currency_id) constraint
@@ -95,17 +98,16 @@ func (b *Balance) GetByID(id string) error {
 }
 
 func (b *Balance) GetByEntityID(entityType, entityID string) error {
-	err := b.ScanRow(RDB.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = ? AND entity_id = ? ORDER BY currency_id`, entityType, entityID))
+	err := b.ScanRow(RDB.QueryRow(`SELECT `+balanceColumns+` FROM balances WHERE entity_type = ? AND entity_id = ? AND currency_id = ?`, entityType, entityID, USDCurrencyID))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-
 func (b *BalanceList) GetAll(entityType string, params ListParams) (int, error) {
-	where := " WHERE 1=1"
-	var args []any
+	where := " WHERE currency_id = ?"
+	args := []any{USDCurrencyID}
 	if entityType != "" {
 		where += " AND entity_type = ?"
 		args = append(args, entityType)

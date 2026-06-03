@@ -8,8 +8,8 @@ import (
 
 func SetupEmployeeRoutes(api *echo.Group) {
 	api.GET("/employees", handlers.GetAllEmployees, scope("employees:read"), cache("employees"))
-	api.GET("/employees/dropdown", handlers.GetEmployeeDropdown, scope("employees:read"), cache("employees"))
-	api.GET("/employees/:id", handlers.GetEmployeeByID, scope("employees:read"), cache("employees"))
+	api.GET("/employees/dropdown", handlers.GetEmployeeDropdown, cache("employees"))
+	api.GET("/employees/:id", handlers.GetEmployeeByID, scopeOrSelf("employees:read", selfEmployee), cache("employees"))
 	// CreateEmployee can also create a linked user account.
 	api.POST("/employees", handlers.CreateEmployee, scope("employees:write"), cache("employees", "users"))
 	api.PUT("/employees/:id", handlers.UpdateEmployee, scope("employees:write"), cache("employees"))

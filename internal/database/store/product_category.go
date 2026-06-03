@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -127,6 +128,9 @@ func (c *ProductCategory) GetByID(id string) error {
 }
 
 func (c *ProductCategory) Create() error {
+	if NameExists("product_categories", c.Name, "") {
+		return fmt.Errorf("%w: A category with this name already exists", ErrConflict)
+	}
 	c.ID = uuid.Must(uuid.NewV7()).String()
 	c.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO product_categories (`+productCategoryColumns+`) VALUES (?,?,?,?,?)`,
@@ -135,6 +139,12 @@ func (c *ProductCategory) Create() error {
 }
 
 func (c *ProductCategory) Update(updates map[string]any) error {
+	if name, ok := updates["name"].(string); ok && NameExists("product_categories", name, c.ID) {
+		return fmt.Errorf("%w: A category with this name already exists", ErrConflict)
+	}
+	if pid, ok := updates["parentId"].(string); ok && pid == c.ID {
+		return fmt.Errorf("%w: A category can't be its own parent", ErrConflict)
+	}
 	cols := map[string]string{"name": "name", "description": "description", "parentId": "parent_id"}
 	setClauses := ""
 	var args []any

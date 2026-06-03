@@ -23,9 +23,8 @@ type Appointment struct {
 	RescheduledFrom string `json:"rescheduledFrom"`
 	CreatedAt       Date   `json:"createdAt"`
 	UpdatedAt       Date   `json:"updatedAt"`
-	// Transient fields (not stored in appointments table)
-	ProcedureIDs []string `json:"procedureIds,omitempty"`
-	// Joined fields
+	// Joined / transient: serves as input on create/update/reschedule
+	// (procedureId, assignedToId, notes) and as the joined output.
 	PatientName           string                   `json:"patientName,omitempty"`
 	AppointmentProcedures AppointmentProcedureList `json:"appointmentProcedures,omitempty"`
 }
@@ -66,20 +65,27 @@ const appointmentSelectQuery = `SELECT a.id, a.patient_id, a.room_id, a.start_ti
 	FROM appointments a
 	LEFT JOIN patients p ON p.id = a.patient_id`
 
+var appointmentSortColumns = map[string]string{
+	"patientId":   "a.patient_id",
+	"patientName": "patient_name",
+	"roomId":      "a.room_id",
+	"startTime":   "a.start_time",
+	"endTime":     "a.end_time",
+	"status":      "a.status",
+	"createdAt":   "a.created_at",
+	"updatedAt":   "a.updated_at",
+}
+
 type AppointmentList []Appointment
 
 func (a *Appointment) ScanRow(row *sql.Row) error {
 	if row == nil {
 		return errors.New("nil appointment row")
 	}
-	err := row.Scan(&a.ID, &a.PatientID, &a.RoomID,
+	return row.Scan(&a.ID, &a.PatientID, &a.RoomID,
 		&a.StartTime, &a.EndTime, &a.Status,
 		&a.Notes, &a.CancelNotes, &a.CompletionNotes,
 		&a.RescheduledFrom, &a.CreatedAt, &a.UpdatedAt, &a.PatientName)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (l *AppointmentList) ScanRows(rows *sql.Rows) error {
@@ -120,12 +126,14 @@ func (l *AppointmentList) LoadProcedures() error {
 		(*l)[i].AppointmentProcedures = AppointmentProcedureList{}
 	}
 
-	apRows, err := RDB.Query(`SELECT ap.id, ap.patient_id, ap.procedure_id, ap.appointment_id, ap.notes,
-		ap.created_at, ap.updated_at, pr.name, COALESCE(c.name, ''), COALESCE(pc.name, '')
+	apRows, err := RDB.Query(`SELECT ap.id, ap.patient_id, ap.procedure_id, ap.appointment_id,
+		COALESCE(ap.assigned_to_id, ''), ap.notes,
+		ap.created_at, ap.updated_at, pr.name, COALESCE(c.name, ''),
+		COALESCE(e.first_name || ' ' || e.last_name, '')
 		FROM appointment_procedures ap
 		JOIN procedures pr ON pr.id = ap.procedure_id
 		LEFT JOIN procedure_categories c ON c.id = pr.category_id
-		LEFT JOIN procedure_categories pc ON pc.id = c.parent_id
+		LEFT JOIN employees e ON e.id = ap.assigned_to_id
 		WHERE ap.appointment_id IN (`+placeholders+`)
 		ORDER BY ap.created_at`, ids...)
 	if err != nil {
@@ -134,14 +142,13 @@ func (l *AppointmentList) LoadProcedures() error {
 	defer apRows.Close()
 	for apRows.Next() {
 		var ap AppointmentProcedure
-		var catName, parentName string
-		if err := apRows.Scan(&ap.ID, &ap.PatientID, &ap.ProcedureID, &ap.AppointmentID, &ap.Notes,
-			&ap.CreatedAt, &ap.UpdatedAt, &ap.ProcedureName, &catName, &parentName); err != nil {
+		var catName string
+		if err := apRows.Scan(&ap.ID, &ap.PatientID, &ap.ProcedureID, &ap.AppointmentID,
+			&ap.AssignedToID, &ap.Notes,
+			&ap.CreatedAt, &ap.UpdatedAt, &ap.ProcedureName, &catName, &ap.AssignedToName); err != nil {
 			continue
 		}
-		if parentName != "" {
-			ap.ProcedureName = parentName + ", " + catName + ", " + ap.ProcedureName
-		} else if catName != "" {
+		if catName != "" {
 			ap.ProcedureName = catName + ", " + ap.ProcedureName
 		}
 		if idx, ok := idIdx[ap.AppointmentID]; ok {
@@ -191,45 +198,42 @@ func (a *AppointmentList) GetAll(date string, params ListParams) (int, error) {
 		t = ClinicNow()
 	}
 	dayStart, dayEnd := ClinicDayBounds(t)
-	where := " WHERE a.start_time >= ? AND a.start_time < ? AND a.status NOT IN ('Cancelled','Rescheduled')"
-	args := []any{dayStart, dayEnd}
-	if fc, fa := params.FilterClause("a.status", "a.notes"); fc != "" {
-		where += " AND " + fc
-		args = append(args, fa...)
-	}
+	return a.getAllBetween(dayStart, dayEnd, params)
+}
 
-	var total int
-	if err := RDB.QueryRow("SELECT COUNT(*) FROM appointments a"+where, args...).Scan(&total); err != nil {
-		return 0, err
-	}
+// GetWeek loads appointments for the Monday-Sunday week containing date,
+// matching the weekly appointment grid (GetAppointmentCountPerRoom).
+func (a *AppointmentList) GetWeek(date string, params ListParams) (int, error) {
+	dayStart, dayEnd := weekBounds(date)
+	return a.getAllBetween(dayStart, dayEnd, params)
+}
 
-	order := params.OrderClause(map[string]string{
-		"patientId":   "a.patient_id",
-		"patientName": "patient_name",
-		"roomId":      "a.room_id",
-		"startTime":   "a.start_time",
-		"endTime":     "a.end_time",
-		"status":      "a.status",
-		"createdAt":   "a.created_at",
-		"updatedAt":   "a.updated_at",
-	}, "a.start_time")
-	query := appointmentSelectQuery + where + order + params.PaginationClause()
-	rows, err := RDB.Query(query, args...)
+// weekBounds returns the half-open UTC instants of the Monday-Sunday clinic
+// week containing date. Empty/invalid date falls back to the current week.
+func weekBounds(date string) (Date, Date) {
+	t, err := time.Parse(DateFormat, date)
 	if err != nil {
-		return 0, err
+		t = ClinicNow()
 	}
-	defer rows.Close()
+	offset := int(t.Weekday() - time.Monday)
+	if offset < 0 {
+		offset = 6
+	}
+	weekStart := t.AddDate(0, 0, -offset)
+	dayStart, _ := ClinicDayBounds(weekStart)
+	_, dayEnd := ClinicDayBounds(weekStart.AddDate(0, 0, 6))
+	return dayStart, dayEnd
+}
 
-	if err := a.ScanRows(rows); err != nil {
-		return 0, err
-	}
-	if err := rows.Err(); err != nil {
-		return 0, err
-	}
-	if err := a.LoadProcedures(); err != nil {
-		return 0, err
-	}
-	return total, nil
+// getAllBetween loads appointments whose start_time falls in the half-open
+// UTC range [dayStart, dayEnd), excluding cancelled/rescheduled rows.
+func (a *AppointmentList) getAllBetween(dayStart, dayEnd Date, params ListParams) (int, error) {
+	return a.listByWhere(
+		" WHERE a.start_time >= ? AND a.start_time < ? AND a.status NOT IN ('Cancelled','Rescheduled')",
+		[]any{dayStart, dayEnd},
+		"a.start_time, (SELECT name FROM rooms WHERE id = a.room_id)",
+		params,
+	)
 }
 
 type RoomDayCount struct {
@@ -277,9 +281,10 @@ func GetAppointmentCountPerRoom(weekStart, weekEnd Date) ([]RoomDayCount, error)
 	return items, rows.Err()
 }
 
-func (a *AppointmentList) GetByPatientID(patientID string, params ListParams) (int, error) {
-	where := " WHERE a.patient_id = ?"
-	args := []any{patientID}
+// listByWhere is the shared body of every appointment list query: it appends
+// the standard status/notes filter, counts matching rows, runs the select with
+// the caller's sort, and hydrates each appointment's procedures.
+func (a *AppointmentList) listByWhere(where string, args []any, defaultSort string, params ListParams) (int, error) {
 	if fc, fa := params.FilterClause("a.status", "a.notes"); fc != "" {
 		where += " AND " + fc
 		args = append(args, fa...)
@@ -290,18 +295,8 @@ func (a *AppointmentList) GetByPatientID(patientID string, params ListParams) (i
 		return 0, err
 	}
 
-	order := params.OrderClause(map[string]string{
-		"patientId":   "a.patient_id",
-		"patientName": "patient_name",
-		"roomId":      "a.room_id",
-		"startTime":   "a.start_time",
-		"endTime":     "a.end_time",
-		"status":      "a.status",
-		"createdAt":   "a.created_at",
-		"updatedAt":   "a.updated_at",
-	}, "a.start_time DESC")
-	query := appointmentSelectQuery + where + order + params.PaginationClause()
-	rows, err := RDB.Query(query, args...)
+	order := params.OrderClause(appointmentSortColumns, defaultSort)
+	rows, err := RDB.Query(appointmentSelectQuery+where+order+params.PaginationClause(), args...)
 	if err != nil {
 		return 0, err
 	}
@@ -313,52 +308,26 @@ func (a *AppointmentList) GetByPatientID(patientID string, params ListParams) (i
 	if err := rows.Err(); err != nil {
 		return 0, err
 	}
-	if err := a.LoadProcedures(); err != nil {
-		return 0, err
-	}
-	return total, nil
+	return total, a.LoadProcedures()
+}
+
+func (a *AppointmentList) GetByPatientID(patientID string, params ListParams) (int, error) {
+	return a.listByWhere(" WHERE a.patient_id = ?", []any{patientID}, "a.start_time DESC", params)
+}
+
+// GetByEmployeeWeek loads the employee's appointments for the Monday-Sunday
+// week containing date. Empty/invalid date falls back to the current week.
+func (a *AppointmentList) GetByEmployeeWeek(employeeID string, date string, params ListParams) (int, error) {
+	dayStart, dayEnd := weekBounds(date)
+	return a.listByWhere(
+		" WHERE a.start_time >= ? AND a.start_time < ? AND a.id IN (SELECT appointment_id FROM appointment_procedures WHERE assigned_to_id = ?)",
+		[]any{dayStart, dayEnd, employeeID}, "a.start_time", params)
 }
 
 func (a *AppointmentList) GetByProcedureID(procedureID string, params ListParams) (int, error) {
-	where := ` WHERE a.id IN (SELECT appointment_id FROM appointment_procedures WHERE procedure_id = ?)`
-	args := []any{procedureID}
-	if fc, fa := params.FilterClause("a.status", "a.notes"); fc != "" {
-		where += " AND " + fc
-		args = append(args, fa...)
-	}
-
-	var total int
-	if err := RDB.QueryRow("SELECT COUNT(*) FROM appointments a"+where, args...).Scan(&total); err != nil {
-		return 0, err
-	}
-
-	order := params.OrderClause(map[string]string{
-		"patientId":   "a.patient_id",
-		"patientName": "patient_name",
-		"roomId":      "a.room_id",
-		"startTime":   "a.start_time",
-		"endTime":     "a.end_time",
-		"status":      "a.status",
-		"createdAt":   "a.created_at",
-		"updatedAt":   "a.updated_at",
-	}, "a.start_time DESC")
-	query := appointmentSelectQuery + where + order + params.PaginationClause()
-	rows, err := RDB.Query(query, args...)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-
-	if err := a.ScanRows(rows); err != nil {
-		return 0, err
-	}
-	if err := rows.Err(); err != nil {
-		return 0, err
-	}
-	if err := a.LoadProcedures(); err != nil {
-		return 0, err
-	}
-	return total, nil
+	return a.listByWhere(
+		" WHERE a.id IN (SELECT appointment_id FROM appointment_procedures WHERE procedure_id = ?)",
+		[]any{procedureID}, "a.start_time DESC", params)
 }
 
 func (a *Appointment) GetByID(id string) error {
@@ -382,29 +351,17 @@ func (a *Appointment) Create() error {
 	a.CreatedAt = now
 	a.UpdatedAt = now
 
-	_, err = tx.Exec(`INSERT INTO appointments (`+appointmentColumns+`)
+	if _, err := tx.Exec(`INSERT INTO appointments (`+appointmentColumns+`)
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
 		a.ID, a.PatientID, a.RoomID,
 		a.StartTime, a.EndTime, a.Status,
 		a.Notes, a.CancelNotes, a.CompletionNotes,
-		nullableID(a.RescheduledFrom), a.CreatedAt, a.UpdatedAt)
-	if err != nil {
+		nullableID(a.RescheduledFrom), a.CreatedAt, a.UpdatedAt); err != nil {
 		return err
 	}
 
-	// Create an appointment_procedure for each linked procedure.
-	for _, pid := range a.ProcedureIDs {
-		if pid == "" {
-			continue
-		}
-		ap := AppointmentProcedure{
-			PatientID:     a.PatientID,
-			ProcedureID:   pid,
-			AppointmentID: a.ID,
-		}
-		if err := ap.create(tx); err != nil {
-			return err
-		}
+	if err := syncAppointmentProcedures(tx, a.ID, a.PatientID, a.AppointmentProcedures); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -416,21 +373,7 @@ func (a *Appointment) Create() error {
 }
 
 func (a *Appointment) Update(updates map[string]any) error {
-	// procedureIds is a transient field, not a column. Pull it out and apply
-	// it as a sync against appointment_procedures inside the same transaction.
-	var procedureIDs []string
-	hasProcedureIDs := false
-	if v, ok := updates["procedureIds"]; ok {
-		hasProcedureIDs = true
-		delete(updates, "procedureIds")
-		if arr, ok := v.([]any); ok {
-			for _, item := range arr {
-				if s, ok := item.(string); ok && s != "" {
-					procedureIDs = append(procedureIDs, s)
-				}
-			}
-		}
-	}
+	procedures, hasProcedures := parseProceduresUpdate(updates)
 
 	cols := map[string]string{
 		"patientId": "patient_id", "roomId": "room_id",
@@ -438,19 +381,20 @@ func (a *Appointment) Update(updates map[string]any) error {
 		"status": "status", "notes": "notes",
 		"cancelNotes": "cancel_notes", "completionNotes": "completion_notes",
 	}
-
 	setClauses := ""
 	var args []any
 	for jsonKey, dbCol := range cols {
-		if val, ok := updates[jsonKey]; ok {
-			if setClauses != "" {
-				setClauses += ", "
-			}
-			setClauses += dbCol + " = ?"
-			args = append(args, val)
+		val, ok := updates[jsonKey]
+		if !ok {
+			continue
 		}
+		if setClauses != "" {
+			setClauses += ", "
+		}
+		setClauses += dbCol + " = ?"
+		args = append(args, val)
 	}
-	if setClauses == "" && !hasProcedureIDs {
+	if setClauses == "" && !hasProcedures {
 		return a.GetByID(a.ID)
 	}
 
@@ -458,11 +402,18 @@ func (a *Appointment) Update(updates map[string]any) error {
 	_, roomChanged := updates["roomId"]
 	_, startChanged := updates["startTime"]
 	_, endChanged := updates["endTime"]
-	if roomChanged || startChanged || endChanged || hasProcedureIDs {
+	if roomChanged || startChanged || endChanged || hasProcedures {
 		if err := current.GetByID(a.ID); err != nil {
 			return err
 		}
 	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	if roomChanged || startChanged || endChanged {
 		roomID := current.RoomID
 		startTime := current.StartTime
@@ -476,32 +427,25 @@ func (a *Appointment) Update(updates map[string]any) error {
 		if v, ok := updates["endTime"].(string); ok {
 			endTime = Date(v)
 		}
-		if err := checkAppointmentConflict(DB, roomID, startTime, endTime, a.ID); err != nil {
+		if err := checkAppointmentConflict(tx, roomID, startTime, endTime, a.ID); err != nil {
 			return err
 		}
 	}
 
-	tx, err := DB.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	if setClauses != "" {
 		setClauses += ", updated_at = ?"
-		args = append(args, DateNow())
-		args = append(args, a.ID)
+		args = append(args, DateNow(), a.ID)
 		if _, err := tx.Exec("UPDATE appointments SET "+setClauses+" WHERE id = ?", args...); err != nil {
 			return err
 		}
 	}
 
-	if hasProcedureIDs {
+	if hasProcedures {
 		patientID := current.PatientID
 		if v, ok := updates["patientId"].(string); ok {
 			patientID = v
 		}
-		if err := syncAppointmentProcedures(tx, a.ID, patientID, procedureIDs); err != nil {
+		if err := syncAppointmentProcedures(tx, a.ID, patientID, procedures); err != nil {
 			return err
 		}
 	}
@@ -513,10 +457,9 @@ func (a *Appointment) Update(updates map[string]any) error {
 }
 
 func (a *Appointment) Reschedule(overrides map[string]any) error {
-	oldID := a.ID
 	var old Appointment
-	old.ID = oldID
-	if err := old.GetByID(oldID); err != nil {
+	old.ID = a.ID
+	if err := old.GetByID(old.ID); err != nil {
 		return err
 	}
 	if old.Status == "Cancelled" {
@@ -526,23 +469,22 @@ func (a *Appointment) Reschedule(overrides map[string]any) error {
 		return errors.New("cannot reschedule an already-rescheduled appointment")
 	}
 
-	// Load procedures from the old appointment so they can carry over.
+	// Hydrate the old procedures so they (and any nurse assignments) carry over
+	// unless overrides explicitly replace them.
 	oldList := AppointmentList{old}
 	if err := oldList.LoadProcedures(); err != nil {
 		return err
 	}
 	old = oldList[0]
 
-	// Build the new appointment from the old, then apply overrides.
 	newApt := Appointment{
-		PatientID:       old.PatientID,
-		RoomID:          old.RoomID,
-		StartTime:       old.StartTime,
-		EndTime:         old.EndTime,
-		Status:          "Scheduled",
-		Notes:           old.Notes,
-		CancelNotes:     "",
-		CompletionNotes: "",
+		PatientID:             old.PatientID,
+		RoomID:                old.RoomID,
+		StartTime:             old.StartTime,
+		EndTime:               old.EndTime,
+		Status:                "Scheduled",
+		Notes:                 old.Notes,
+		AppointmentProcedures: old.AppointmentProcedures,
 	}
 	if v, ok := overrides["patientId"].(string); ok && v != "" {
 		newApt.PatientID = v
@@ -562,20 +504,8 @@ func (a *Appointment) Reschedule(overrides map[string]any) error {
 	if v, ok := overrides["notes"].(string); ok {
 		newApt.Notes = v
 	}
-
-	// Procedures: explicit list in the request overrides; otherwise carry over.
-	if v, ok := overrides["procedureIds"]; ok {
-		if arr, ok := v.([]any); ok {
-			for _, item := range arr {
-				if s, ok := item.(string); ok && s != "" {
-					newApt.ProcedureIDs = append(newApt.ProcedureIDs, s)
-				}
-			}
-		}
-	} else {
-		for _, ap := range old.AppointmentProcedures {
-			newApt.ProcedureIDs = append(newApt.ProcedureIDs, ap.ProcedureID)
-		}
+	if procedures, ok := parseProceduresUpdate(overrides); ok {
+		newApt.AppointmentProcedures = procedures
 	}
 
 	if err := newApt.IsValid(); err != nil {
@@ -621,18 +551,8 @@ func (a *Appointment) Reschedule(overrides map[string]any) error {
 		return err
 	}
 
-	for _, pid := range newApt.ProcedureIDs {
-		if pid == "" {
-			continue
-		}
-		ap := AppointmentProcedure{
-			PatientID:     newApt.PatientID,
-			ProcedureID:   pid,
-			AppointmentID: newApt.ID,
-		}
-		if err := ap.create(tx); err != nil {
-			return err
-		}
+	if err := syncAppointmentProcedures(tx, newApt.ID, newApt.PatientID, newApt.AppointmentProcedures); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -641,55 +561,6 @@ func (a *Appointment) Reschedule(overrides map[string]any) error {
 
 	*a = Appointment{ID: newApt.ID}
 	return a.GetByID(a.ID)
-}
-
-// syncAppointmentProcedures reconciles the appointment_procedures linked to
-// an appointment so they match the supplied procedure id set: rows whose
-// procedure is no longer in the list are deleted, and rows for newly added
-// procedures are inserted.
-func syncAppointmentProcedures(tx DBTX, appointmentID, patientID string, procedureIDs []string) error {
-	rows, err := tx.Query(`SELECT id, procedure_id FROM appointment_procedures WHERE appointment_id = ?`, appointmentID)
-	if err != nil {
-		return err
-	}
-	existingByProc := make(map[string]string)
-	for rows.Next() {
-		var apID, procID string
-		if err := rows.Scan(&apID, &procID); err != nil {
-			rows.Close()
-			return err
-		}
-		existingByProc[procID] = apID
-	}
-	rows.Close()
-
-	newSet := make(map[string]bool, len(procedureIDs))
-	for _, pid := range procedureIDs {
-		newSet[pid] = true
-	}
-
-	for procID, apID := range existingByProc {
-		if !newSet[procID] {
-			if _, err := tx.Exec(`DELETE FROM appointment_procedures WHERE id = ?`, apID); err != nil {
-				return err
-			}
-		}
-	}
-
-	for _, procID := range procedureIDs {
-		if _, exists := existingByProc[procID]; exists {
-			continue
-		}
-		ap := AppointmentProcedure{
-			PatientID:     patientID,
-			ProcedureID:   procID,
-			AppointmentID: appointmentID,
-		}
-		if err := ap.create(tx); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (a *Appointment) Delete() error {
@@ -711,4 +582,99 @@ func (a *Appointment) Delete() error {
 		return ErrNotFound
 	}
 	return tx.Commit()
+}
+
+// parseProceduresUpdate reads "appointmentProcedures" from a JSON-bound updates
+// map and returns the parsed list plus a flag indicating whether the field was
+// present (so callers can tell "not provided" apart from "provided, empty").
+func parseProceduresUpdate(updates map[string]any) ([]AppointmentProcedure, bool) {
+	v, ok := updates["appointmentProcedures"]
+	if !ok {
+		return nil, false
+	}
+	arr, _ := v.([]any)
+	out := make([]AppointmentProcedure, 0, len(arr))
+	for _, item := range arr {
+		m, _ := item.(map[string]any)
+		procID, _ := m["procedureId"].(string)
+		if procID == "" {
+			continue
+		}
+		assignedTo, _ := m["assignedToId"].(string)
+		notes, _ := m["notes"].(string)
+		out = append(out, AppointmentProcedure{
+			ProcedureID:  procID,
+			AssignedToID: assignedTo,
+			Notes:        notes,
+		})
+	}
+	return out, true
+}
+
+// syncAppointmentProcedures reconciles appointment_procedures linked to an
+// appointment so they match the supplied list: rows whose procedure is no
+// longer present are deleted, new procedures are inserted, and existing rows
+// have their assigned_to_id / notes updated when they differ.
+func syncAppointmentProcedures(tx DBTX, appointmentID, patientID string, inputs []AppointmentProcedure) error {
+	type row struct{ id, assignedToID, notes string }
+	existing := map[string]row{}
+	rows, err := tx.Query(`SELECT id, procedure_id, COALESCE(assigned_to_id, ''), notes
+		FROM appointment_procedures WHERE appointment_id = ?`, appointmentID)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var r row
+		var procID string
+		if err := rows.Scan(&r.id, &procID, &r.assignedToID, &r.notes); err != nil {
+			rows.Close()
+			return err
+		}
+		existing[procID] = r
+	}
+	rows.Close()
+
+	wanted := make(map[string]bool, len(inputs))
+	for _, in := range inputs {
+		if in.ProcedureID != "" {
+			wanted[in.ProcedureID] = true
+		}
+	}
+	for procID, r := range existing {
+		if wanted[procID] {
+			continue
+		}
+		if _, err := tx.Exec(`DELETE FROM appointment_procedures WHERE id = ?`, r.id); err != nil {
+			return err
+		}
+	}
+
+	for _, in := range inputs {
+		if in.ProcedureID == "" {
+			continue
+		}
+		r, exists := existing[in.ProcedureID]
+		if !exists {
+			ap := AppointmentProcedure{
+				PatientID:     patientID,
+				ProcedureID:   in.ProcedureID,
+				AppointmentID: appointmentID,
+				AssignedToID:  in.AssignedToID,
+				Notes:         in.Notes,
+			}
+			if err := ap.create(tx); err != nil {
+				return err
+			}
+			continue
+		}
+		if r.assignedToID == in.AssignedToID && r.notes == in.Notes {
+			continue
+		}
+		if _, err := tx.Exec(`UPDATE appointment_procedures
+			SET assigned_to_id = ?, notes = ?, updated_at = ? WHERE id = ?`,
+			nullableID(in.AssignedToID), in.Notes, DateNow(), r.id); err != nil {
+			return err
+		}
+	}
+	return nil
 }

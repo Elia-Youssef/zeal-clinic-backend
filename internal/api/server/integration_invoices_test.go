@@ -9,14 +9,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// firstSeededCurrencyID returns the ID of any seeded currency.
+// firstSeededCurrencyID returns the fixed USD seed currency.
 func firstSeededCurrencyID(t *testing.T) string {
 	t.Helper()
-	var id string
-	if err := store.RDB.QueryRow(`SELECT id FROM currencies ORDER BY code LIMIT 1`).Scan(&id); err != nil {
-		t.Fatalf("first currency: %v", err)
-	}
-	return id
+	return store.USDCurrencyID
 }
 
 // createPatientAndGetID is a small helper that creates a patient via the API
@@ -107,8 +103,8 @@ func TestClientInvoice_CreateAndDeleteReversesCharge(t *testing.T) {
 		"source_type = 'invoice' AND source_id = ? AND voided_at != ''", inv.ID); n != 1 {
 		t.Errorf("voided charge tx missing, got %d", n)
 	}
-	if n := countTableRows(t, "invoices", "id = ?", inv.ID); n != 0 {
-		t.Errorf("invoice still exists")
+	if n := countTableRows(t, "invoices", "id = ? AND voided_at = ''", inv.ID); n != 0 {
+		t.Errorf("invoice should be soft-voided, got %d active", n)
 	}
 }
 
@@ -126,11 +122,6 @@ func TestClientInvoice_Create_ValidationFailures(t *testing.T) {
 		{
 			"missing patientId",
 			map[string]any{"currencyId": cur, "items": []any{map[string]any{"amount": 1}}},
-			http.StatusBadRequest,
-		},
-		{
-			"missing currencyId",
-			map[string]any{"patientId": "x", "items": []any{map[string]any{"amount": 1}}},
 			http.StatusBadRequest,
 		},
 		{
@@ -187,10 +178,13 @@ func TestClientInvoice_GetByPatient(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list: %d", rec.Code)
 	}
-	var list []map[string]any
+	var list struct {
+		Items []map[string]any `json:"items"`
+		Total int              `json:"total"`
+	}
 	decodeEnvelope(t, rec.Body, &list)
-	if len(list) != 2 {
-		t.Errorf("got %d invoices, want 2", len(list))
+	if len(list.Items) != 2 {
+		t.Errorf("got %d invoices, want 2", len(list.Items))
 	}
 }
 

@@ -86,30 +86,35 @@ const prescriptionSelectQuery = `SELECT p.id, p.patient_id, p.prescribed_by_id, 
 	FROM prescriptions p
 	LEFT JOIN employees e ON e.id = p.prescribed_by_id`
 
-func (p *PrescriptionList) GetByPatient(patientID string) error {
+func (p *PrescriptionList) GetByPatient(patientID string, params ListParams) (int, error) {
+	var total int
+	if err := RDB.QueryRow(`SELECT COUNT(*) FROM prescriptions WHERE patient_id = ?`, patientID).Scan(&total); err != nil {
+		return 0, err
+	}
+
 	rows, err := RDB.Query(prescriptionSelectQuery+`
-		WHERE p.patient_id = ? ORDER BY p.start_date DESC`, patientID)
+		WHERE p.patient_id = ? ORDER BY p.start_date DESC`+params.PaginationClause(), patientID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer rows.Close()
 
 	if err := p.ScanRows(rows); err != nil {
-		return err
+		return 0, err
 	}
 	if err := rows.Err(); err != nil {
-		return err
+		return 0, err
 	}
 
 	byPrescription, err := MedicinesByPatient(patientID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	for i := range *p {
 		(*p)[i].Medicines = byPrescription[(*p)[i].ID]
 	}
 
-	return nil
+	return total, nil
 }
 
 func (p *Prescription) GetByID(id string) error {

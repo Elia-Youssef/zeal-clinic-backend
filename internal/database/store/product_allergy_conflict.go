@@ -55,17 +55,22 @@ func (l *ProductAllergyConflictList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (c *ProductAllergyConflictList) GetByProduct(productID string) error {
+func (c *ProductAllergyConflictList) GetByProduct(productID string, params ListParams) (int, error) {
+	var total int
+	if err := RDB.QueryRow(`SELECT COUNT(*) FROM product_allergy_conflicts WHERE product_id = ?`, productID).Scan(&total); err != nil {
+		return 0, err
+	}
+
 	rows, err := RDB.Query(`SELECT pac.id, pac.product_id, pac.allergy_id, pac.notes, pac.created_at, a.name
 		FROM product_allergy_conflicts pac JOIN allergies a ON a.id = pac.allergy_id
-		WHERE pac.product_id = ? ORDER BY a.name`, productID)
+		WHERE pac.product_id = ? ORDER BY a.name`+params.PaginationClause(), productID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer rows.Close()
 
 	c.ScanRows(rows)
-	return rows.Err()
+	return total, rows.Err()
 }
 
 func (c *ProductAllergyConflict) Create() error {
@@ -74,6 +79,18 @@ func (c *ProductAllergyConflict) Create() error {
 	_, err := DB.Exec(`INSERT INTO product_allergy_conflicts (id, product_id, allergy_id, notes, created_at) VALUES (?,?,?,?,?)`,
 		c.ID, c.ProductID, c.AllergyID, c.Notes, c.CreatedAt)
 	return err
+}
+
+func (c *ProductAllergyConflict) UpdateNotes() error {
+	res, err := DB.Exec("UPDATE product_allergy_conflicts SET notes = ? WHERE id = ?", c.Notes, c.ID)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (c *ProductAllergyConflict) Delete() error {

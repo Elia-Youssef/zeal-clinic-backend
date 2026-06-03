@@ -13,9 +13,6 @@ func (s *EmployeeSalary) IsValid() error {
 	if msg := validation.Positive(s.Amount, "Amount"); msg != "" {
 		e["amount"] = msg
 	}
-	if msg := validation.Required(s.CurrencyID, "Currency ID"); msg != "" {
-		e["currencyId"] = msg
-	}
 	if len(e) > 0 {
 		return e
 	}
@@ -72,15 +69,19 @@ func (l *EmployeeSalaryList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (s *EmployeeSalaryList) GetByEmployee(employeeID string) error {
-	rows, err := RDB.Query(`SELECT `+employeeSalaryColumns+` FROM employee_salaries WHERE employee_id = ? ORDER BY is_active DESC, effective_date DESC`, employeeID)
+func (s *EmployeeSalaryList) GetByEmployee(employeeID string, params ListParams) (int, error) {
+	var total int
+	if err := RDB.QueryRow(`SELECT COUNT(*) FROM employee_salaries WHERE employee_id = ?`, employeeID).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	rows, err := RDB.Query(`SELECT `+employeeSalaryColumns+` FROM employee_salaries WHERE employee_id = ? ORDER BY is_active DESC, effective_date DESC`+params.PaginationClause(), employeeID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer rows.Close()
 
-	err = s.ScanRows(rows)
-	return err
+	return total, s.ScanRows(rows)
 }
 
 func (s *EmployeeSalary) GetByID(id string) error {
@@ -99,6 +100,8 @@ func (s *EmployeeSalary) Create() error {
 	s.CreatedAt = now
 	s.UpdatedAt = now
 	s.IsActive = true
+	s.CurrencyID = USDCurrencyID
+	s.Amount = Round2(s.Amount)
 
 	// Deactivate existing salaries for this employee
 	if _, err := tx.Exec(`UPDATE employee_salaries SET is_active = 0, updated_at = ? WHERE employee_id = ? AND is_active = 1`,
@@ -116,7 +119,7 @@ func (s *EmployeeSalary) Create() error {
 
 func (s *EmployeeSalary) Update(updates map[string]any) error {
 	cols := map[string]string{
-		"amount": "amount", "currencyId": "currency_id", "isActive": "is_active",
+		"amount": "amount", "isActive": "is_active",
 		"effectiveDate": "effective_date", "notes": "notes",
 	}
 	setClauses := ""
@@ -126,6 +129,11 @@ func (s *EmployeeSalary) Update(updates map[string]any) error {
 			if dbCol == "is_active" {
 				if b, ok := val.(bool); ok {
 					val = BoolToInt(b)
+				}
+			}
+			if dbCol == "amount" {
+				if f, ok := val.(float64); ok {
+					val = Round2(f)
 				}
 			}
 			if setClauses != "" {

@@ -76,7 +76,7 @@ func (l *BalanceTransactionList) ScanRows(rows *sql.Rows) error {
 			&item.Description, &item.CreatedBy, &item.CreatedAt, &item.VoidedAt,
 			&item.FromEntityName, &item.ToEntityName)
 		if err != nil {
-			continue
+			return err
 		}
 		*l = append(*l, item)
 	}
@@ -138,6 +138,7 @@ func (bt *BalanceTransaction) CreateWithTx(tx *sql.Tx) error {
 	if bt.TransactionMethod == "" {
 		bt.TransactionMethod = "cash"
 	}
+	bt.Amount = Round2(bt.Amount)
 	bt.VoidedAt = ""
 
 	_, err := tx.Exec(`INSERT INTO balance_transactions (`+balanceTransactionColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -191,9 +192,11 @@ func (bt *BalanceTransaction) Delete() error {
 	var pair BalanceTransaction
 	err = tx.QueryRow(`SELECT `+balanceTransactionColumns+` FROM balance_transactions
 		WHERE id != ? AND from_balance_id = ? AND to_balance_id = ?
-		AND amount = ? AND created_at = ? AND transaction_type IN ('charge','payment')
+		AND amount = ? AND created_at = ?
+		AND source_type = ?
+		AND transaction_type IN ('charge','payment')
 		AND voided_at = ''`,
-		orig.ID, orig.ToBalanceID, orig.FromBalanceID, orig.Amount, orig.CreatedAt).
+		orig.ID, orig.ToBalanceID, orig.FromBalanceID, orig.Amount, orig.CreatedAt, orig.SourceType).
 		Scan(&pair.ID, &pair.FromBalanceID, &pair.ToBalanceID, &pair.Amount, &pair.CurrencyID,
 			&pair.TransactionType, &pair.TransactionMethod, &pair.SourceType, &pair.SourceID,
 			&pair.Description, &pair.CreatedBy, &pair.CreatedAt, &pair.VoidedAt)
@@ -259,6 +262,7 @@ func RecalculateBalanceWithTx(tx *sql.Tx, balanceID string) error {
 	).Scan(&amount, &totalIn, &totalOut); err != nil {
 		return err
 	}
+	amount, totalIn, totalOut = Round2(amount), Round2(totalIn), Round2(totalOut)
 
 	res, err := tx.Exec(`UPDATE balances SET amount = ?, total_in = ?, total_out = ?, updated_at = ? WHERE id = ?`,
 		amount, totalIn, totalOut, DateNow(), balanceID)
@@ -373,7 +377,11 @@ func (bt *BalanceTransactionList) GetAll(params ListParams) (int, error) {
 	var args []any
 	if fc, fa := params.FilterClause("bt.description", "fb.entity_name", "tb.entity_name"); fc != "" {
 		where += " AND " + fc
-		args = fa
+		args = append(args, fa...)
+	}
+	if dc, da := params.DateRangeClause("bt.created_at"); dc != "" {
+		where += " AND " + dc
+		args = append(args, da...)
 	}
 
 	var total int

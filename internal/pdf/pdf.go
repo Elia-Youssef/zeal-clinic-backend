@@ -10,10 +10,7 @@ import (
 	"clinic-api/internal/config"
 	"clinic-api/internal/database/store"
 
-	"github.com/johnfercher/maroto/v2/pkg/components/text"
-	"github.com/johnfercher/maroto/v2/pkg/consts/border"
 	"github.com/johnfercher/maroto/v2/pkg/core"
-	"github.com/johnfercher/maroto/v2/pkg/props"
 )
 
 // clinicDate formats a stored UTC timestamp in the clinic's local timezone
@@ -75,14 +72,6 @@ func save(m core.Maroto, name string) (string, error) {
 	tmpFiles.m[path] = time.Now()
 	tmpFiles.Unlock()
 	return path, nil
-}
-
-func cellCol(size int, value string, p props.Text, bt border.Type) core.Col {
-	col := text.NewCol(size, value, p)
-	if bt != border.None {
-		col.WithStyle(&props.Cell{BorderType: bt, BorderThickness: 0.12})
-	}
-	return col
 }
 
 func money(v float64) string {

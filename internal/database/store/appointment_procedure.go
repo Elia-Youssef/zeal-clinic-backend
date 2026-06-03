@@ -4,7 +4,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const appointmentProcedureColumnsNoId = `patient_id, procedure_id, appointment_id, notes, created_at, updated_at`
+const appointmentProcedureColumnsNoId = `patient_id, procedure_id, appointment_id, assigned_to_id, notes, created_at, updated_at`
 const appointmentProcedureColumns = `id, ` + appointmentProcedureColumnsNoId
 
 type AppointmentProcedure struct {
@@ -12,11 +12,13 @@ type AppointmentProcedure struct {
 	PatientID     string `json:"patientId"`
 	ProcedureID   string `json:"procedureId"`
 	AppointmentID string `json:"appointmentId"`
+	AssignedToID  string `json:"assignedToId"`
 	Notes         string `json:"notes"`
 	CreatedAt     Date   `json:"createdAt"`
 	UpdatedAt     Date   `json:"updatedAt"`
 	// Joined fields
-	ProcedureName string `json:"procedureName,omitempty"`
+	ProcedureName  string `json:"procedureName,omitempty"`
+	AssignedToName string `json:"assignedToName,omitempty"`
 }
 
 type AppointmentProcedureList []AppointmentProcedure
@@ -29,7 +31,8 @@ func (ap *AppointmentProcedure) create(db DBTX) error {
 	ap.CreatedAt = now
 	ap.UpdatedAt = now
 	_, err := db.Exec(`INSERT INTO appointment_procedures (`+appointmentProcedureColumns+`)
-		VALUES (?,?,?,?,?,?,?)`,
-		ap.ID, ap.PatientID, ap.ProcedureID, ap.AppointmentID, ap.Notes, ap.CreatedAt, ap.UpdatedAt)
+		VALUES (?,?,?,?,?,?,?,?)`,
+		ap.ID, ap.PatientID, ap.ProcedureID, ap.AppointmentID,
+		nullableID(ap.AssignedToID), ap.Notes, ap.CreatedAt, ap.UpdatedAt)
 	return err
 }

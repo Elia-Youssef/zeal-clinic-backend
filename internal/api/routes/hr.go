@@ -7,16 +7,14 @@ import (
 )
 
 func SetupHRRoutes(api *echo.Group) {
-	// Single unified weekly read: returns days, templates, vacations, holidays,
-	// and monthly hours for the week containing ?date= for one employee.
-	api.GET("/employees/:id/schedule", handlers.GetEmployeeSchedule, scope("hr:read"), cacheF("employee-schedules"))
+	api.GET("/employees/:id/schedule", handlers.GetEmployeeSchedule, scopeOrSelf("hr:read", selfEmployee), cacheF("employee-schedules"))
+	api.GET("/employees/:id/working-hours", handlers.GetEmployeeWorkingHours, scopeOrSelf("hr:read", selfEmployee), cache("employee-schedules"))
 
-	// Any authenticated user with hr:read can request a vacation; the handler
-	// forces status=pending and self-employeeId for non-admin users.
-	api.POST("/employee-vacations", handlers.CreateEmployeeVacation, scope("hr:read"), cache("employee-schedules"))
-	api.PUT("/employee-vacations/:id", handlers.UpdateEmployeeVacation, scope("hr:write"), cache("employee-schedules", "analytics"))
-	api.POST("/employee-vacations/:id/status", handlers.SetEmployeeVacationStatus, scope("hr:write"), cache("employee-schedules", "analytics"))
-	api.DELETE("/employee-vacations/:id", handlers.DeleteEmployeeVacation, scope("hr:delete"), cache("employee-schedules", "analytics"))
+	// hr:read can create (handler forces status=pending + self employeeId for non-admins).
+	api.POST("/employee-schedule-changes", handlers.CreateEmployeeScheduleChange, scope("hr:read"), cache("employee-schedules"))
+	api.PUT("/employee-schedule-changes/:id", handlers.UpdateEmployeeScheduleChange, scope("hr:write"), cache("employee-schedules", "analytics"))
+	api.POST("/employee-schedule-changes/:id/status", handlers.SetEmployeeScheduleChangeStatus, scope("hr:write"), cache("employee-schedules", "analytics"))
+	api.DELETE("/employee-schedule-changes/:id", handlers.DeleteEmployeeScheduleChange, scope("hr:delete"), cache("employee-schedules", "analytics"))
 
 	api.GET("/holidays", handlers.GetAllHolidays, scope("hr:read"), cache("holidays", "employee-schedules"))
 	api.POST("/holidays", handlers.CreateHoliday, scope("hr:write"), cache("holidays", "employee-schedules", "analytics"))

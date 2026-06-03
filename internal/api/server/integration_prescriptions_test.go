@@ -154,10 +154,13 @@ func TestPrescription_CreateGetUpdateDelete(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list: %d", rec.Code)
 	}
-	var list []map[string]any
+	var list struct {
+		Items []map[string]any `json:"items"`
+		Total int              `json:"total"`
+	}
 	decodeEnvelope(t, rec.Body, &list)
-	if len(list) != 1 {
-		t.Errorf("expected 1 prescription, got %d", len(list))
+	if len(list.Items) != 1 {
+		t.Errorf("expected 1 prescription, got %d", len(list.Items))
 	}
 
 	// Update is a full replacement (handler binds the whole struct and validates),
@@ -197,7 +200,7 @@ func TestPrescription_ValidationFails(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	containsString(t, rec.Body.String(), "validation failed")
+	containsString(t, rec.Body.String(), "Please check your input")
 }
 
 func TestPrescription_UpdateAndDeleteNotFound(t *testing.T) {
@@ -233,10 +236,13 @@ func TestPatientAllergy_AddListRemove(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list: %d", rec.Code)
 	}
-	var list []map[string]any
+	var list struct {
+		Items []map[string]any `json:"items"`
+		Total int              `json:"total"`
+	}
 	decodeEnvelope(t, rec.Body, &list)
-	if len(list) != 1 {
-		t.Errorf("expected 1 allergy, got %d", len(list))
+	if len(list.Items) != 1 {
+		t.Errorf("expected 1 allergy, got %d", len(list.Items))
 	}
 
 	rec = doRequest(t, e, http.MethodDelete, "/api/patient-allergies/"+pa.ID, nil, tok)
@@ -286,10 +292,13 @@ func TestPatientMedicine_AddListRemove(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list: %d", rec.Code)
 	}
-	var list []map[string]any
+	var list struct {
+		Items []map[string]any `json:"items"`
+		Total int              `json:"total"`
+	}
 	decodeEnvelope(t, rec.Body, &list)
-	if len(list) != 1 {
-		t.Errorf("expected 1 medicine, got %d", len(list))
+	if len(list.Items) != 1 {
+		t.Errorf("expected 1 medicine, got %d", len(list.Items))
 	}
 
 	rec = doRequest(t, e, http.MethodDelete, "/api/patient-medicines/"+pm.ID, nil, tok)

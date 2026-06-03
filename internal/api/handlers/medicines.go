@@ -16,7 +16,7 @@ func GetAllMedicines(c echo.Context) error {
 	total, err := items.GetAll(params)
 	if err != nil {
 		log.Println("Error: [GetAllMedicines] failed to fetch medicines:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch medicines"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load medicines"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
@@ -26,7 +26,7 @@ func GetMedicineDropdown(c echo.Context) error {
 	items, err := store.GetMedicineDropdown(params)
 	if err != nil {
 		log.Println("Error: [GetMedicineDropdown] failed to fetch medicine dropdown:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch medicine dropdown"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load options"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
@@ -35,15 +35,15 @@ func CreateMedicine(c echo.Context) error {
 	var m store.Medicine
 	if err := c.Bind(&m); err != nil {
 		log.Println("Error: [CreateMedicine] invalid request body:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	if err := m.IsValid(); err != nil {
 		log.Println("Error: [CreateMedicine] validation failed:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "validation failed"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	if err := m.Create(); err != nil {
 		log.Println("Error: [CreateMedicine] failed to create medicine:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to create medicine"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create medicine"})
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: m})
 }
@@ -52,16 +52,16 @@ func UpdateMedicine(c echo.Context) error {
 	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: [UpdateMedicine] invalid request body:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "invalid request"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	m := store.Medicine{ID: c.Param("id")}
 	if err := m.Update(updates); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [UpdateMedicine] medicine not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "medicine not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Medicine not found"})
 		}
 		log.Println("Error: [UpdateMedicine] failed to update medicine:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to update medicine"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update medicine"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: m})
 }
@@ -69,17 +69,17 @@ func UpdateMedicine(c echo.Context) error {
 func DeleteMedicine(c echo.Context) error {
 	id := c.Param("id")
 	if store.HasDependencies(id, store.MedicineDeps) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: "cannot delete medicine: has related records"})
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete medicine while it's in use"})
 	}
 
 	m := store.Medicine{ID: id}
 	if err := m.Delete(); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [DeleteMedicine] medicine not found:", id)
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "medicine not found"})
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Medicine not found"})
 		}
 		log.Println("Error: [DeleteMedicine] failed to delete medicine:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete medicine"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete medicine"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

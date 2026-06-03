@@ -17,7 +17,7 @@ func GetAllInvoices(c echo.Context) error {
 	total, err := items.GetAllByType(entityType, params)
 	if err != nil {
 		log.Println("Error: GetAllInvoices:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch invoices"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load invoices"})
 	}
 	if items == nil {
 		items = []store.Invoice{}
@@ -28,10 +28,10 @@ func GetAllInvoices(c echo.Context) error {
 func GetInvoiceByID(c echo.Context) error {
 	var inv store.Invoice
 	if err := inv.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "invoice not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
 	} else if err != nil {
 		log.Println("Error: GetInvoiceByID:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch invoice"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load invoice"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
 }

@@ -56,11 +56,15 @@ func (l *ExpenseList) ScanRows(rows *sql.Rows) error {
 }
 
 func (l *ExpenseList) GetAll(params ListParams) (int, error) {
-	where := ""
+	where := " WHERE 1=1"
 	var args []any
 	if fc, fa := params.FilterClause("name", "notes"); fc != "" {
-		where = " WHERE " + fc
-		args = fa
+		where += " AND " + fc
+		args = append(args, fa...)
+	}
+	if dc, da := params.DateRangeClause("created_at"); dc != "" {
+		where += " AND " + dc
+		args = append(args, da...)
 	}
 
 	var total int
@@ -125,27 +129,22 @@ func (e *Expense) Create() error {
 	e.CreatedAt = now
 	e.UpdatedAt = now
 
-	_, err := DB.Exec(`INSERT INTO expenses (`+expenseColumns+`) VALUES (?,?,?,?,?)`,
-		e.ID, e.Name, e.Notes, e.CreatedAt, e.UpdatedAt)
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 
-	// Create a balance for the expense in each currency
-	var currencies CurrencyList
-	if _, err := currencies.GetAll(ListParams{}); err == nil {
-		for _, cur := range currencies {
-			bal := Balance{
-				EntityType: "expense",
-				EntityID:   &e.ID,
-				EntityName: e.Name,
-				CurrencyID: cur.ID,
-			}
-			bal.GetOrCreate()
-		}
+	if _, err := tx.Exec(`INSERT INTO expenses (`+expenseColumns+`) VALUES (?,?,?,?,?)`,
+		e.ID, e.Name, e.Notes, e.CreatedAt, e.UpdatedAt); err != nil {
+		return err
 	}
 
-	return nil
+	if _, err := getOrCreateBalanceWithTx(tx, "expense", e.ID, e.Name, USDCurrencyID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (e *Expense) Update(updates map[string]any) error {

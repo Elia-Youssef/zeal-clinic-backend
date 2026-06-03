@@ -10,77 +10,130 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func GetAnalyticsTotalPatients(c echo.Context) error {
-	n, err := (&store.Analytics{}).TotalPatients()
+// Section-grouped KPI endpoints (each returns one section's tiles + deltas)
+
+func GetAnalyticsMoney(c echo.Context) error {
+	from, to := parseRange(c)
+	data, err := (&store.Analytics{}).Money(from, to)
 	if err != nil {
-		log.Println("Error: GetAnalyticsTotalPatients failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch total patients"})
+		log.Println("Error: GetAnalyticsMoney failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load financial analytics"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]int{"total": n}})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: data})
 }
 
-func GetAnalyticsNewPatientsThisMonth(c echo.Context) error {
-	n, err := (&store.Analytics{}).NewPatientsThisMonth()
+func GetAnalyticsPatients(c echo.Context) error {
+	from, to := parseRange(c)
+	data, err := (&store.Analytics{}).Patients(from, to)
 	if err != nil {
-		log.Println("Error: GetAnalyticsNewPatientsThisMonth failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch new patients"})
+		log.Println("Error: GetAnalyticsPatients failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load patient analytics"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]int{"total": n}})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: data})
 }
 
-func GetAnalyticsAppointmentCounts(c echo.Context) error {
-	counts, err := (&store.Analytics{}).AppointmentCounts()
+func GetAnalyticsOperations(c echo.Context) error {
+	from, to := parseRange(c)
+	data, err := (&store.Analytics{}).Operations(from, to)
 	if err != nil {
-		log.Println("Error: GetAnalyticsAppointmentCounts failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch appointment counts"})
+		log.Println("Error: GetAnalyticsOperations failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load operations analytics"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: counts})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: data})
 }
+
+func GetAnalyticsInventory(c echo.Context) error {
+	data, err := (&store.Analytics{}).Inventory()
+	if err != nil {
+		log.Println("Error: GetAnalyticsInventory failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load inventory analytics"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: data})
+}
+
+// List / breakdown endpoints
+
+func GetAnalyticsDemographics(c echo.Context) error {
+	data, err := (&store.Analytics{}).Demographics(parseLimit(c.QueryParam("cityLimit"), 5))
+	if err != nil {
+		log.Println("Error: GetAnalyticsDemographics failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load demographics"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: data})
+}
+
+func GetAnalyticsReferralSources(c echo.Context) error {
+	from, to := parseRange(c)
+	items, err := (&store.Analytics{}).ReferralSources(from, to)
+	if err != nil {
+		log.Println("Error: GetAnalyticsReferralSources failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load referral sources"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+}
+
+func GetAnalyticsStaffPerformance(c echo.Context) error {
+	from, to := parseRange(c)
+	items, err := (&store.Analytics{}).StaffPerformance(from, to)
+	if err != nil {
+		log.Println("Error: GetAnalyticsStaffPerformance failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load staff performance"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+}
+
+func GetAnalyticsTopProcedures(c echo.Context) error {
+	from, to := parseRange(c)
+	limit := parseLimit(c.QueryParam("limit"), 5)
+	items, err := (&store.Analytics{}).TopProcedures(from, to, limit, c.QueryParam("by"))
+	if err != nil {
+		log.Println("Error: GetAnalyticsTopProcedures failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load top procedures"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+}
+
+func GetAnalyticsTopProducts(c echo.Context) error {
+	from, to := parseRange(c)
+	limit := parseLimit(c.QueryParam("limit"), 5)
+	items, err := (&store.Analytics{}).TopProducts(from, to, limit)
+	if err != nil {
+		log.Println("Error: GetAnalyticsTopProducts failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load top products"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+}
+
+func GetAnalyticsAppointmentDistribution(c echo.Context) error {
+	from, to := parseRange(c)
+	data, err := (&store.Analytics{}).AppointmentDistribution(from, to)
+	if err != nil {
+		log.Println("Error: GetAnalyticsAppointmentDistribution failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load appointment distribution"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: data})
+}
+
+func GetAnalyticsRoomUtilization(c echo.Context) error {
+	from, to := parseRange(c)
+	items, err := (&store.Analytics{}).RoomUtilization(from, to)
+	if err != nil {
+		log.Println("Error: GetAnalyticsRoomUtilization failed:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load room utilization"})
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
+}
+
+// Operational feeds (kept, secondary)
 
 func GetAnalyticsRecentAppointmentsToday(c echo.Context) error {
 	limit := parseLimit(c.QueryParam("limit"), 5)
 	items, err := (&store.Analytics{}).RecentAppointmentsToday(limit)
 	if err != nil {
 		log.Println("Error: GetAnalyticsRecentAppointmentsToday failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch recent appointments"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load recent appointments"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
-}
-
-func GetAnalyticsCancellationRate(c echo.Context) error {
-	r, err := (&store.Analytics{}).CancellationRateThisMonth()
-	if err != nil {
-		log.Println("Error: GetAnalyticsCancellationRate failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch cancellation rate"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: r})
-}
-
-func GetAnalyticsRevenueThisMonth(c echo.Context) error {
-	v, err := (&store.Analytics{}).RevenueThisMonth()
-	if err != nil {
-		log.Println("Error: GetAnalyticsRevenueThisMonth failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch revenue"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]float64{"total": v}})
-}
-
-func GetAnalyticsExpensesThisMonth(c echo.Context) error {
-	v, err := (&store.Analytics{}).ExpensesThisMonth()
-	if err != nil {
-		log.Println("Error: GetAnalyticsExpensesThisMonth failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch expenses"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]float64{"total": v}})
-}
-
-func GetAnalyticsOutstandingReceivables(c echo.Context) error {
-	v, err := (&store.Analytics{}).OutstandingReceivables()
-	if err != nil {
-		log.Println("Error: GetAnalyticsOutstandingReceivables failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch outstanding receivables"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]float64{"total": v}})
 }
 
 func GetAnalyticsRecentTransactions(c echo.Context) error {
@@ -88,43 +141,17 @@ func GetAnalyticsRecentTransactions(c echo.Context) error {
 	items, err := (&store.Analytics{}).RecentTransactions(limit)
 	if err != nil {
 		log.Println("Error: GetAnalyticsRecentTransactions failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch recent transactions"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load recent transactions"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
 }
 
-func GetAnalyticsProceduresCompletedThisMonth(c echo.Context) error {
-	n, err := (&store.Analytics{}).ProceduresCompletedThisMonth()
-	if err != nil {
-		log.Println("Error: GetAnalyticsProceduresCompletedThisMonth failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch procedures completed"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]int{"total": n}})
-}
-
-func GetAnalyticsTopProcedures(c echo.Context) error {
-	limit := parseLimit(c.QueryParam("limit"), 5)
-	items, err := (&store.Analytics{}).TopProceduresThisMonth(limit)
-	if err != nil {
-		log.Println("Error: GetAnalyticsTopProcedures failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch top procedures"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: items})
-}
-
-func GetAnalyticsLowStock(c echo.Context) error {
-	n, err := (&store.Analytics{}).LowStockCount()
-	if err != nil {
-		log.Println("Error: GetAnalyticsLowStock failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch low-stock count"})
-	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: map[string]int{"total": n}})
-}
+// Time-series
 
 func GetAnalyticsSeries(c echo.Context) error {
 	metric := c.QueryParam("metric")
 	if metric == "" {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "metric query parameter is required"})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Metric is required"})
 	}
 
 	from, to := defaultDateRange(c.QueryParam("from"), c.QueryParam("to"), 29)
@@ -142,7 +169,7 @@ func GetAnalyticsSeries(c echo.Context) error {
 	})
 	if err != nil {
 		log.Println("Error: GetAnalyticsSeries failed:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: err.Error()})
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Couldn't load analytics"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: points})
 }

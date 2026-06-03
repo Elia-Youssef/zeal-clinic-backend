@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     username      TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL DEFAULT '',
     display_name  TEXT NOT NULL DEFAULT '',
-    role          TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('super-admin','admin','user')),
+    role          TEXT NOT NULL DEFAULT 'staff' CHECK(role IN ('super-admin','admin','staff','nurse')),
     is_active     INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -212,6 +212,7 @@ CREATE TABLE IF NOT EXISTS appointment_procedures (
     patient_id              TEXT NOT NULL REFERENCES patients(id),
     procedure_id            TEXT NOT NULL REFERENCES procedures(id),
     appointment_id          TEXT NOT NULL REFERENCES appointments(id),
+    assigned_to_id          TEXT REFERENCES employees(id),
     notes                   TEXT NOT NULL DEFAULT '',
     created_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -239,7 +240,7 @@ CREATE TABLE IF NOT EXISTS employee_salaries (
     id            TEXT PRIMARY KEY,
     employee_id   TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
     amount        REAL NOT NULL DEFAULT 0,
-    currency_id   TEXT NOT NULL DEFAULT '',
+    currency_id   TEXT NOT NULL DEFAULT 'USD',
     is_active     INTEGER NOT NULL DEFAULT 1,
     effective_date TEXT NOT NULL DEFAULT '',
     notes         TEXT NOT NULL DEFAULT '',
@@ -254,7 +255,7 @@ CREATE TABLE IF NOT EXISTS employee_salary_preparations (
     period_end      TEXT NOT NULL,
     salary_id       TEXT NOT NULL DEFAULT '',
     transaction_id  TEXT NOT NULL DEFAULT '',
-    currency_id     TEXT NOT NULL DEFAULT '',
+    currency_id     TEXT NOT NULL DEFAULT 'USD',
     base_salary     REAL NOT NULL DEFAULT 0,
     adjustment      REAL NOT NULL DEFAULT 0,
     prepared_amount REAL NOT NULL DEFAULT 0,
@@ -290,12 +291,16 @@ CREATE TABLE IF NOT EXISTS appointments (
 
 CREATE INDEX IF NOT EXISTS idx_appointments_rescheduled_from
     ON appointments(rescheduled_from) WHERE rescheduled_from IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_appointments_room_start
+    ON appointments(room_id, start_time);
 
 -- ============================================================
--- SCHEDULE AVAILABILITY
+-- EMPLOYEE SCHEDULES
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS schedule_availability (
+-- Recurring weekly template. One active row per (employee, day_of_week);
+-- superseded rows kept with is_active=0 + end_date so historical dates resolve.
+CREATE TABLE IF NOT EXISTS employee_schedules (
     id             TEXT PRIMARY KEY,
     employee_id    TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
     day_of_week    INTEGER NOT NULL CHECK(day_of_week BETWEEN 0 AND 6),
@@ -308,10 +313,10 @@ CREATE TABLE IF NOT EXISTS schedule_availability (
     updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_schedule_availability_employee_day_start
-    ON schedule_availability(employee_id, day_of_week, start_date);
-CREATE INDEX IF NOT EXISTS idx_schedule_availability_active
-    ON schedule_availability(employee_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_employee_schedules_employee_day_start
+    ON employee_schedules(employee_id, day_of_week, start_date);
+CREATE INDEX IF NOT EXISTS idx_employee_schedules_active
+    ON employee_schedules(employee_id, is_active);
 
 CREATE TABLE IF NOT EXISTS holidays (
     id         TEXT PRIMARY KEY,
@@ -326,9 +331,13 @@ CREATE TABLE IF NOT EXISTS holidays (
 
 CREATE INDEX IF NOT EXISTS idx_holidays_range ON holidays(start_date, end_date);
 
-CREATE TABLE IF NOT EXISTS employee_vacations (
+-- One-off template overrides: type='overtime' adds the time window, 'timeoff'
+-- removes it (empty times = full day). Window applies to each day in range.
+-- Only status='accepted' affects projection; times required for overtime.
+CREATE TABLE IF NOT EXISTS employee_schedule_changes (
     id          TEXT PRIMARY KEY,
     employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    type        TEXT NOT NULL CHECK(type IN ('timeoff','overtime')),
     start_date  TEXT NOT NULL,
     end_date    TEXT NOT NULL,
     start_time  TEXT NOT NULL DEFAULT '',
@@ -339,10 +348,12 @@ CREATE TABLE IF NOT EXISTS employee_vacations (
     updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_employee_vacations_employee_range
-    ON employee_vacations(employee_id, start_date, end_date);
-CREATE INDEX IF NOT EXISTS idx_employee_vacations_status
-    ON employee_vacations(status);
+CREATE INDEX IF NOT EXISTS idx_employee_schedule_changes_employee_range
+    ON employee_schedule_changes(employee_id, start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_employee_schedule_changes_status
+    ON employee_schedule_changes(status);
+CREATE INDEX IF NOT EXISTS idx_employee_schedule_changes_type
+    ON employee_schedule_changes(type);
 
 -- ============================================================
 -- PRESCRIPTIONS
@@ -441,7 +452,7 @@ CREATE TABLE IF NOT EXISTS balances (
     entity_type TEXT NOT NULL CHECK(entity_type IN ('patient','employee','self','supplier','expense')),
     entity_id   TEXT NOT NULL,
     entity_name TEXT NOT NULL DEFAULT '',
-    currency_id TEXT NOT NULL DEFAULT '',
+    currency_id TEXT NOT NULL DEFAULT 'USD',
     amount      REAL NOT NULL DEFAULT 0,
     total_in    REAL NOT NULL DEFAULT 0,
     total_out   REAL NOT NULL DEFAULT 0,
@@ -455,7 +466,7 @@ CREATE TABLE IF NOT EXISTS balance_transactions (
     from_balance_id     TEXT NOT NULL REFERENCES balances(id),
     to_balance_id       TEXT NOT NULL REFERENCES balances(id),
     amount              REAL NOT NULL,
-    currency_id         TEXT NOT NULL DEFAULT '',
+    currency_id         TEXT NOT NULL DEFAULT 'USD',
     transaction_type    TEXT NOT NULL DEFAULT 'payment' CHECK(transaction_type IN ('charge','payment','refund','adjustment','write-off')),
     transaction_method  TEXT NOT NULL DEFAULT 'cash' CHECK(transaction_method IN ('cash','card','transfer','discount','other')),
     source_type         TEXT NOT NULL DEFAULT '',
@@ -467,6 +478,8 @@ CREATE TABLE IF NOT EXISTS balance_transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_balance_transactions_source ON balance_transactions(source_type, source_id);
 CREATE INDEX IF NOT EXISTS idx_balance_transactions_voided_at ON balance_transactions(voided_at);
+CREATE INDEX IF NOT EXISTS idx_balance_transactions_from ON balance_transactions(from_balance_id);
+CREATE INDEX IF NOT EXISTS idx_balance_transactions_to ON balance_transactions(to_balance_id);
 
 CREATE TABLE IF NOT EXISTS invoices (
     id              TEXT PRIMARY KEY,
@@ -477,11 +490,12 @@ CREATE TABLE IF NOT EXISTS invoices (
     discount_id     TEXT NOT NULL DEFAULT '',
     discount_value  REAL NOT NULL DEFAULT 0,
     final_amount    REAL NOT NULL DEFAULT 0,
-    currency_id     TEXT NOT NULL DEFAULT '',
+    currency_id     TEXT NOT NULL DEFAULT 'USD',
     notes           TEXT NOT NULL DEFAULT '',
     created_by      TEXT NOT NULL DEFAULT '',
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    voided_at       TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS invoice_items (
@@ -495,6 +509,7 @@ CREATE TABLE IF NOT EXISTS invoice_items (
     notes        TEXT NOT NULL DEFAULT '',
     created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id);
 
 -- ============================================================
 -- CURRENCIES
@@ -655,9 +670,9 @@ DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS product_categories;
 DROP TABLE IF EXISTS prescription_medicines;
 DROP TABLE IF EXISTS prescriptions;
-DROP TABLE IF EXISTS employee_vacations;
+DROP TABLE IF EXISTS employee_schedule_changes;
 DROP TABLE IF EXISTS holidays;
-DROP TABLE IF EXISTS schedule_availability;
+DROP TABLE IF EXISTS employee_schedules;
 DROP TABLE IF EXISTS appointments;
 DROP TABLE IF EXISTS employee_salary_preparations;
 DROP TABLE IF EXISTS employee_salaries;

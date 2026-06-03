@@ -84,7 +84,7 @@ func (u *User) IsValid() error {
 	}
 	if msg := validation.Required(u.Role, "Role"); msg != "" {
 		e["role"] = msg
-	} else if msg := validation.OneOf(u.Role, []string{"super-admin", "admin", "user"}, "Role"); msg != "" {
+	} else if msg := validation.OneOf(u.Role, []string{"super-admin", "admin", "staff", "nurse"}, "Role"); msg != "" {
 		e["role"] = msg
 	}
 	if len(e) > 0 {
@@ -197,6 +197,12 @@ func GetActiveUserIDsByRole(role string) ([]string, error) {
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+func CountActiveAdmins() (int, error) {
+	var n int
+	err := RDB.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1`).Scan(&n)
+	return n, err
 }
 
 func (u *User) UpdatePassword(passwordHash string) error {

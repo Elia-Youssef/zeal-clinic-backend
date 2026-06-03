@@ -12,11 +12,13 @@ import (
 )
 
 type TokenResult struct {
-	Token     string   `json:"token"`
-	ExpiresAt int64    `json:"expiresAt"`
-	User      string   `json:"user"`
-	Role      string   `json:"role"`
-	Scopes    []string `json:"scopes"`
+	Token      string   `json:"token"`
+	ExpiresAt  int64    `json:"expiresAt"`
+	UserID     string   `json:"userId"`
+	User       string   `json:"user"`
+	Role       string   `json:"role"`
+	Scopes     []string `json:"scopes"`
+	EmployeeID *string  `json:"employeeId,omitempty"`
 }
 
 func GenerateToken(user store.User, scopes []string) (TokenResult, error) {
@@ -50,13 +52,18 @@ func GenerateToken(user store.User, scopes []string) (TokenResult, error) {
 		return TokenResult{}, errors.New("failed to store token")
 	}
 
-	return TokenResult{
+	result := TokenResult{
 		Token:     signed,
 		ExpiresAt: expiresAt.Unix(),
+		UserID:    user.ID,
 		User:      user.DisplayName,
 		Role:      user.Role,
 		Scopes:    scopes,
-	}, nil
+	}
+	if empID, err := store.EmployeeIDForUser(user.ID); err == nil {
+		result.EmployeeID = &empID
+	}
+	return result, nil
 }
 
 func ParseToken(tokenStr string) (jwt.MapClaims, error) {
@@ -65,7 +72,7 @@ func ParseToken(tokenStr string) (jwt.MapClaims, error) {
 			return nil, errors.New("unexpected signing method")
 		}
 		return []byte(config.Current().JWTSecret), nil
-	})
+	}, jwt.WithExpirationRequired(), jwt.WithIssuer("clinic-api"))
 	if err != nil || !token.Valid {
 		return nil, errors.New("invalid token")
 	}

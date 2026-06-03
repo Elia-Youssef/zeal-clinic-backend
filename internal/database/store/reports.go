@@ -21,19 +21,19 @@ type Reports struct{}
 type RevenueParams struct {
 	From       string
 	To         string
-	ItemKind   string // "" | "products" | "procedures" | "all"
+	ItemKind   string // "" | "products" | "procedures" | "other" | "all"
 	TypeID     string // procedure type id
 	CategoryID string // procedure or product category id
-	CurrencyID string // optional
+	CurrencyID string
 	// Level pins the grouping to a flat level across the whole dataset,
 	// bypassing the tree drill-down. TypeID / CategoryID then act as
 	// filters that scope which rows feed the aggregation.
-	// "" | "kind" | "procedure-type" | "procedure-category" | "product-category" | "procedure" | "product"
+	// "" | "kind" | "procedure-type" | "procedure-category" | "product-category" | "procedure" | "product" | "other" | "all"
 	Level string
 }
 
 type RevenueGroup struct {
-	GroupType  string  `json:"groupType"` // kind | procedure-type | procedure-category | product-category | procedure | product
+	GroupType  string  `json:"groupType"` // kind | procedure-type | procedure-category | product-category | procedure | product | other
 	EntityID   string  `json:"entityId"`
 	EntityName string  `json:"entityName"`
 	Quantity   int     `json:"quantity"`
@@ -59,6 +59,9 @@ func (Reports) Revenue(p RevenueParams) (RevenueReport, error) {
 	if p.From == "" || p.To == "" {
 		return RevenueReport{}, fmt.Errorf("from and to are required")
 	}
+	if p.CurrencyID == "" {
+		p.CurrencyID = USDCurrencyID
+	}
 
 	// Flat-level mode bypasses tree drill-down: caller asked for "all X".
 	if p.Level != "" {
@@ -83,23 +86,29 @@ func (Reports) Revenue(p RevenueParams) (RevenueReport, error) {
 		return procedureTypeGroups(p)
 	case "products":
 		return topProductCategoryGroups(p)
+	case "other":
+		return otherGroups(p)
+	case "all":
+		return allItems(p)
 	default:
 		return kindGroups(p)
 	}
 }
 
-// kindGroups: the top level (procedures vs products).
+// kindGroups: the top level (procedures, products and other lines). Gifts are
+// excluded (gift-card sales are deferred revenue, counted on redemption).
 func kindGroups(p RevenueParams) (RevenueReport, error) {
 	q := `
 		SELECT ii.item_type,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
 		JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE tb.entity_type = 'patient'
-		AND ii.item_type IN ('product','procedure')
-		AND i.created_at >= ? AND i.created_at < ?`
+		AND ii.item_type IN ('product','procedure','other')
+		AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
 	q += " GROUP BY ii.item_type"
@@ -119,13 +128,74 @@ func kindGroups(p RevenueParams) (RevenueReport, error) {
 		}
 		g.GroupType = "kind"
 		g.EntityID = kind
-		if kind == "product" {
-			g.EntityName = "Products"
-		} else {
-			g.EntityName = "Procedures"
-		}
+		g.EntityName = kindDisplayName(kind)
 		out.Items = append(out.Items, g)
 	}
+	finalize(&out)
+	return out, nil
+}
+
+// kindDisplayName maps an invoice_items.item_type to its report label.
+func kindDisplayName(kind string) string {
+	switch kind {
+	case "product":
+		return "Products"
+	case "procedure":
+		return "Procedures"
+	default:
+		return "Other"
+	}
+}
+
+// otherGroups: for ItemKind="other", group miscellaneous lines by their note
+// (the only label "other" lines carry; they have no catalog item).
+func otherGroups(p RevenueParams) (RevenueReport, error) {
+	q := `
+		SELECT '', COALESCE(NULLIF(ii.notes, ''), 'Other'),
+		       COALESCE(SUM(ii.quantity), 0),
+		       ` + revenueAmountExpr() + `
+		FROM invoice_items ii
+		JOIN invoices i ON i.id = ii.invoice_id
+		JOIN balances tb ON tb.id = i.to_balance_id
+		WHERE tb.entity_type = 'patient'
+		AND ii.item_type = 'other'
+		AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
+	args := []any{RangeStart(p.From), RangeEnd(p.To)}
+	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
+	q += `
+		GROUP BY ii.notes
+		ORDER BY 4 DESC`
+
+	out, err := scanGroups(q, args, "other")
+	if err != nil {
+		return out, err
+	}
+	out.Level = "other"
+	return out, nil
+}
+
+// allItems: for ItemKind/Level="all", every individual procedure, product and
+// other line across the dataset, ranked together. Composes the per-kind leaf
+// aggregators and re-finalizes so totals and percentages span all three.
+func allItems(p RevenueParams) (RevenueReport, error) {
+	procs, err := allProcedures(p)
+	if err != nil {
+		return RevenueReport{}, err
+	}
+	prods, err := allProducts(p)
+	if err != nil {
+		return RevenueReport{}, err
+	}
+	others, err := otherGroups(p)
+	if err != nil {
+		return RevenueReport{}, err
+	}
+
+	out := RevenueReport{Level: "all"}
+	out.Items = append(out.Items, procs.Items...)
+	out.Items = append(out.Items, prods.Items...)
+	out.Items = append(out.Items, others.Items...)
 	finalize(&out)
 	return out, nil
 }
@@ -135,7 +205,7 @@ func procedureTypeGroups(p RevenueParams) (RevenueReport, error) {
 	q := `
 		SELECT COALESCE(pt.id, ''), COALESCE(NULLIF(pt.name, ''), 'Uncategorized'),
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
 		JOIN balances tb ON tb.id = i.to_balance_id
@@ -143,7 +213,8 @@ func procedureTypeGroups(p RevenueParams) (RevenueReport, error) {
 		LEFT JOIN procedure_types pt ON pt.id = pr.type_id
 		WHERE tb.entity_type = 'patient'
 		AND ii.item_type = 'procedure'
-		AND i.created_at >= ? AND i.created_at < ?`
+		AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
 	q += `
@@ -164,7 +235,7 @@ func topProductCategoryGroups(p RevenueParams) (RevenueReport, error) {
 	q := `
 		SELECT COALESCE(top.id, ''), COALESCE(NULLIF(top.name, ''), 'Uncategorized'),
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
 		JOIN balances tb ON tb.id = i.to_balance_id
@@ -175,7 +246,8 @@ func topProductCategoryGroups(p RevenueParams) (RevenueReport, error) {
 			                 THEN self.id ELSE self.parent_id END
 		WHERE tb.entity_type = 'patient'
 		AND ii.item_type = 'product'
-		AND i.created_at >= ? AND i.created_at < ?`
+		AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
 	q += `
@@ -197,7 +269,7 @@ func procedureCategoriesByType(p RevenueParams) (RevenueReport, error) {
 	q := `
 		SELECT COALESCE(top.id, ''), COALESCE(NULLIF(top.name, ''), 'Uncategorized'),
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
 		JOIN balances tb ON tb.id = i.to_balance_id
@@ -209,7 +281,8 @@ func procedureCategoriesByType(p RevenueParams) (RevenueReport, error) {
 		WHERE tb.entity_type = 'patient'
 		AND ii.item_type = 'procedure'
 		AND pr.type_id = ?
-		AND i.created_at >= ? AND i.created_at < ?`
+		AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{p.TypeID, RangeStart(p.From), RangeEnd(p.To)}
 	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
 	q += `
@@ -254,10 +327,11 @@ func categoryDrill(p RevenueParams) (RevenueReport, error) {
 
 func procedureChildCategories(p RevenueParams) (RevenueReport, error) {
 	q := `
-		SELECT pc.id, COALESCE(NULLIF(pc.name, ''), 'Unnamed'),
+		SELECT pc.id, ` + categoryNameWithParentExpr() + `,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM procedure_categories pc
+		LEFT JOIN procedure_categories pcparent ON pcparent.id = pc.parent_id
 		LEFT JOIN procedures pr ON pr.category_id = pc.id
 		LEFT JOIN invoice_items ii ON ii.item_id = pr.id AND ii.item_type = 'procedure'
 		LEFT JOIN invoices i ON i.id = ii.invoice_id
@@ -265,7 +339,8 @@ func procedureChildCategories(p RevenueParams) (RevenueReport, error) {
 		WHERE pc.parent_id = ?
 		AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{p.CategoryID, RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -286,10 +361,11 @@ func procedureChildCategories(p RevenueParams) (RevenueReport, error) {
 
 func productChildCategories(p RevenueParams) (RevenueReport, error) {
 	q := `
-		SELECT pc.id, COALESCE(NULLIF(pc.name, ''), 'Unnamed'),
+		SELECT pc.id, ` + categoryNameWithParentExpr() + `,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM product_categories pc
+		LEFT JOIN product_categories pcparent ON pcparent.id = pc.parent_id
 		LEFT JOIN products pd ON pd.category_id = pc.id
 		LEFT JOIN invoice_items ii ON ii.item_id = pd.id AND ii.item_type = 'product'
 		LEFT JOIN invoices i ON i.id = ii.invoice_id
@@ -297,7 +373,8 @@ func productChildCategories(p RevenueParams) (RevenueReport, error) {
 		WHERE pc.parent_id = ?
 		AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{p.CategoryID, RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -318,17 +395,19 @@ func productChildCategories(p RevenueParams) (RevenueReport, error) {
 
 func procedureLeaves(p RevenueParams) (RevenueReport, error) {
 	q := `
-		SELECT pr.id, pr.name,
+		SELECT pr.id, ` + procedureNameWithCategoryExpr() + `,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM procedures pr
+		LEFT JOIN procedure_categories pcat ON pcat.id = pr.category_id
 		LEFT JOIN invoice_items ii ON ii.item_id = pr.id AND ii.item_type = 'procedure'
 		LEFT JOIN invoices i ON i.id = ii.invoice_id
 		LEFT JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE pr.category_id = ?
 		AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{p.CategoryID, RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -351,7 +430,7 @@ func productLeaves(p RevenueParams) (RevenueReport, error) {
 	q := `
 		SELECT pd.id, pd.name,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM products pd
 		LEFT JOIN invoice_items ii ON ii.item_id = pd.id AND ii.item_type = 'product'
 		LEFT JOIN invoices i ON i.id = ii.invoice_id
@@ -359,7 +438,8 @@ func productLeaves(p RevenueParams) (RevenueReport, error) {
 		WHERE pd.category_id = ?
 		AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{p.CategoryID, RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -396,6 +476,10 @@ func flatLevel(p RevenueParams) (RevenueReport, error) {
 		return allProcedures(p)
 	case "product":
 		return allProducts(p)
+	case "other":
+		return otherGroups(p)
+	case "all":
+		return allItems(p)
 	default:
 		return RevenueReport{}, fmt.Errorf("unsupported level %q", p.Level)
 	}
@@ -405,7 +489,7 @@ func allProcedureTypes(p RevenueParams) (RevenueReport, error) {
 	q := `
 		SELECT pt.id, pt.name,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM procedure_types pt
 		LEFT JOIN procedures pr ON pr.type_id = pt.id
 		LEFT JOIN invoice_items ii ON ii.item_id = pr.id AND ii.item_type = 'procedure'
@@ -413,7 +497,8 @@ func allProcedureTypes(p RevenueParams) (RevenueReport, error) {
 		LEFT JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -440,17 +525,19 @@ func allProcedureCategories(p RevenueParams) (RevenueReport, error) {
 		prArgs = append(prArgs, p.TypeID)
 	}
 	q := `
-		SELECT pc.id, pc.name,
+		SELECT pc.id, ` + categoryNameWithParentExpr() + `,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM procedure_categories pc
+		LEFT JOIN procedure_categories pcparent ON pcparent.id = pc.parent_id
 		` + prJoin + `
 		LEFT JOIN invoice_items ii ON ii.item_id = pr.id AND ii.item_type = 'procedure'
 		LEFT JOIN invoices i ON i.id = ii.invoice_id
 		LEFT JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := append(prArgs, RangeStart(p.From), RangeEnd(p.To))
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -471,17 +558,19 @@ func allProcedureCategories(p RevenueParams) (RevenueReport, error) {
 
 func allProductCategories(p RevenueParams) (RevenueReport, error) {
 	q := `
-		SELECT pc.id, pc.name,
+		SELECT pc.id, ` + categoryNameWithParentExpr() + `,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM product_categories pc
+		LEFT JOIN product_categories pcparent ON pcparent.id = pc.parent_id
 		LEFT JOIN products pd ON pd.category_id = pc.id
 		LEFT JOIN invoice_items ii ON ii.item_id = pd.id AND ii.item_type = 'product'
 		LEFT JOIN invoices i ON i.id = ii.invoice_id
 		LEFT JOIN balances tb ON tb.id = i.to_balance_id
 		WHERE (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args := []any{RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -502,10 +591,11 @@ func allProductCategories(p RevenueParams) (RevenueReport, error) {
 
 func allProcedures(p RevenueParams) (RevenueReport, error) {
 	q := `
-		SELECT pr.id, pr.name,
+		SELECT pr.id, ` + procedureNameWithCategoryExpr() + `,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM procedures pr
+		LEFT JOIN procedure_categories pcat ON pcat.id = pr.category_id
 		LEFT JOIN invoice_items ii ON ii.item_id = pr.id AND ii.item_type = 'procedure'
 		LEFT JOIN invoices i ON i.id = ii.invoice_id
 		LEFT JOIN balances tb ON tb.id = i.to_balance_id
@@ -521,7 +611,8 @@ func allProcedures(p RevenueParams) (RevenueReport, error) {
 	}
 	q += ` AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args = append(args, RangeStart(p.From), RangeEnd(p.To))
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -544,7 +635,7 @@ func allProducts(p RevenueParams) (RevenueReport, error) {
 	q := `
 		SELECT pd.id, pd.name,
 		       COALESCE(SUM(ii.quantity), 0),
-		       COALESCE(SUM(ii.final_amount), 0)
+		       ` + revenueAmountExpr() + `
 		FROM products pd
 		LEFT JOIN invoice_items ii ON ii.item_id = pd.id AND ii.item_type = 'product'
 		LEFT JOIN invoices i ON i.id = ii.invoice_id
@@ -557,7 +648,8 @@ func allProducts(p RevenueParams) (RevenueReport, error) {
 	}
 	q += ` AND (ii.id IS NULL OR (
 			tb.entity_type = 'patient'
-			AND i.created_at >= ? AND i.created_at < ?`
+			AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	args = append(args, RangeStart(p.From), RangeEnd(p.To))
 	if p.CurrencyID != "" {
 		q += ` AND i.currency_id = ?`
@@ -607,6 +699,34 @@ func categoryHasChildren(id, kind string) (bool, error) {
 		return false, err
 	}
 	return n > 0, nil
+}
+
+// procedureNameWithCategoryExpr returns a SQL expression that prefixes the
+// procedure name with its direct category (when set), matching the appointment
+// store's "category, name" decoration. Requires the query to alias
+// procedure_categories as pcat.
+func procedureNameWithCategoryExpr() string {
+	return `CASE
+		WHEN COALESCE(pcat.name, '') != '' THEN pcat.name || ', ' || pr.name
+		ELSE pr.name
+	END`
+}
+
+// categoryNameWithParentExpr returns a SQL expression that prefixes a category
+// name with its parent category (when set), separated by a comma. Requires
+// the query to alias the displayed category as pc and the parent category as
+// pcparent.
+func categoryNameWithParentExpr() string {
+	return `CASE
+		WHEN COALESCE(pcparent.name, '') != '' THEN pcparent.name || ', ' || COALESCE(NULLIF(pc.name, ''), 'Unnamed')
+		ELSE COALESCE(NULLIF(pc.name, ''), 'Unnamed')
+	END`
+}
+
+// revenueAmountExpr: item final_amount minus its share of the invoice offer
+// discount. Requires aliases invoice_items ii and invoices i.
+func revenueAmountExpr() string {
+	return `COALESCE(SUM(ii.final_amount - i.discount_value * ii.final_amount / NULLIF(i.amount, 0)), 0)`
 }
 
 func applyCurrency(q string, args []any, col, currencyID string) (string, []any) {
@@ -667,7 +787,11 @@ func finalize(r *RevenueReport) {
 // Expenses report
 
 type ExpenseRow struct {
-	Date             Date    `json:"date"`
+	Date Date `json:"date"`
+	// BalanceID is the supplier/expense entity's balance row id. Not serialized;
+	// used to dedupe the remaining-balance total, which is a per-entity snapshot
+	// repeated on every row that entity owns.
+	BalanceID        string  `json:"-"`
 	Supplier         string  `json:"supplier"`
 	Description      string  `json:"description"`
 	Quantity         int     `json:"quantity"`
@@ -684,12 +808,26 @@ type ExpensesParams struct {
 	CurrencyID string
 }
 
+type ExpensesTotals struct {
+	Amount    float64 `json:"amount"`
+	Remaining float64 `json:"remaining"`
+}
+
+type ExpensesReport struct {
+	Rows   []ExpenseRow   `json:"rows"`
+	Totals ExpensesTotals `json:"totals"`
+}
+
 // Expenses returns one row per supplier-invoice line item plus one row per
-// expense-entity payment, sorted by date asc. Remaining balance reflects the
-// supplier's current outstanding balance (snapshot, not historical).
-func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
+// expense-entity payment, sorted by date asc, with grand totals. Remaining
+// balance reflects the supplier's current outstanding balance (snapshot, not
+// historical); the remaining total counts each entity's balance once.
+func (Reports) Expenses(p ExpensesParams) (ExpensesReport, error) {
 	if p.From == "" || p.To == "" {
-		return nil, fmt.Errorf("from and to are required")
+		return ExpensesReport{}, fmt.Errorf("from and to are required")
+	}
+	if p.CurrencyID == "" {
+		p.CurrencyID = USDCurrencyID
 	}
 
 	out := []ExpenseRow{}
@@ -706,14 +844,16 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 		       ii.quantity,
 		       ii.final_amount,
 		       COALESCE(fb.amount, 0) AS remaining,
-		       i.notes
+		       i.notes,
+		       fb.id
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
 		JOIN balances fb ON fb.id = i.from_balance_id
 		LEFT JOIN products pd  ON pd.id = ii.item_id AND ii.item_type = 'product'
 		LEFT JOIN procedures pr ON pr.id = ii.item_id AND ii.item_type = 'procedure'
 		WHERE fb.entity_type = 'supplier'
-		AND i.created_at >= ? AND i.created_at < ?`
+		AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
 	itemArgs := []any{RangeStart(p.From), RangeEnd(p.To)}
 	if p.CurrencyID != "" {
 		itemQ += " AND i.currency_id = ?"
@@ -722,11 +862,11 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 
 	rows, err := RDB.Query(itemQ, itemArgs...)
 	if err != nil {
-		return nil, err
+		return ExpensesReport{}, err
 	}
 	for rows.Next() {
 		var r ExpenseRow
-		if err := rows.Scan(&r.Date, &r.Supplier, &r.Description, &r.Quantity, &r.Amount, &r.RemainingBalance, &r.Notes); err != nil {
+		if err := rows.Scan(&r.Date, &r.Supplier, &r.Description, &r.Quantity, &r.Amount, &r.RemainingBalance, &r.Notes, &r.BalanceID); err != nil {
 			continue
 		}
 		if r.Quantity > 0 {
@@ -739,12 +879,12 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return ExpensesReport{}, err
 	}
 
 	// Expense-entity payments: direct outflows (CreateTwoWay nets to 0).
 	payQ := `
-		SELECT bt.created_at, tb.entity_name, bt.description, bt.amount, COALESCE(tb.amount, 0)
+		SELECT bt.created_at, tb.entity_name, bt.description, bt.amount, COALESCE(tb.amount, 0), tb.id
 		FROM balance_transactions bt
 		JOIN balances fb ON fb.id = bt.from_balance_id
 		JOIN balances tb ON tb.id = bt.to_balance_id
@@ -761,11 +901,11 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 
 	prows, err := RDB.Query(payQ, payArgs...)
 	if err != nil {
-		return nil, err
+		return ExpensesReport{}, err
 	}
 	for prows.Next() {
 		var r ExpenseRow
-		if err := prows.Scan(&r.Date, &r.Supplier, &r.Description, &r.Amount, &r.RemainingBalance); err != nil {
+		if err := prows.Scan(&r.Date, &r.Supplier, &r.Description, &r.Amount, &r.RemainingBalance, &r.BalanceID); err != nil {
 			continue
 		}
 		r.Quantity = 1
@@ -775,7 +915,7 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 	}
 	prows.Close()
 	if err := prows.Err(); err != nil {
-		return nil, err
+		return ExpensesReport{}, err
 	}
 
 	// Sort by date asc: simple insertion sort, list is small.
@@ -784,5 +924,17 @@ func (Reports) Expenses(p ExpensesParams) ([]ExpenseRow, error) {
 			out[j], out[j-1] = out[j-1], out[j]
 		}
 	}
-	return out, nil
+
+	// Totals: amount sums every row; remaining counts each entity's balance
+	// snapshot once (it repeats across that entity's rows).
+	report := ExpensesReport{Rows: out}
+	countedRemaining := map[string]bool{}
+	for _, r := range out {
+		report.Totals.Amount += r.Amount
+		if !countedRemaining[r.BalanceID] {
+			countedRemaining[r.BalanceID] = true
+			report.Totals.Remaining += r.RemainingBalance
+		}
+	}
+	return report, nil
 }

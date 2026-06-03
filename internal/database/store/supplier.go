@@ -139,27 +139,22 @@ func (s *Supplier) Create() error {
 	s.CreatedAt = now
 	s.UpdatedAt = now
 
-	_, err := DB.Exec(`INSERT INTO suppliers (`+supplierColumns+`) VALUES (?,?,?,?,?,?,?,?)`,
-		s.ID, s.Name, s.Contact, s.Email, s.Address, s.Notes, s.CreatedAt, s.UpdatedAt)
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 
-	// Create a balance for the supplier in each currency
-	var currencies CurrencyList
-	if _, err := currencies.GetAll(ListParams{}); err == nil {
-		for _, cur := range currencies {
-			bal := Balance{
-				EntityType: "supplier",
-				EntityID:   &s.ID,
-				EntityName: s.Name,
-				CurrencyID: cur.ID,
-			}
-			bal.GetOrCreate()
-		}
+	if _, err := tx.Exec(`INSERT INTO suppliers (`+supplierColumns+`) VALUES (?,?,?,?,?,?,?,?)`,
+		s.ID, s.Name, s.Contact, s.Email, s.Address, s.Notes, s.CreatedAt, s.UpdatedAt); err != nil {
+		return err
 	}
 
-	return nil
+	if _, err := getOrCreateBalanceWithTx(tx, "supplier", s.ID, s.Name, USDCurrencyID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (s *Supplier) Update(updates map[string]any) error {
@@ -194,7 +189,13 @@ func (s *Supplier) Update(updates map[string]any) error {
 }
 
 func (s *Supplier) Delete() error {
-	res, err := DB.Exec("DELETE FROM suppliers WHERE id = ?", s.ID)
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec("DELETE FROM suppliers WHERE id = ?", s.ID)
 	if err != nil {
 		return err
 	}
@@ -202,8 +203,8 @@ func (s *Supplier) Delete() error {
 	if n == 0 {
 		return ErrNotFound
 	}
-	if _, err := DB.Exec("DELETE FROM balances WHERE entity_id = ? AND entity_type = ?", s.ID, "supplier"); err != nil {
+	if _, err := tx.Exec("DELETE FROM balances WHERE entity_id = ? AND entity_type = ?", s.ID, "supplier"); err != nil {
 		return err
 	}
-	return nil
+	return tx.Commit()
 }

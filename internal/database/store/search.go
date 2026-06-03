@@ -2,20 +2,22 @@ package store
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
 type SearchTarget struct {
 	Table  string
+	Scope  string
 	Fields []string
 }
 
 var searchTargets = []SearchTarget{
-	{Table: "patients", Fields: []string{"first_name", "middle_name", "last_name", "contact", "email"}},
-	{Table: "suppliers", Fields: []string{"name", "contact", "email"}},
-	{Table: "procedures", Fields: []string{"name", "remarks"}},
-	{Table: "products", Fields: []string{"name"}},
-	{Table: "employees", Fields: []string{"first_name", "last_name", "contact", "email"}},
+	{Table: "patients", Scope: "patients:read", Fields: []string{"first_name", "middle_name", "last_name", "contact", "email"}},
+	{Table: "suppliers", Scope: "suppliers:read", Fields: []string{"name", "contact", "email"}},
+	{Table: "procedures", Scope: "procedures:read", Fields: []string{"name", "remarks"}},
+	{Table: "products", Scope: "products:read", Fields: []string{"name"}},
+	{Table: "employees", Scope: "employees:read", Fields: []string{"first_name", "last_name", "contact", "email"}},
 }
 
 const searchLimit = 3
@@ -23,7 +25,7 @@ const searchLimit = 3
 type SearchHit map[string]any
 type SearchResults map[string][]SearchHit
 
-func SearchAll(query string) (SearchResults, error) {
+func SearchAll(query string, scopes []string) (SearchResults, error) {
 	results := SearchResults{}
 	if query == "" {
 		return results, nil
@@ -31,6 +33,9 @@ func SearchAll(query string) (SearchResults, error) {
 	like := "%" + query + "%"
 
 	for _, t := range searchTargets {
+		if !slices.Contains(scopes, t.Scope) {
+			continue
+		}
 		hits, err := searchTable(t, like)
 		if err != nil {
 			return nil, fmt.Errorf("search %s: %w", t.Table, err)

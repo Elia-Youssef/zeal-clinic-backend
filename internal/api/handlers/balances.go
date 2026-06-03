@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"errors"
 	"log"
 	"net/http"
 
@@ -16,7 +17,7 @@ func GetAllBalances(c echo.Context) error {
 	total, err := list.GetAll(entityType, params)
 	if err != nil {
 		log.Println("Error: GetAllBalances:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch balances"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load balances"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: list, Total: total}})
 }
@@ -26,9 +27,11 @@ func GetAllBalances(c echo.Context) error {
 // maintained incrementally by each balance transaction.
 func GetEntityBalance(c echo.Context) error {
 	var b store.Balance
-	if err := b.GetByEntityID(c.Param("type"), c.Param("id")); err != nil {
+	if err := b.GetByEntityID(c.Param("type"), c.Param("id")); errors.Is(err, store.ErrNotFound) {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Balance not found"})
+	} else if err != nil {
 		log.Println("Error: GetEntityBalance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch entity balance"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load balance"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: b})
 }

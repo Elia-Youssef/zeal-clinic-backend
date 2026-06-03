@@ -43,13 +43,13 @@ func CreateServer() *echo.Echo {
 
 	authGroup := e.Group("/api")
 	api := e.Group("/api")
-	api.Use(mw.AuthMiddleware(false))
+	api.Use(mw.AuthMiddleware())
 	api.Use(mw.AuditLogger())
 
 	routes.SetupAuthRoutes(authGroup, api)
 
 	sse := e.Group("/api")
-	sse.Use(mw.AuthMiddleware(true))
+	sse.Use(mw.AuthMiddleware())
 	sse.Use(mw.AuditLogger())
 	routes.SetupEventRoutes(sse)
 
@@ -67,7 +67,7 @@ func CreateServer() *echo.Echo {
 	routes.SetupUpdatePublicRoutes(e, cfg)
 
 	pdfs := e.Group("/files")
-	pdfs.Use(mw.AuthMiddleware(true))
+	pdfs.Use(mw.AuthMiddleware())
 	pdfs.Static("/", pdf.TmpDir())
 
 	e.GET("/*", spaHandler())
@@ -90,7 +90,7 @@ var protectedRouteRegistrars = []func(*echo.Group){
 	routes.SetupMedicineRoutes,
 	routes.SetupPatientMedicineRoutes,
 	routes.SetupAppointmentRoutes,
-	routes.SetupScheduleAvailabilityRoutes,
+	routes.SetupEmployeeScheduleRoutes,
 	routes.SetupHRRoutes,
 	routes.SetupProductRoutes,
 	routes.SetupProductCategoryRoutes,

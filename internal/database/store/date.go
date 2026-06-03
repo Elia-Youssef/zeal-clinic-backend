@@ -134,6 +134,21 @@ func RangeEnd(s string) string {
 	return s
 }
 
+// PreviousPeriod returns the equal-length range immediately preceding the
+// half-open window [from, to). Inputs may be RFC3339 instants or bare
+// YYYY-MM-DD dates; the result is returned as RFC3339 UTC instants (which pass
+// through RangeStart/RangeEnd unchanged). Returns empty strings if the bounds
+// cannot be parsed.
+func PreviousPeriod(from, to string) (string, string) {
+	s, err1 := time.Parse(DateTimeFormat, RangeStart(from))
+	e, err2 := time.Parse(DateTimeFormat, RangeEnd(to))
+	if err1 != nil || err2 != nil || !e.After(s) {
+		return "", ""
+	}
+	d := e.Sub(s)
+	return s.Add(-d).UTC().Format(DateTimeFormat), s.UTC().Format(DateTimeFormat)
+}
+
 func (d Date) String() string {
 	return string(d)
 }

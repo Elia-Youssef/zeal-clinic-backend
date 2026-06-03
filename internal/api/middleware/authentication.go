@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func AuthMiddleware(useParamToken bool) echo.MiddlewareFunc {
+func AuthMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			tokenStr := ""
@@ -21,19 +21,17 @@ func AuthMiddleware(useParamToken bool) echo.MiddlewareFunc {
 			authHeader := c.Request().Header.Get("Authorization")
 			if t, ok := strings.CutPrefix(authHeader, "Bearer "); ok {
 				tokenStr = t
-			} else if useParamToken {
-				tokenStr = c.QueryParam("access_token")
 			}
 
 			if tokenStr == "" {
 				log.Println("Error: [Auth] No token provided")
-				return c.JSON(401, httpx.Response{Error: "Not Authorized"})
+				return c.JSON(401, httpx.Response{Error: "Please sign in again"})
 			}
 
 			msg, ok := checkAuth(c, tokenStr)
 			if !ok {
 				log.Println(msg)
-				return c.JSON(401, httpx.Response{Error: "Not Authorized"})
+				return c.JSON(401, httpx.Response{Error: "Please sign in again"})
 			}
 
 			return next(c)

@@ -64,7 +64,8 @@ func buildDSN(dbPath, hexKey string) string {
 		"&hexkey=" + hexKey +
 		"&_pragma=busy_timeout(5000)" +
 		"&_pragma=journal_mode(WAL)" +
-		"&_pragma=foreign_keys(1)"
+		"&_pragma=foreign_keys(1)" +
+		"&_pragma=recursive_triggers(1)"
 }
 
 // defaultDBPath uses ProgramData when installed, otherwise ./tmp/clinic.db.

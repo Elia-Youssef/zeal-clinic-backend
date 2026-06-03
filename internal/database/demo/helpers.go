@@ -3,6 +3,7 @@ package demo
 import (
 	"context"
 	"database/sql"
+	"math/rand"
 	"time"
 
 	"clinic-api/internal/database/store"
@@ -25,6 +26,14 @@ func timeAt(days, hour, minute int) string {
 		Format(time.RFC3339)
 }
 
+// bulkPatient tracks a generated patient and when (days before today) they were
+// created, so historical appointments only reference patients that already
+// existed on that day.
+type bulkPatient struct {
+	id, bal    string
+	createdOff int
+}
+
 // demoCtx holds shared lookups + the singletons every section needs (currency,
 // clinic balance, the admin user that records transactions).
 type demoCtx struct {
@@ -34,6 +43,9 @@ type demoCtx struct {
 
 	now   string
 	today string
+
+	rng          *rand.Rand
+	bulkPatients []bulkPatient
 
 	allergies  map[string]string // name -> id
 	medicines  map[string]string
@@ -59,6 +71,7 @@ func newDemoCtx(ctx context.Context, tx *sql.Tx) (*demoCtx, error) {
 	c := &demoCtx{
 		now:         nowStr(),
 		today:       todayStr(),
+		rng:         rand.New(rand.NewSource(20240601)),
 		allergies:   map[string]string{},
 		medicines:   map[string]string{},
 		products:    map[string]string{},
@@ -71,10 +84,8 @@ func newDemoCtx(ctx context.Context, tx *sql.Tx) (*demoCtx, error) {
 		supplierBal: map[string]string{},
 		expenseBal:  map[string]string{},
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM currencies WHERE code = 'USD'`).Scan(&c.currencyID); err != nil {
-		return nil, err
-	}
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM balances WHERE entity_type = 'self'`).Scan(&c.selfBalanceID); err != nil {
+	c.currencyID = store.USDCurrencyID
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM balances WHERE entity_type = 'self' AND currency_id = ?`, c.currencyID).Scan(&c.selfBalanceID); err != nil {
 		return nil, err
 	}
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = 'admin'`).Scan(&c.adminUserID); err != nil {
@@ -142,4 +153,47 @@ func recordTransactionSource(ctx context.Context, tx *sql.Tx, c *demoCtx, fromID
 		return err
 	}
 	return store.RecalculateBalancesWithTx(tx, fromID, toID)
+}
+
+// insertTxn inserts a transaction WITHOUT recalculating balances. Bulk seeding
+// uses this and recomputes every balance once at the end (recalcAllBalances),
+// avoiding O(n²) re-summing of the heavily-shared self balance.
+func insertTxn(ctx context.Context, tx *sql.Tx, c *demoCtx, fromID, toID string, amount float64, txType, method, sourceType, sourceID, desc, at string) error {
+	_, err := tx.ExecContext(ctx,
+		`INSERT INTO balance_transactions (id, from_balance_id, to_balance_id, amount, currency_id, transaction_type, transaction_method, source_type, source_id, description, created_by, created_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		newID(), fromID, toID, amount, c.currencyID, txType, method, sourceType, sourceID, desc, c.adminUserID, at,
+	)
+	return err
+}
+
+// recalcAllBalances rebuilds the cached amount/total_in/total_out for every
+// balance the demo touched, from the full transaction history.
+func recalcAllBalances(tx *sql.Tx, c *demoCtx) error {
+	ids := []string{c.selfBalanceID}
+	for _, m := range []map[string]string{c.patientBal, c.supplierBal, c.expenseBal, c.employeeBal} {
+		for _, id := range m {
+			ids = append(ids, id)
+		}
+	}
+	return store.RecalculateBalancesWithTx(tx, ids...)
+}
+
+// random helpers (demo only)
+
+func (c *demoCtx) pick(list []string) string { return list[c.rng.Intn(len(list))] }
+
+func (c *demoCtx) chance(p float64) bool { return c.rng.Float64() < p }
+
+// between returns a random int in [lo, hi].
+func (c *demoCtx) between(lo, hi int) int {
+	if hi <= lo {
+		return lo
+	}
+	return lo + c.rng.Intn(hi-lo+1)
+}
+
+// weekdayOf returns the weekday of the day `off` days from today (UTC).
+func weekdayOf(off int) time.Weekday {
+	return time.Now().UTC().AddDate(0, 0, off).Weekday()
 }

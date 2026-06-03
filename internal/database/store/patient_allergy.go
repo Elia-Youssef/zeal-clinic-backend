@@ -55,16 +55,21 @@ func (l *PatientAllergyList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (pa *PatientAllergyList) GetByPatient(patientID string) error {
+func (pa *PatientAllergyList) GetByPatient(patientID string, params ListParams) (int, error) {
+	var total int
+	if err := RDB.QueryRow(`SELECT COUNT(*) FROM patient_allergies WHERE patient_id = ?`, patientID).Scan(&total); err != nil {
+		return 0, err
+	}
+
 	rows, err := RDB.Query(`SELECT pa.id, pa.patient_id, pa.allergy_id, pa.notes, pa.created_at, a.name
 		FROM patient_allergies pa JOIN allergies a ON a.id = pa.allergy_id
-		WHERE pa.patient_id = ? ORDER BY a.name`, patientID)
+		WHERE pa.patient_id = ? ORDER BY a.name`+params.PaginationClause(), patientID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer rows.Close()
 
-	return pa.ScanRows(rows)
+	return total, pa.ScanRows(rows)
 }
 
 func (pa *PatientAllergy) Create() error {

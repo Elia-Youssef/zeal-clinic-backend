@@ -27,7 +27,7 @@ func GetAllNotifications(c echo.Context) error {
 	total, err := notifications.GetAll(userID, params)
 	if err != nil {
 		log.Println("Error: [GetAllNotifications] failed to fetch notifications:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to fetch notifications"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load notifications"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: notifications, Total: total}})
 }
@@ -37,7 +37,7 @@ func GetUnreadNotificationCount(c echo.Context) error {
 	count, err := store.GetUnreadCount(userID)
 	if err != nil {
 		log.Println("Error: [GetUnreadNotificationCount] failed to get count:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to get unread count"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load unread count"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: count})
 }
@@ -48,17 +48,17 @@ func MarkNotificationRead(c echo.Context) error {
 
 	ownerID, err := store.GetUserIDForNotification(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "notification not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Notification not found"})
 	}
 	if ownerID != userID {
-		return c.JSON(http.StatusForbidden, httpx.Response{Error: "not your notification"})
+		return c.JSON(http.StatusForbidden, httpx.Response{Error: "This notification isn't yours"})
 	}
 
 	if err := store.MarkNotificationRead(id); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "notification not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Notification not found"})
 	} else if err != nil {
 		log.Println("Error: [MarkNotificationRead] failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to mark notification as read"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't mark as read"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
@@ -67,7 +67,7 @@ func MarkAllNotificationsRead(c echo.Context) error {
 	userID := currentUserID(c)
 	if err := store.MarkAllNotificationsRead(userID); err != nil {
 		log.Println("Error: [MarkAllNotificationsRead] failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to mark notifications as read"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't mark all as read"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
@@ -78,7 +78,7 @@ func MarkAllNotificationsRead(c echo.Context) error {
 func SendTestNotification(c echo.Context) error {
 	userID := currentUserID(c)
 	if userID == "" {
-		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Not Authorized"})
+		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Please sign in again"})
 	}
 
 	n := store.Notification{
@@ -89,7 +89,7 @@ func SendTestNotification(c echo.Context) error {
 	}
 	if err := n.Create(); err != nil {
 		log.Println("Error: [SendTestNotification] failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to send test notification"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't send test notification"})
 	}
 
 	realtime.SendTo(userID, realtime.Event{Type: "notification", Data: n})
@@ -102,18 +102,18 @@ func DeleteNotification(c echo.Context) error {
 
 	ownerID, err := store.GetUserIDForNotification(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "notification not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Notification not found"})
 	}
 	if ownerID != userID {
-		return c.JSON(http.StatusForbidden, httpx.Response{Error: "not your notification"})
+		return c.JSON(http.StatusForbidden, httpx.Response{Error: "This notification isn't yours"})
 	}
 
 	n := store.Notification{ID: id}
 	if err := n.Delete(); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "notification not found"})
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Notification not found"})
 	} else if err != nil {
 		log.Println("Error: [DeleteNotification] failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "failed to delete notification"})
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete notification"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

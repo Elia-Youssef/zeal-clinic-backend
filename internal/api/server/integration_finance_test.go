@@ -53,9 +53,7 @@ func TestClientPayment_ValidationFailures(t *testing.T) {
 		want int
 	}{
 		{"missing patientId", map[string]any{"currencyId": curID, "amount": 1.0}, http.StatusBadRequest},
-		{"missing currencyId", map[string]any{"patientId": pid, "amount": 1.0}, http.StatusBadRequest},
 		{"negative amount", map[string]any{"patientId": pid, "currencyId": curID, "amount": -5}, http.StatusBadRequest},
-		{"unknown currency", map[string]any{"patientId": pid, "currencyId": "ghost", "amount": 1.0}, http.StatusBadRequest},
 		{"unknown patient", map[string]any{"patientId": "ghost", "currencyId": curID, "amount": 1.0}, http.StatusBadRequest},
 	}
 	for _, tc := range cases {
@@ -319,7 +317,7 @@ func TestGetAllBalances_ByType(t *testing.T) {
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
-	// Self balances are seeded for each currency.
+	// The self balance is seeded for USD.
 	rec := doRequest(t, e, http.MethodGet, "/api/balances/self", nil, tok)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("balances: %d body=%s", rec.Code, rec.Body.String())

@@ -8,5 +8,5 @@ import (
 
 func SetupBalanceRoutes(api *echo.Group) {
 	api.GET("/balances/:type", handlers.GetAllBalances, scope("balances:read"), cache("balances"))
-	api.GET("/balances/:type/:id", handlers.GetEntityBalance, scope("balances:read"), cache("balances"))
+	api.GET("/balances/:type/:id", handlers.GetEntityBalance, scopeOrSelf("balances:read", selfEmployee), cache("balances"))
 }
