@@ -96,6 +96,11 @@ func MinLength(value string, min int, label string) string {
 	return ""
 }
 
+// NormalizePhone strips all whitespace from a phone value.
+func NormalizePhone(s string) string {
+	return strings.Join(strings.Fields(s), "")
+}
+
 func Positive(value float64, label string) string {
 	if value < 0 {
 		return fmt.Sprintf("%s cannot be negative", label)

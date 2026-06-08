@@ -64,6 +64,8 @@ func main() {
 		time.Sleep(mainDelay)
 	}
 
+	updater.ReconcileBoot() // roll back a failed trial build before the DB opens (linux)
+
 	db, err := database.Open("")
 	if err != nil {
 		tracking.Fatal("Failed to open database", err)
@@ -76,7 +78,7 @@ func main() {
 	}
 
 	// If we just rebooted from a self-update, confirm it and reopen the API.
-	updater.FinalizeOnBoot()
+	updater.FinalizeOnBoot(opts.postUpdate)
 
 	if opts.startup {
 		time.Sleep(syncDelay)
@@ -96,6 +98,8 @@ func main() {
 	if opts.startup {
 		time.Sleep(serverDelay)
 	}
+
+	go updater.ConfirmStartup() // linux: confirm a surviving trial build
 
 	runServer(cfg, opts)
 }
@@ -170,6 +174,7 @@ func startMonitor() *monitor.Monitor {
 		monitor.Action{Name: "expire-discounts", Duration: 10 * time.Minute, Fn: monitor.ExpireDiscounts},
 		monitor.Action{Name: "appointment-reminders", Duration: 1 * time.Minute, Fn: monitor.SendAppointmentReminders},
 		monitor.Action{Name: "cleanup-pdf-cache", Duration: 5 * time.Minute, Fn: monitor.CleanupPDFCache},
+		monitor.Action{Name: "cleanup-expired-tokens", Duration: time.Hour, Fn: monitor.CleanupExpiredTokens},
 	)
 	mon.Start()
 	return mon
@@ -189,7 +194,7 @@ func runServer(cfg *config.Config, opts appOptions) {
 		defer stop()
 		<-ctx.Done()
 
-		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = e.Shutdown(shutCtx)
 		return

@@ -1,11 +1,3 @@
-; Inno Setup installer for Zeal Clinic.
-;
-; Build the binary first (writes to build\local\output\ZealClinic.exe):
-;     go build -trimpath -ldflags "-s -w" -o build\local\output\ZealClinic.exe .\cmd\server
-;
-; Then compile the installer (produces build\local\output\ZealClinicSetup-<ver>.exe):
-;     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" build\local\installer.iss
-
 #define AppName       "Zeal Clinic"
 ; Version is read from the repo-root VERSION file, the single source of truth
 ; shared with the Makefile (ldflags) so the installer and binary stay in sync.
@@ -26,10 +18,10 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
 AppUpdatesURL={#AppURL}
-DefaultDirName={autopf}\{#AppName}
+DefaultDirName={localappdata}\{#AppName}
 DefaultGroupName={#AppName}
 UninstallDisplayName={#AppName}
-UninstallDisplayIcon={app}\icon.ico
+UninstallDisplayIcon={app}\App\icon.ico
 SetupIconFile=icon.ico
 OutputDir=output
 OutputBaseFilename=ZealClinicSetup-{#AppVersion}
@@ -53,35 +45,34 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startupicon"; Description: "Start {#AppName} automatically when Windows starts"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "output\ZealClinic.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion
-; Ship .env next to the exe. Overwritten on upgrade (same as the exe).
-Source: ".env"; DestDir: "{app}"; Flags: ignoreversion uninsneveruninstall
+Source: "output\ZealClinic.exe"; DestDir: "{app}\App"; Flags: ignoreversion
+Source: "output\ZealUpdater.exe"; DestDir: "{app}\App"; Flags: ignoreversion
+Source: "icon.ico"; DestDir: "{app}\App"; Flags: ignoreversion
 
 [Dirs]
-; Shared data directory (holds clinic.db). Give standard users modify rights so
-; a non-admin launch of ZealClinic.exe can read/write the database.
-Name: "{commonappdata}\{#AppName}"; Permissions: users-modify
+; Per-user data directory (holds clinic.db). Lives under the user's own
+; LocalAppData, so no extra ACLs are needed: they already have full access.
+Name: "{app}\Data"
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{group}\{#AppName}"; Filename: "{app}\App\{#AppExeName}"; IconFilename: "{app}\App\icon.ico"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
-Name: "{userstartup}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Parameters: "--startup"; IconFilename: "{app}\icon.ico"; Tasks: startupicon
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\App\{#AppExeName}"; IconFilename: "{app}\App\icon.ico"; Tasks: desktopicon
+Name: "{userstartup}\{#AppName}"; Filename: "{app}\App\{#AppExeName}"; Parameters: "--startup"; IconFilename: "{app}\App\icon.ico"; Tasks: startupicon
 
 [Run]
 ; Firewall: delete any stale rule from a previous install, then add the current one.
 ; The delete will fail silently on a fresh install (no rule yet), which is fine.
 Filename: "netsh"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden
-Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow protocol=TCP localport={#AppPort} program=""{app}\{#AppExeName}"" description=""{#AppName} backend (HTTP)"""; Flags: runhidden; StatusMsg: "Configuring Windows Firewall..."
-; Initialise the database (creates %PROGRAMDATA%\Zeal Clinic\clinic.db if absent).
-Filename: "{app}\{#AppExeName}"; Parameters: "--seed-only --no-browser"; Flags: runhidden waituntilterminated; StatusMsg: "Initialising database..."
+Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow protocol=TCP localport={#AppPort} program=""{app}\App\{#AppExeName}"" description=""{#AppName} backend (HTTP)"""; Flags: runhidden; StatusMsg: "Configuring Windows Firewall..."
+; Initialise the database (creates the clinic.db under Data\ if absent).
+Filename: "{app}\App\{#AppExeName}"; Parameters: "--seed-only --no-browser"; Flags: runhidden waituntilterminated; StatusMsg: "Initialising database..."
 ; Silent self-update path: relaunch the app as the original (non-elevated) user
 ; so it drops back to medium integrity. Runs only for /VERYSILENT installs (i.e.
 ; the in-app updater), never for an interactive install.
-Filename: "{app}\{#AppExeName}"; Parameters: "--post-update"; Flags: nowait runasoriginaluser; Check: WizardSilent
+Filename: "{app}\App\{#AppExeName}"; Parameters: "--post-update"; Flags: nowait runasoriginaluser; Check: WizardSilent
 ; Final-page checkbox: launch the app (interactive installs only).
-Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName} now"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\App\{#AppExeName}"; Description: "Launch {#AppName} now"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 Filename: "netsh"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden; RunOnceId: "DelFirewallRule"
@@ -93,7 +84,7 @@ var
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    DataDir := ExpandConstant('{commonappdata}\{#AppName}');
+    DataDir := ExpandConstant('{localappdata}\{#AppName}\Data');
     if DirExists(DataDir) then
     begin
       if MsgBox('Also delete the ' + '{#AppName}' + ' data folder?' + #13#10 +

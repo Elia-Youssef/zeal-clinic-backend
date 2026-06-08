@@ -276,7 +276,7 @@ func getOrCreateBalanceWithTx(tx *sql.Tx, entityType, entityID, entityName, curr
 		currencyID = USDCurrencyID
 	}
 	now := DateNow()
-	id := uuid.Must(uuid.NewV7()).String()
+	id := balanceID(entityType, entityID, currencyID)
 	if _, err := tx.Exec(`INSERT OR IGNORE INTO balances (`+balanceColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?)`,
 		id, entityType, entityID, entityName, currencyID, 0, 0, 0, now, now); err != nil {
 		return nil, err

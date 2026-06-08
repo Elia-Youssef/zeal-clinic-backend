@@ -88,6 +88,24 @@ func UpdateDiscount(c echo.Context) error {
 	delete(updates, "currentUsages")
 
 	d := store.Discount{ID: c.Param("id")}
+	if err := d.GetByID(d.ID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Discount not found"})
+		}
+		log.Println("Error: [UpdateDiscount]:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update discount"})
+	}
+	// Gift cards: only name & description are editable.
+	if d.DiscountType == "gift" {
+		allowed := map[string]any{}
+		for _, k := range []string{"name", "description"} {
+			if v, ok := updates[k]; ok {
+				allowed[k] = v
+			}
+		}
+		updates = allowed
+	}
+
 	if err := d.Update(updates); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Discount not found"})
@@ -100,6 +118,9 @@ func UpdateDiscount(c echo.Context) error {
 
 func DeleteDiscount(c echo.Context) error {
 	d := store.Discount{ID: c.Param("id")}
+	if store.HasDependencies(d.ID, map[string]string{"invoices": "discount_id"}) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "This discount is used by invoices and can't be deleted"})
+	}
 	if err := d.Delete(); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Discount not found"})

@@ -11,3 +11,5 @@ import (
 var ErrNotFound = sql.ErrNoRows
 
 var ErrConflict = errors.New("conflict")
+
+var ErrValidation = errors.New("validation") // invalid input; handlers map to 400

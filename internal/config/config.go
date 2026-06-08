@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -15,45 +14,35 @@ import (
 const appDataDirName = "Zeal Clinic"
 
 type Config struct {
-	Port            string
-	JWTSecret       string
-	JWTLifetime     time.Duration
-	DBEncryptionKey string
-	PeerURL         string
-	SyncSecret      string
-	SentryDSN       string
-	PublicURL       string
-	PublishSecret   string
+	Port          string
+	JWTSecret     string
+	JWTLifetime   time.Duration
+	PeerURL       string
+	SyncSecret    string
+	SentryDSN     string
+	PublicURL     string
+	PublishSecret string
 }
 
 var current *Config
 
-const devJWTSecret = "dev-only-clinic-jwt-secret-not-for-release"
-
+// Load parses the embedded env file (local.env.defaults or cloud.env.defaults) into Config.
 func Load() *Config {
-	_ = godotenv.Load()
-	if exe, err := os.Executable(); err == nil {
-		_ = godotenv.Load(filepath.Join(filepath.Dir(exe), ".env"))
+	env, err := godotenv.Unmarshal(embeddedEnv)
+	if err != nil {
+		log.Printf("[config] failed to parse embedded env: %v", err)
+		env = map[string]string{}
 	}
 
 	cfg := &Config{
-		Port:            getEnv("PORT", "55555"),
-		JWTSecret:       getEnv("JWT_SECRET", devJWTSecret),
-		JWTLifetime:     parseDuration(getEnv("JWT_LIFETIME", "14h")),
-		DBEncryptionKey: getEnv("DB_ENCRYPTION_KEY", ""),
-		PeerURL:         getEnv("PEER_URL", ""),
-		SyncSecret:      getEnv("SYNC_SECRET", ""),
-		SentryDSN:       getEnv("SENTRY_DSN", ""),
-		PublicURL:       getEnv("PUBLIC_URL", ""),
-		PublishSecret:   getEnv("PUBLISH_SECRET", ""),
-	}
-
-	if cfg.DBEncryptionKey == "" {
-		log.Fatal("[config] DB_ENCRYPTION_KEY is required (64 hex chars / 32 bytes)")
-	}
-
-	if !isDevBuild() && (cfg.JWTSecret == "" || cfg.JWTSecret == devJWTSecret) {
-		log.Fatal("[config] JWT_SECRET must be set for release builds")
+		Port:          env["PORT"],
+		JWTSecret:     env["JWT_SECRET"],
+		JWTLifetime:   parseDuration(env["JWT_LIFETIME"]),
+		PeerURL:       env["PEER_URL"],
+		SyncSecret:    env["SYNC_SECRET"],
+		SentryDSN:     env["SENTRY_DSN"],
+		PublicURL:     env["PUBLIC_URL"],
+		PublishSecret: env["PUBLISH_SECRET"],
 	}
 
 	current = cfg
@@ -68,10 +57,12 @@ func Current() *Config {
 	return current
 }
 
+// SharedDataDir is the per-user install data dir: %LOCALAPPDATA%\Zeal Clinic\Data
+// (the installer puts clinic.db here; the exe lives in the sibling App\).
 func SharedDataDir() string {
 	if runtime.GOOS == "windows" {
-		if pd := os.Getenv("PROGRAMDATA"); pd != "" {
-			return filepath.Join(pd, appDataDirName)
+		if ad := os.Getenv("LOCALAPPDATA"); ad != "" {
+			return filepath.Join(ad, appDataDirName, "Data")
 		}
 	}
 	return ""
@@ -86,17 +77,6 @@ func DataDir() string {
 		}
 	}
 	return "./tmp"
-}
-
-func isDevBuild() bool {
-	return buildmode.Version == "dev" || strings.Contains(buildmode.Version, "-dev")
-}
-
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }
 
 func parseDuration(s string) time.Duration {

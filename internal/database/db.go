@@ -68,7 +68,7 @@ func buildDSN(dbPath, hexKey string) string {
 		"&_pragma=recursive_triggers(1)"
 }
 
-// defaultDBPath uses ProgramData when installed, otherwise ./tmp/clinic.db.
+// defaultDBPath uses the per-user LocalAppData Data\ dir when installed, otherwise ./tmp/clinic.db.
 func defaultDBPath() string {
 	return filepath.Join(config.DataDir(), "clinic.db")
 }

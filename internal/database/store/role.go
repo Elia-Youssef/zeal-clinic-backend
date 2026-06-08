@@ -3,7 +3,11 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
+
+	"clinic-api/internal/scopes"
 )
 
 type Role struct {
@@ -112,12 +116,24 @@ func (r *Role) GetByName(name string) error {
 }
 
 func (r *Role) Update(updates map[string]any) error {
-	if scopes, ok := updates["scopes"]; ok {
-		if slice, ok := scopes.([]any); ok {
+	if raw, ok := updates["scopes"]; ok {
+		if slice, ok := raw.([]any); ok {
 			var parts []string
 			for _, v := range slice {
 				if str, ok := v.(string); ok {
 					parts = append(parts, str)
+				}
+			}
+			for _, s := range parts {
+				if !scopes.IsValid(s) {
+					return fmt.Errorf("%w: Unknown permission %q", ErrValidation, s)
+				}
+			}
+			if r.Name == "admin" {
+				for _, req := range scopes.AdminRequired {
+					if !slices.Contains(parts, req) {
+						return fmt.Errorf("%w: The admin role must keep %s", ErrValidation, req)
+					}
 				}
 			}
 			if _, err := DB.Exec("UPDATE roles SET scopes = ? WHERE name = ?", strings.Join(parts, ","), r.Name); err != nil {

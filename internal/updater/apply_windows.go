@@ -5,28 +5,36 @@ package updater
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"time"
 
-	"golang.org/x/sys/windows"
+	"clinic-api/internal/updater/updatestate"
 )
 
-// applyUpdate runs the installer silently via ShellExecute "runas" so UAC can
-// elevate it (os/exec can't). The installer swaps the files in Program Files and
-// relaunches us as the original user via --post-update; we exit so it can
-// replace the now-unlocked .exe.
-func applyUpdate(installerPath string) error {
-	verb, _ := windows.UTF16PtrFromString("runas")
-	file, _ := windows.UTF16PtrFromString(installerPath)
-	params, _ := windows.UTF16PtrFromString(
-		"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS")
-
-	if err := windows.ShellExecute(0, verb, file, params, nil, 0); err != nil { // 0 == SW_HIDE
-		return fmt.Errorf("launch installer: %w", err)
+// applyUpdate launches the swapper from a throwaway copy (so it can overwrite the
+// real ZealUpdater.exe), then closes the DB and exits to unlock our files. The
+// swapper blocks on our PID, so anything that can fail does so before the DB close.
+func applyUpdate(st updatestate.State) error {
+	updaterSrc := filepath.Join(filepath.Dir(st.AppExe), "ZealUpdater.exe")
+	if err := updatestate.CopyFile(updaterSrc, runnerPath()); err != nil {
+		return fmt.Errorf("stage updater: %w", err)
 	}
 
+	cmd := exec.Command(runnerPath(), statePath())
+	cmd.Dir = filepath.Dir(st.AppExe)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("launch updater: %w", err)
+	}
+
+	checkpointAndCloseDB()
 	go func() {
-		time.Sleep(750 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		os.Exit(0)
 	}()
 	return nil
 }
+
+func reconcileBoot()          {}
+func confirmStartup()         {}
+func recoverFromFailedApply() {}

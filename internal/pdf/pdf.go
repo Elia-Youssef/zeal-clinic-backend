@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"clinic-api/internal/config"
@@ -20,31 +19,6 @@ func clinicDate(d store.Date) string {
 		return t.In(store.ClinicLocation()).Format("02/01/2006")
 	}
 	return d.DateOnly()
-}
-
-// tmpFiles tracks each generated PDF's path and creation time so the monitor
-// can delete it once it ages out of the cache.
-var tmpFiles = struct {
-	sync.Mutex
-	m map[string]time.Time
-}{m: map[string]time.Time{}}
-
-// TmpFiles returns a snapshot of tracked PDF paths and their creation times.
-func TmpFiles() map[string]time.Time {
-	tmpFiles.Lock()
-	defer tmpFiles.Unlock()
-	out := make(map[string]time.Time, len(tmpFiles.m))
-	for p, t := range tmpFiles.m {
-		out[p] = t
-	}
-	return out
-}
-
-// ForgetTmp drops a path from the tracking map; call after deleting the file.
-func ForgetTmp(path string) {
-	tmpFiles.Lock()
-	delete(tmpFiles.m, path)
-	tmpFiles.Unlock()
 }
 
 // TmpDir returns the PDF cache directory: a tmp/ subfolder next to the
@@ -68,9 +42,6 @@ func save(m core.Maroto, name string) (string, error) {
 	if err := doc.Save(path); err != nil {
 		return "", err
 	}
-	tmpFiles.Lock()
-	tmpFiles.m[path] = time.Now()
-	tmpFiles.Unlock()
 	return path, nil
 }
 

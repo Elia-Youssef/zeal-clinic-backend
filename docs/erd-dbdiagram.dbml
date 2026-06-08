@@ -50,14 +50,6 @@ Table versions {
   Note: 'Advertised app builds. Inserted on cloud, synced to locals.'
 }
 
-Table app_state {
-  id int [pk, note: 'always 1']
-  installing bool
-  target_version string
-  updated_at datetime
-  Note: 'Per-machine self-update state. NOT synced.'
-}
-
 // ============================================================
 // ROOMS
 // ============================================================

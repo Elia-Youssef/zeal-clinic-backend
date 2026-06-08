@@ -15,6 +15,7 @@ import (
 func resetCache() {
 	cacheMu.Lock()
 	cache = make(map[string]map[string]*cachedResponse)
+	cacheBytes = 0
 	cacheMu.Unlock()
 }
 
@@ -258,31 +259,25 @@ func TestInvalidateCacheAll_Empties(t *testing.T) {
 
 func TestCacheSize_FormatsBytesKBMB(t *testing.T) {
 	resetCache()
-	// 100 bytes
 	cacheMu.Lock()
-	cache["k"] = map[string]*cachedResponse{"/a": {body: make([]byte, 100)}}
+	cacheBytes = 100
 	cacheMu.Unlock()
-	bytes, label := CacheSize()
-	if bytes != 100 || !strings.HasSuffix(label, " B") {
-		t.Errorf("100B: got %d %q", bytes, label)
+	if b, label := CacheSize(); b != 100 || !strings.HasSuffix(label, " B") {
+		t.Errorf("100B: got %d %q", b, label)
 	}
 
-	// 2 KB
 	cacheMu.Lock()
-	cache["k"]["/b"] = &cachedResponse{body: make([]byte, 2000)}
+	cacheBytes = 2100
 	cacheMu.Unlock()
-	bytes, label = CacheSize()
-	if bytes != 2100 || !strings.HasSuffix(label, " KB") {
-		t.Errorf("KB tier: got %d %q", bytes, label)
+	if b, label := CacheSize(); b != 2100 || !strings.HasSuffix(label, " KB") {
+		t.Errorf("KB tier: got %d %q", b, label)
 	}
 
-	// >1MB
 	cacheMu.Lock()
-	cache["big"] = map[string]*cachedResponse{"/c": {body: make([]byte, 2*1024*1024)}}
+	cacheBytes = 2 * 1024 * 1024
 	cacheMu.Unlock()
-	bytes, label = CacheSize()
-	if !strings.HasSuffix(label, " MB") {
-		t.Errorf("MB tier: got %d %q", bytes, label)
+	if _, label := CacheSize(); !strings.HasSuffix(label, " MB") {
+		t.Errorf("MB tier: got %q", label)
 	}
 }
 
@@ -293,6 +288,7 @@ func TestCacheMiddleware_AutoClearWhenOver30MB(t *testing.T) {
 	// successful GET pushes it over the threshold.
 	cacheMu.Lock()
 	cache["other"] = map[string]*cachedResponse{"/x": {body: make([]byte, 30*1024*1024)}}
+	cacheBytes = 30 * 1024 * 1024
 	cacheMu.Unlock()
 
 	h := func(c echo.Context) error {

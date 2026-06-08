@@ -11,22 +11,9 @@ import (
 )
 
 // RequireScope checks that the authenticated user (set by AuthMiddleware) has the required scope.
-// Scopes are embedded in the JWT token and placed in context by the auth middleware.
+// Scopes are loaded from the user's role row by the auth middleware and placed in context.
 func RequireScope(scope string) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			scopes, ok := c.Get("scopes").([]string)
-			if !ok || len(scopes) == 0 {
-				return c.JSON(http.StatusForbidden, httpx.Response{Error: "You don't have permission"})
-			}
-
-			if slices.Contains(scopes, scope) {
-				return next(c)
-			}
-
-			return c.JSON(http.StatusForbidden, httpx.Response{Error: "You don't have permission"})
-		}
-	}
+	return RequireAnyScope(scope)
 }
 
 // RequireAnyScope passes when the user holds at least one of the given scopes.

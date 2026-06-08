@@ -5,6 +5,7 @@ import (
 
 	mw "clinic-api/internal/api/middleware"
 	"clinic-api/internal/api/routes"
+	"clinic-api/internal/buildmode"
 	"clinic-api/internal/config"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/pdf"
@@ -34,7 +35,7 @@ func CreateServer() *echo.Echo {
 	})
 
 	e.GET("/health", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok", "version": buildmode.Version})
 	})
 
 	e.GET("/robots.txt", func(c echo.Context) error {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -33,6 +34,9 @@ func GetRoleDropdown(c echo.Context) error {
 }
 
 func GetRoleByName(c echo.Context) error {
+	if c.Param("name") == "super-admin" {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Role not found"})
+	}
 	role := store.Role{}
 	if err := role.GetByName(c.Param("name")); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -46,6 +50,10 @@ func GetRoleByName(c echo.Context) error {
 }
 
 func UpdateRole(c echo.Context) error {
+	if c.Param("name") == "super-admin" {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Role not found"})
+	}
+
 	var updates map[string]any
 	if err := c.Bind(&updates); err != nil {
 		log.Println("Error: [UpdateRole] invalid request body:", err)
@@ -58,6 +66,9 @@ func UpdateRole(c echo.Context) error {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [UpdateRole] role not found:", c.Param("name"))
 			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Role not found"})
+		}
+		if errors.Is(err, store.ErrValidation) {
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrValidation.Error()+": ")})
 		}
 		log.Println("Error: [UpdateRole] failed to update role:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update role"})

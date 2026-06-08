@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var passwordRedactor = regexp.MustCompile(`("password"\s*:\s*)"[^"]*"`)
+var passwordRedactor = regexp.MustCompile(`(?i)("(?:\w*password\w*|pin|secret|token)"\s*:\s*)"[^"]*"`)
 
 func AuditLogger() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {

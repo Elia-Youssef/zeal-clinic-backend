@@ -31,12 +31,16 @@ DEV_LDFLAGS   := -X clinic-api/internal/buildmode.Version=$(VERSION)-dev
 DEV_BINARY        := tmp/ZealClinic_dev$(EXE)
 DEV_CLOUD_BINARY  := tmp/ZealClinicCloud_dev$(EXE)
 LOCAL_BINARY      := build/local/output/ZealClinic$(EXE)
+UPDATER_BINARY    := build/local/output/ZealUpdater$(EXE)
 CLOUD_BINARY      := build/cloud/output/ZealClinicCloud-$(VERSION)-linux-amd64
 PKG               := ./cmd/server
+UPDATER_PKG       := ./cmd/updater
+UPDATE_ZIP        := build/local/output/ZealClinicUpdate-$(VERSION).zip
+UPDATE_ZIP_CLOUD  := build/cloud/output/ZealClinicUpdate-$(VERSION)-linux-amd64.zip
 ISCC              ?= ISCC.exe
 FRONTEND          := ../zeal-clinic-frontend
 
-.PHONY: dev dev-seed dev-demo dev-cloud build build-cloud frontend release release-cloud installer deploy clean help
+.PHONY: dev dev-seed dev-demo dev-cloud build build-cloud frontend release release-cloud update-zip update-zip-cloud installer deploy clean help
 
 dev: build
 	$(DEV_BINARY) --dev
@@ -69,17 +73,30 @@ frontend:
 release:
 	$(call MKDIR_P,build/local/output)
 	go build -trimpath -ldflags "$(LDFLAGS)" -o $(LOCAL_BINARY) $(PKG)
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(UPDATER_BINARY) $(UPDATER_PKG)
 
 release-cloud:
 	$(call MKDIR_P,build/cloud/output)
 	$(CLOUD_ENV) go build -tags cloud -trimpath -ldflags "$(CLOUD_LDFLAGS)" -o $(CLOUD_BINARY) $(PKG)
 
+# Self-update zip (app + updater) + .sha256 to publish in the versions row.
+update-zip: release
+	powershell -NoProfile -Command "Compress-Archive -Force -Path '$(LOCAL_BINARY)','$(UPDATER_BINARY)' -DestinationPath '$(UPDATE_ZIP)'"
+	powershell -NoProfile -Command "(Get-FileHash '$(UPDATE_ZIP)' -Algorithm SHA256).Hash.ToLower() | Out-File -NoNewline -Encoding ascii '$(UPDATE_ZIP).sha256'"
+	@echo Wrote $(UPDATE_ZIP)
+
+# Cloud self-update zip: binary renamed to ZealClinic (what the swap expects).
+update-zip-cloud: release-cloud
+	powershell -NoProfile -Command "Copy-Item '$(CLOUD_BINARY)' 'build/cloud/output/ZealClinic' -Force; Compress-Archive -Force -Path 'build/cloud/output/ZealClinic' -DestinationPath '$(UPDATE_ZIP_CLOUD)'; Remove-Item 'build/cloud/output/ZealClinic'"
+	powershell -NoProfile -Command "(Get-FileHash '$(UPDATE_ZIP_CLOUD)' -Algorithm SHA256).Hash.ToLower() | Out-File -NoNewline -Encoding ascii '$(UPDATE_ZIP_CLOUD).sha256'"
+	@echo Wrote $(UPDATE_ZIP_CLOUD)
+
 installer: release
 	$(ISCC) build/local/installer.iss
 
-# Full deploy: build the frontend once, then the cloud release and the
-# Windows installer (which also produces the local release) against it.
-deploy: frontend release-cloud installer
+# Full deploy: build the frontend once, then the cloud release + the Windows
+# installer (which also produces the local release), and both self-update zips.
+deploy: frontend release-cloud installer update-zip update-zip-cloud
 
 clean:
 	-$(call RMDIR_IF,tmp)
@@ -95,8 +112,10 @@ help:
 	@echo "build          - debug build to $(DEV_BINARY)"
 	@echo "build-cloud    - cloud debug build to $(DEV_CLOUD_BINARY)"
 	@echo "frontend       - npm build the frontend and copy dist into client/dist"
-	@echo "release        - prod build to $(LOCAL_BINARY) (needs client/dist)"
+	@echo "release        - prod build (app + updater) to build/local/output (needs client/dist)"
 	@echo "release-cloud  - cloud prod build to $(CLOUD_BINARY) (needs client/dist)"
+	@echo "update-zip     - self-update zip (app + updater) + .sha256"
+	@echo "update-zip-cloud - cloud self-update zip + .sha256"
 	@echo "installer      - release + Inno Setup installer (Windows only)"
-	@echo "deploy         - frontend + release-cloud + installer"
+	@echo "deploy         - frontend + release-cloud + installer + update zips"
 	@echo "clean          - remove build outputs and tmp/"

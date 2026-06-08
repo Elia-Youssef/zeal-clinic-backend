@@ -191,9 +191,50 @@ func TestUpdateRole_ScopesAndNotFound(t *testing.T) {
 	}
 
 	rec = doRequest(t, e, http.MethodPut, "/api/roles/nonexistent",
-		asJSON(t, map[string]any{"scopes": []string{"x"}}), tok)
+		asJSON(t, map[string]any{"scopes": []string{"patients:read"}}), tok)
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", rec.Code)
+	}
+}
+
+func TestUpdateRole_RejectsUnknownScope(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	rec := doRequest(t, e, http.MethodPut, "/api/roles/staff",
+		asJSON(t, map[string]any{"scopes": []string{"patients:read", "patient:read"}}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for unknown scope, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateRole_AdminCantDropManagementScopes(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	rec := doRequest(t, e, http.MethodPut, "/api/roles/admin",
+		asJSON(t, map[string]any{"scopes": []string{"patients:read"}}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRole_SuperAdminNotReachable(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	rec := doRequest(t, e, http.MethodGet, "/api/roles/super-admin", nil, tok)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("GET super-admin: expected 404, got %d", rec.Code)
+	}
+
+	rec = doRequest(t, e, http.MethodPut, "/api/roles/super-admin",
+		asJSON(t, map[string]any{"scopes": []string{"patients:read"}}), tok)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("PUT super-admin: expected 404, got %d", rec.Code)
 	}
 }
 

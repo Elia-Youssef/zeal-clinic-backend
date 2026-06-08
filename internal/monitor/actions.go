@@ -3,6 +3,7 @@ package monitor
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"clinic-api/internal/api/middleware"
@@ -13,23 +14,38 @@ import (
 
 const pdfTTL = 15 * time.Minute
 
+// CleanupPDFCache deletes cached PDFs past the TTL by scanning the tmp dir, so
+// files orphaned by a restart are reclaimed too.
 func CleanupPDFCache() error {
+	dir := pdf.TmpDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
 	deleted := 0
-	for path, created := range pdf.TmpFiles() {
-		if time.Since(created) < pdfTTL {
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".pdf" {
 			continue
 		}
+		info, err := e.Info()
+		if err != nil || time.Since(info.ModTime()) < pdfTTL {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			log.Printf("monitor: failed to delete pdf %q: %v", path, err)
 			continue
 		}
-		pdf.ForgetTmp(path)
 		deleted++
 	}
 	if deleted > 0 {
 		log.Printf("monitor: deleted %d cached pdf(s)", deleted)
 	}
 	return nil
+}
+
+func CleanupExpiredTokens() error {
+	return (&store.Token{}).DeleteExpired()
 }
 
 func ExpireDiscounts() error {

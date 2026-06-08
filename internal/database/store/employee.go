@@ -36,6 +36,7 @@ func (m *Employee) IsValid() error {
 	if msg := validation.Required(m.Role, "Role"); msg != "" {
 		e["role"] = msg
 	}
+	m.Contact = validation.NormalizePhone(m.Contact)
 	if msg := validation.Required(m.Contact, "Contact"); msg != "" {
 		e["contact"] = msg
 	} else if msg := validation.Phone(m.Contact); msg != "" {

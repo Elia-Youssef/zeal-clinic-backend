@@ -25,8 +25,9 @@ func (s *Supplier) IsValid() error {
 	if msg := validation.Required(s.Name, "Name"); msg != "" {
 		e["name"] = msg
 	}
+	s.Contact = validation.NormalizePhone(s.Contact)
 	for v := range strings.SplitSeq(s.Contact, ",") {
-		if msg := validation.Phone(strings.TrimSpace(v)); msg != "" {
+		if msg := validation.Phone(v); msg != "" {
 			e["contact"] = msg
 			break
 		}

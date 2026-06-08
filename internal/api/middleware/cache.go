@@ -16,8 +16,9 @@ type cachedResponse struct {
 }
 
 var (
-	cache   = make(map[string]map[string]*cachedResponse) // key -> uri -> response
-	cacheMu sync.RWMutex
+	cache      = make(map[string]map[string]*cachedResponse) // key -> uri -> response
+	cacheBytes int // running total, avoids walking the map per write
+	cacheMu    sync.RWMutex
 )
 
 func CacheMiddleware(keys ...string) echo.MiddlewareFunc {
@@ -68,15 +69,19 @@ func cacheMiddleware(force bool, keys ...string) echo.MiddlewareFunc {
 			}
 
 			if c.Response().Status >= 200 && c.Response().Status < 400 {
+				body := buf.Bytes()
 				cacheMu.Lock()
 				if cache[primary] == nil {
 					cache[primary] = make(map[string]*cachedResponse)
 				}
-				cache[primary][url] = &cachedResponse{body: buf.Bytes()}
+				if old, ok := cache[primary][url]; ok {
+					cacheBytes -= len(old.body)
+				}
+				cache[primary][url] = &cachedResponse{body: body}
+				cacheBytes += len(body)
+				over := cacheBytes > 30*1024*1024
 				cacheMu.Unlock()
-				size, sizeString := CacheSize()
-				log.Println("Updated cache size:", sizeString)
-				if size > 30*1024*1024 {
+				if over {
 					log.Println("Cache size exceeded 30MB, clearing cache")
 					InvalidateCacheAll()
 				}
@@ -99,8 +104,13 @@ func (c *CustomWriter) Write(b []byte) (int, error) {
 
 func InvalidateCache(key string) {
 	cacheMu.Lock()
-	_, existed := cache[key]
-	delete(cache, key)
+	group, existed := cache[key]
+	if existed {
+		for _, e := range group {
+			cacheBytes -= len(e.body)
+		}
+		delete(cache, key)
+	}
 	cacheMu.Unlock()
 	if existed {
 		log.Println("Invalidated cache:", key)
@@ -110,26 +120,22 @@ func InvalidateCache(key string) {
 func InvalidateCacheAll() {
 	cacheMu.Lock()
 	cache = make(map[string]map[string]*cachedResponse)
+	cacheBytes = 0
 	cacheMu.Unlock()
 }
 
 func CacheSize() (int, string) {
 	cacheMu.RLock()
-	defer cacheMu.RUnlock()
-	bytes := 0
-	for _, group := range cache {
-		for _, entry := range group {
-			bytes += len(entry.body)
-		}
-	}
+	total := cacheBytes
+	cacheMu.RUnlock()
 	var label string
 	switch {
-	case bytes >= 1024*1024:
-		label = fmt.Sprintf("%.2f MB", float64(bytes)/1024/1024)
-	case bytes >= 1024:
-		label = fmt.Sprintf("%.2f KB", float64(bytes)/1024)
+	case total >= 1024*1024:
+		label = fmt.Sprintf("%.2f MB", float64(total)/1024/1024)
+	case total >= 1024:
+		label = fmt.Sprintf("%.2f KB", float64(total)/1024)
 	default:
-		label = fmt.Sprintf("%d B", bytes)
+		label = fmt.Sprintf("%d B", total)
 	}
-	return bytes, label
+	return total, label
 }

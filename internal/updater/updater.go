@@ -1,11 +1,10 @@
-// Package updater implements in-place self-update for the local (Windows) and
-// cloud (Linux) builds. New builds are advertised in the synced `versions`
-// table; applying one downloads the artifact, verifies its SHA-256, and hands
-// off to the platform apply step (Windows: run the installer; Linux: swap the
-// binary and re-exec).
+// Package updater implements health-gated self-update with rollback. Windows
+// hands off to an external swapper (cmd/updater); Linux swaps in place and
+// re-execs (trial boot). Recovery state lives in updatestate, not the DB.
 package updater
 
 import (
+	"archive/zip"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -24,6 +23,7 @@ import (
 	"clinic-api/internal/config"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/tracking"
+	"clinic-api/internal/updater/updatestate"
 )
 
 var (
@@ -31,14 +31,13 @@ var (
 	ErrNoUpdate          = errors.New("no update available")
 )
 
-// installing gates the API surface while this node downloads and swaps its binary.
+// installing gates the API while this node downloads and stages a build.
 var installing atomic.Bool
 
 func IsInstalling() bool { return installing.Load() }
 
 var dlClient = &http.Client{Timeout: 10 * time.Minute}
 
-// Platform matches versions.platform for this build.
 func Platform() string { return runtime.GOOS }
 
 type Status struct {
@@ -49,8 +48,6 @@ type Status struct {
 	Installing bool   `json:"installing"`
 }
 
-// GetStatus reports whether a newer build is advertised for this platform.
-// Dev builds never report an update.
 func GetStatus() (Status, error) {
 	st := Status{Current: buildmode.Version, Installing: IsInstalling()}
 	v, err := store.LatestVersion(Platform())
@@ -66,8 +63,7 @@ func GetStatus() (Status, error) {
 	return st, nil
 }
 
-// Start raises the gate, records the target, and runs the download + apply
-// asynchronously. The apply step normally ends the process.
+// Start runs the download + apply asynchronously; apply normally ends the process.
 func Start() error {
 	v, err := store.LatestVersion(Platform())
 	if err != nil {
@@ -78,10 +74,6 @@ func Start() error {
 	}
 	if !installing.CompareAndSwap(false, true) {
 		return ErrAlreadyInstalling
-	}
-	if err := store.SetInstalling(v.Version); err != nil {
-		installing.Store(false)
-		return err
 	}
 	log.Printf("[update] starting update %s -> %s (%s)", buildmode.Version, v.Version, v.Platform)
 	go run(v)
@@ -99,73 +91,147 @@ func run(v store.Version) {
 		fail("download", errors.New("update url must be https"))
 		return
 	}
-	dest, err := download(v.URL)
+	zipPath, err := download(v.URL)
 	if err != nil {
 		fail("download", err)
 		return
 	}
-	if err := verifySHA256(dest, v.SHA256); err != nil {
+	if err := verifySHA256(zipPath, v.SHA256); err != nil {
 		fail("verify", err)
 		return
 	}
-	log.Printf("[update] downloaded %s, applying", v.Version)
-	if err := applyUpdate(dest); err != nil {
+	if err := unzip(zipPath, stagingDir()); err != nil {
+		fail("unzip", err)
+		return
+	}
+
+	exe, err := appExePath()
+	if err != nil {
 		fail("apply", err)
+		return
+	}
+	st := updatestate.State{
+		Phase:      updatestate.Applying,
+		From:       buildmode.Version,
+		Target:     v.Version,
+		AppExe:     exe,
+		DBPath:     dbPath(),
+		StagingDir: stagingDir(),
+		BackupExe:  exe + ".bak",
+		DBSnapshot: dbPath() + ".snap",
+		ZipPath:    zipPath,
+		Port:       config.Current().Port,
+		PID:        os.Getpid(),
+	}
+	if err := updatestate.Write(statePath(), st); err != nil {
+		fail("state", err)
+		return
+	}
+
+	log.Printf("[update] staged %s, applying", v.Version)
+	if err := applyUpdate(st); err != nil {
+		fail("apply", err)
+		cleanupArtifacts(st)
+		_ = updatestate.Clear(statePath())
+		recoverFromFailedApply() // linux exits (systemd restarts); windows no-op
 	}
 }
 
-// fail clears the flag and reopens the API after an aborted update.
 func fail(stage string, err error) {
 	log.Printf("[update] %s failed: %v", stage, err)
 	tracking.CaptureError(nil, fmt.Errorf("[update] %s: %w", stage, err))
-	if cerr := store.ClearInstalling(); cerr != nil {
-		log.Printf("[update] clear installing flag: %v", cerr)
-	}
 	installing.Store(false)
 }
 
-// FinalizeOnBoot confirms an update after a restart and clears the flag. It
-// always clears, so a failed swap can't leave the API gated.
-func FinalizeOnBoot() {
-	st, err := store.GetAppState()
+// ReconcileBoot (pre-DB, linux) promotes a trial boot or rolls back an unconfirmed one. No-op on Windows.
+func ReconcileBoot() { reconcileBoot() }
+
+// ConfirmStartup (post-server, linux) marks a surviving trial build healthy. No-op on Windows.
+func ConfirmStartup() { confirmStartup() }
+
+// FinalizeOnBoot reconciles a finished/interrupted update from the state file.
+// postUpdate means the swapper just relaunched us, so a still-Applying state is normal.
+func FinalizeOnBoot(postUpdate bool) {
+	sp := statePath()
+	st, err := updatestate.Read(sp)
 	if err != nil {
-		log.Printf("[update] read app_state: %v", err)
+		log.Printf("[update] read state: %v", err)
 		return
 	}
-	if !st.Installing {
-		return
-	}
-	if buildmode.Version == st.TargetVersion {
+	switch st.Phase {
+	case updatestate.Success:
 		log.Printf("[update] update to %s applied", buildmode.Version)
 		tracking.Info(nil, "[update] applied "+buildmode.Version)
-	} else {
-		tracking.CaptureError(nil, fmt.Errorf("[update] post-update mismatch: running %s, expected %s", buildmode.Version, st.TargetVersion))
+		cleanupArtifacts(st)
+		_ = updatestate.Clear(sp)
+	case updatestate.Failed:
+		log.Printf("[update] update to %s failed, rolled back to %s: %s", st.Target, st.From, st.Error)
+		tracking.CaptureError(nil, fmt.Errorf("[update] rolled back to %s after failed update to %s: %s", st.From, st.Target, st.Error))
+		cleanupArtifacts(st)
+		_ = updatestate.Clear(sp)
+	case updatestate.Applying:
+		// Applying on a non-post-update boot means the swapper died mid-update; reconcile so we don't stick.
+		if postUpdate {
+			return
+		}
+		if buildmode.Version == st.Target {
+			log.Printf("[update] recovered interrupted update to %s", buildmode.Version)
+			tracking.Info(nil, "[update] applied "+buildmode.Version+" (recovered)")
+		} else {
+			log.Printf("[update] update to %s interrupted; still on %s", st.Target, buildmode.Version)
+			tracking.CaptureError(nil, fmt.Errorf("[update] interrupted update to %s, running %s", st.Target, buildmode.Version))
+		}
+		cleanupArtifacts(st)
+		_ = updatestate.Clear(sp)
 	}
-	if err := store.ClearInstalling(); err != nil {
-		log.Printf("[update] clear installing flag: %v", err)
-	}
-	cleanupBackups()
 }
 
-func cleanupBackups() {
-	if exe, err := os.Executable(); err == nil {
-		_ = os.Remove(exe + ".old")
+func cleanupArtifacts(st updatestate.State) {
+	for _, p := range []string{st.BackupExe, st.DBSnapshot, st.ZipPath, runnerPath()} {
+		if p != "" {
+			_ = os.Remove(p)
+		}
+	}
+	if st.StagingDir != "" {
+		_ = os.RemoveAll(st.StagingDir)
 	}
 }
 
-// downloadDir is separate from pdf.TmpDir() so the artifact isn't served by /files/*.
+// checkpointAndCloseDB flushes the WAL and closes the DB so the snapshot is consistent.
+func checkpointAndCloseDB() {
+	if store.RDB != nil {
+		_ = store.RDB.Close()
+	}
+	if store.DB != nil {
+		_, _ = store.DB.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+		_ = store.DB.Close()
+	}
+}
+
 func downloadDir() string {
 	dir := filepath.Join(config.DataDir(), "update")
 	_ = os.MkdirAll(dir, 0700)
 	return dir
 }
 
-func download(url string) (string, error) {
-	name := "ZealClinic.new"
-	if Platform() == "windows" {
-		name = "ZealClinicSetup.exe"
+func statePath() string  { return filepath.Join(downloadDir(), "state.json") }
+func stagingDir() string { return filepath.Join(downloadDir(), "staging") }
+func runnerPath() string { return filepath.Join(downloadDir(), "runner.exe") }
+func dbPath() string     { return filepath.Join(config.DataDir(), "clinic.db") }
+
+func appExePath() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
 	}
-	dest := filepath.Join(downloadDir(), name)
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	return exe, nil
+}
+
+func download(url string) (string, error) {
+	dest := filepath.Join(downloadDir(), "ZealClinicUpdate.zip")
 
 	resp, err := dlClient.Get(url)
 	if err != nil {
@@ -207,7 +273,48 @@ func verifySHA256(path, expected string) error {
 	return nil
 }
 
-// postUpdateArgs returns the relaunch args with --post-update ensured.
+// unzip extracts a flat archive into a freshly emptied dest.
+func unzip(src, dest string) error {
+	if err := os.RemoveAll(dest); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		return err
+	}
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		if err := extractZipFile(f, filepath.Join(dest, filepath.Base(f.Name))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func extractZipFile(f *zip.File, target string) error {
+	rc, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, rc); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
+}
+
 func postUpdateArgs() []string {
 	args := append([]string(nil), os.Args[1:]...)
 	for _, a := range args {

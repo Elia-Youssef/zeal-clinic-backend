@@ -32,15 +32,14 @@ func GetUpdateStatus(c echo.Context) error {
 func StartUpdate(c echo.Context) error {
 	cfg := config.Current()
 
-	// Flush while both still share a version: once either updates, push/pull are
-	// version-gated, so both must start from a synced slate. Abort if it fails.
-	if err := syncpkg.RunNow(c.Request().Context()); err != nil {
-		log.Println("Error: [StartUpdate] pre-update sync failed:", err)
-		return c.JSON(http.StatusBadGateway, httpx.Response{Error: "Sync failed, update canceled"})
-	}
-
 	var peerWarn string
-	if cfg.PeerURL != "" {
+	// Flush + trigger the cloud only with a live, version-compatible sync link
+	// (SSE up); offline/standalone/version-gated locals must still be updatable.
+	if syncpkg.IsCloudConnected() {
+		if err := syncpkg.RunNow(c.Request().Context()); err != nil {
+			log.Println("Error: [StartUpdate] pre-update sync failed:", err)
+			return c.JSON(http.StatusBadGateway, httpx.Response{Error: "Sync failed, update canceled"})
+		}
 		if err := triggerPeerUpdate(cfg); err != nil {
 			peerWarn = "cloud update trigger failed: " + err.Error()
 			log.Println("Error: [StartUpdate]", peerWarn)

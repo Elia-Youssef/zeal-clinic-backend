@@ -65,35 +65,3 @@ func (v *Version) Create() error {
 		v.ID, v.Version, v.Platform, v.URL, v.SHA256, v.Notes, v.CreatedAt)
 	return err
 }
-
-// AppState is this machine's single-row self-update state (never synced).
-type AppState struct {
-	Installing    bool   `json:"installing"`
-	TargetVersion string `json:"targetVersion"`
-	UpdatedAt     Date   `json:"updatedAt"`
-}
-
-func GetAppState() (AppState, error) {
-	var s AppState
-	var installing int
-	err := RDB.QueryRow(`SELECT installing, target_version, updated_at FROM app_state WHERE id = 1`).
-		Scan(&installing, &s.TargetVersion, &s.UpdatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return AppState{}, nil
-	}
-	s.Installing = installing != 0
-	return s, err
-}
-
-func SetInstalling(target string) error {
-	_, err := DB.Exec(
-		`UPDATE app_state SET installing = 1, target_version = ?, updated_at = ? WHERE id = 1`,
-		target, DateNow())
-	return err
-}
-
-func ClearInstalling() error {
-	_, err := DB.Exec(
-		`UPDATE app_state SET installing = 0, updated_at = ? WHERE id = 1`, DateNow())
-	return err
-}

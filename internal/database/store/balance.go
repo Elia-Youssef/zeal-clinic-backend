@@ -4,8 +4,6 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
-
-	"github.com/google/uuid"
 )
 
 type Balance struct {
@@ -77,7 +75,11 @@ func (b *Balance) GetOrCreate() error {
 		b.CurrencyID = USDCurrencyID
 	}
 	now := DateNow()
-	id := uuid.Must(uuid.NewV7()).String()
+	entityID := ""
+	if b.EntityID != nil {
+		entityID = *b.EntityID
+	}
+	id := balanceID(b.EntityType, entityID, b.CurrencyID)
 	// INSERT OR IGNORE avoids race conditions with the UNIQUE(entity_type, entity_id, currency_id) constraint
 	_, err := DB.Exec(`INSERT OR IGNORE INTO balances (`+balanceColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?)`,
 		id, b.EntityType, b.EntityID, b.EntityName, b.CurrencyID, 0, 0, 0, now, now)

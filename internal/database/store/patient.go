@@ -53,6 +53,7 @@ func (p *Patient) IsValid() error {
 	} else if msg := validation.Date(string(p.DateOfBirth)); msg != "" {
 		e["dateOfBirth"] = msg
 	}
+	p.Contact = validation.NormalizePhone(p.Contact)
 	if msg := validation.Required(p.Contact, "Contact phone"); msg != "" {
 		e["contact"] = msg
 	} else if msg := validation.Phone(p.Contact); msg != "" {

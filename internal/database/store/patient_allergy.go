@@ -4,8 +4,6 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
-
-	"github.com/google/uuid"
 )
 
 // Patient Allergy
@@ -73,7 +71,7 @@ func (pa *PatientAllergyList) GetByPatient(patientID string, params ListParams) 
 }
 
 func (pa *PatientAllergy) Create() error {
-	pa.ID = uuid.Must(uuid.NewV7()).String()
+	pa.ID = DeterministicID("patient_allergies", pa.PatientID, pa.AllergyID)
 	pa.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO patient_allergies (id, patient_id, allergy_id, notes, created_at) VALUES (?,?,?,?,?)`,
 		pa.ID, pa.PatientID, pa.AllergyID, pa.Notes, pa.CreatedAt)

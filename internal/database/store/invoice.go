@@ -432,7 +432,7 @@ func resolvePatientBalanceWithTx(tx *sql.Tx, patientID, currencyID string) (*Bal
 		return nil, fmt.Errorf("patient %s: %w", patientID, err)
 	}
 	now := DateNow()
-	id := uuid.Must(uuid.NewV7()).String()
+	id := balanceID("patient", patientID, currencyID)
 	if _, err := tx.Exec(`INSERT OR IGNORE INTO balances (`+balanceColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?)`,
 		id, "patient", patientID, firstName+" "+lastName, currencyID, 0, 0, 0, now, now); err != nil {
 		return nil, err

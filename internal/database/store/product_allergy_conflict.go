@@ -4,8 +4,6 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
-
-	"github.com/google/uuid"
 )
 
 // Product Allergy Conflict
@@ -74,7 +72,7 @@ func (c *ProductAllergyConflictList) GetByProduct(productID string, params ListP
 }
 
 func (c *ProductAllergyConflict) Create() error {
-	c.ID = uuid.Must(uuid.NewV7()).String()
+	c.ID = DeterministicID("product_allergy_conflicts", c.ProductID, c.AllergyID)
 	c.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO product_allergy_conflicts (id, product_id, allergy_id, notes, created_at) VALUES (?,?,?,?,?)`,
 		c.ID, c.ProductID, c.AllergyID, c.Notes, c.CreatedAt)

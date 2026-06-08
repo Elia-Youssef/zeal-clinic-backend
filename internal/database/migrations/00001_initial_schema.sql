@@ -55,15 +55,6 @@ CREATE TABLE IF NOT EXISTS versions (
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
--- app_state: per-machine, single-row, NOT synced. Tracks an in-progress self-update.
-CREATE TABLE IF NOT EXISTS app_state (
-    id             INTEGER PRIMARY KEY CHECK(id = 1),
-    installing     INTEGER NOT NULL DEFAULT 0,
-    target_version TEXT NOT NULL DEFAULT '',
-    updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-INSERT OR IGNORE INTO app_state (id) VALUES (1);
-
 -- ============================================================
 -- ROOMS
 -- ============================================================
@@ -644,11 +635,16 @@ CREATE TABLE IF NOT EXISTS _sync_applying (
 );
 INSERT OR IGNORE INTO _sync_applying(rowid, applying) VALUES (1, 0);
 
+-- Range-scan indexes for analytics/reports.
+CREATE INDEX IF NOT EXISTS idx_appointments_start_time ON appointments(start_time);
+CREATE INDEX IF NOT EXISTS idx_patients_created_at ON patients(created_at);
+CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at);
+CREATE INDEX IF NOT EXISTS idx_balance_transactions_created_at ON balance_transactions(created_at);
+
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS app_state;
 DROP TABLE IF EXISTS versions;
 DROP TABLE IF EXISTS sync_conflicts;
 DROP TABLE IF EXISTS sync_state;

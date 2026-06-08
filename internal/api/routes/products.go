@@ -13,7 +13,7 @@ func SetupProductRoutes(api *echo.Group) {
 	api.GET("/products/:id/invoices", handlers.GetProductInvoices, scope("products:read"))
 	api.GET("/products/:id/prices", handlers.GetProductPrices, scope("products:read"))
 	api.POST("/products", handlers.CreateProduct, scope("products:write"), cache("products", "analytics"))
-	// Discount items reference product names; bust discounts on edit/delete.
-	api.PUT("/products/:id", handlers.UpdateProduct, scope("products:write"), cache("products", "discounts", "analytics"))
-	api.DELETE("/products/:id", handlers.DeleteProduct, scope("products:delete"), cache("products", "discounts", "analytics"))
+	// names show in discounts + reports
+	api.PUT("/products/:id", handlers.UpdateProduct, scope("products:write"), cache("products", "discounts", "analytics", "reports"))
+	api.DELETE("/products/:id", handlers.DeleteProduct, scope("products:delete"), cache("products", "discounts", "analytics", "reports"))
 }
