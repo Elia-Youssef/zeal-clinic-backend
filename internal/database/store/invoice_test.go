@@ -171,6 +171,35 @@ func TestInvoice_Create_InvoiceDiscount_Percentage(t *testing.T) {
 	}
 }
 
+func TestInvoice_Create_RejectsInactiveOffer(t *testing.T) {
+	setupTestDB(t)
+	cur := seededCurrency(t)
+	self := seededSelfBalance(t, cur.ID)
+	pat := makePatient(t, "Inactive", "Offer", "9990003")
+	pb := patientBalance(t, pat.ID, cur.ID)
+
+	d := Discount{Name: "inactive", DiscountType: "offer", ValueType: "percentage", Value: 10, IsActive: 1}
+	if err := d.Create(); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Update(map[string]any{"isActive": 0}); err != nil {
+		t.Fatal(err)
+	}
+
+	inv := Invoice{
+		FromBalanceID: pb.ID, ToBalanceID: self.ID, CurrencyID: cur.ID,
+		DiscountID: d.ID,
+		Items:      InvoiceItemList{{ItemType: "other", Quantity: 1, Amount: 100}},
+	}
+	err := inv.Create()
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("Create error = %v, want ErrValidation", err)
+	}
+	if n := countRows(t, "invoices", "id = ?", inv.ID); n != 0 {
+		t.Errorf("inactive discount invoice persisted: %d rows", n)
+	}
+}
+
 // Invoice-level fixed offer caps at the invoice gross amount.
 func TestInvoice_Create_InvoiceDiscount_FixedCappedAtAmount(t *testing.T) {
 	setupTestDB(t)
@@ -334,6 +363,89 @@ func TestInvoice_Create_SupplierInvoice_AddsProductStock(t *testing.T) {
 	}
 	if got := productQuantity(t, prod.ID); got != preStock+7 {
 		t.Errorf("stock = %d want %d", got, preStock+7)
+	}
+}
+
+func TestInvoice_Delete_SupplierInvoiceRestoresStock(t *testing.T) {
+	setupTestDB(t)
+	cur := seededCurrency(t)
+	self := seededSelfBalance(t, cur.ID)
+
+	supID := "sup-delete-safe"
+	supplier := Balance{EntityType: "supplier", EntityID: &supID, EntityName: "Safe Supplier", CurrencyID: cur.ID}
+	if err := supplier.GetOrCreate(); err != nil {
+		t.Fatal(err)
+	}
+	product := makeProductWithStock(t, "Safe Stock", 4, 5)
+
+	inv := Invoice{
+		FromBalanceID: supplier.ID,
+		ToBalanceID:   self.ID,
+		CurrencyID:    cur.ID,
+		Items: InvoiceItemList{
+			{ItemType: "product", ItemID: product.ID, Quantity: 6, Amount: 30},
+		},
+	}
+	if err := inv.Create(); err != nil {
+		t.Fatal(err)
+	}
+	if got := productQuantity(t, product.ID); got != 10 {
+		t.Fatalf("stock after create = %d want 10", got)
+	}
+
+	if err := inv.Delete(); err != nil {
+		t.Fatal(err)
+	}
+	if got := productQuantity(t, product.ID); got != 4 {
+		t.Errorf("stock after delete = %d want 4", got)
+	}
+	if n := countRows(t, "invoices", "id = ? AND voided_at != ''", inv.ID); n != 1 {
+		t.Errorf("invoice was not voided")
+	}
+}
+
+func TestInvoice_Delete_SupplierInvoiceRejectsNegativeAggregateStock(t *testing.T) {
+	setupTestDB(t)
+	cur := seededCurrency(t)
+	self := seededSelfBalance(t, cur.ID)
+
+	supID := "sup-delete-blocked"
+	supplier := Balance{EntityType: "supplier", EntityID: &supID, EntityName: "Blocked Supplier", CurrencyID: cur.ID}
+	if err := supplier.GetOrCreate(); err != nil {
+		t.Fatal(err)
+	}
+	product := makeProductWithStock(t, "Consumed Stock", 0, 5)
+
+	// Duplicate lines deliberately exercise aggregate validation: current
+	// stock 6 can cover either line alone, but not the combined reversal of 7.
+	inv := Invoice{
+		FromBalanceID: supplier.ID,
+		ToBalanceID:   self.ID,
+		CurrencyID:    cur.ID,
+		Items: InvoiceItemList{
+			{ItemType: "product", ItemID: product.ID, Quantity: 3, Amount: 15},
+			{ItemType: "product", ItemID: product.ID, Quantity: 4, Amount: 20},
+		},
+	}
+	if err := inv.Create(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`UPDATE products SET quantity = 6 WHERE id = ?`, product.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	err := inv.Delete()
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("Delete error = %v, want ErrConflict", err)
+	}
+	if got := productQuantity(t, product.ID); got != 6 {
+		t.Errorf("stock changed after rejected delete: got %d want 6", got)
+	}
+	if n := countRows(t, "invoices", "id = ? AND voided_at = ''", inv.ID); n != 1 {
+		t.Errorf("invoice should remain active")
+	}
+	if n := countRows(t, "balance_transactions", "source_type = 'invoice' AND source_id = ? AND voided_at = ''", inv.ID); n != 1 {
+		t.Errorf("invoice charge should remain active")
 	}
 }
 

@@ -53,6 +53,27 @@ func TestListParams_FilterClause(t *testing.T) {
 		}
 	})
 
+	t.Run("multi-word filter ANDs token groups, order-independent", func(t *testing.T) {
+		lp := ListParams{Filter: "jaden smith"}
+		c, a := lp.FilterClause("first_name", "last_name")
+		want := `(first_name LIKE ? ESCAPE '\' OR last_name LIKE ? ESCAPE '\') AND ` +
+			`(first_name LIKE ? ESCAPE '\' OR last_name LIKE ? ESCAPE '\')`
+		if c != want {
+			t.Errorf("clause = %q want %q", c, want)
+		}
+		if len(a) != 4 || a[0] != "%jaden%" || a[2] != "%smith%" {
+			t.Errorf("args = %v", a)
+		}
+	})
+
+	t.Run("whitespace-only filter returns empty clause", func(t *testing.T) {
+		lp := ListParams{Filter: "   "}
+		c, a := lp.FilterClause("name")
+		if c != "" || a != nil {
+			t.Errorf("clause = %q args = %v want empty/nil", c, a)
+		}
+	})
+
 	t.Run("filter escapes LIKE wildcards so they match literally", func(t *testing.T) {
 		// %, _ and \ are escaped with a backslash; the clause declares ESCAPE '\'
 		// so the search matches the literal characters instead of wildcards.

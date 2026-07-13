@@ -15,13 +15,15 @@ import (
 	_ "github.com/ncruces/go-sqlite3/vfs/adiantum"
 )
 
+const encryptionKey = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
 func Open(pathOverride string) (*sql.DB, error) {
 	path := pathOverride
 	if path == "" {
 		path = defaultDBPath()
 	}
 	dbPath := resolveSQLitePath(path)
-	dsn := buildDSN(dbPath, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+	dsn := buildDSN(dbPath, encryptionKey)
 
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {

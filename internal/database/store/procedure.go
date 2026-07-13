@@ -40,6 +40,10 @@ const procedureSelect = `SELECT p.id, p.name, p.type_id, p.category_id,
 	FROM procedures p
 	LEFT JOIN procedure_prices pp ON pp.procedure_id = p.id AND pp.is_active = 1`
 
+const procedureCategoryJoins = `
+	LEFT JOIN procedure_categories c ON c.id = p.category_id
+	LEFT JOIN procedure_categories pc ON pc.id = c.parent_id`
+
 type ProcedureList []Procedure
 
 func (m *Procedure) ScanRow(row *sql.Row) error {
@@ -93,13 +97,14 @@ func (p *Procedure) loadRelations() {
 func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []any
-	if fc, fa := params.FilterClause("name", "remarks", "includes", "price_note"); fc != "" {
+	if fc, fa := params.FilterClause("p.name", "p.remarks", "p.includes", "p.price_note", "c.name", "pc.name"); fc != "" {
 		where = " WHERE " + fc
 		args = fa
 	}
 
 	var total int
-	if err := RDB.QueryRow("SELECT COUNT(*) FROM procedures"+where, args...).Scan(&total); err != nil {
+	countQuery := `SELECT COUNT(*) FROM procedures p` + procedureCategoryJoins + where
+	if err := RDB.QueryRow(countQuery, args...).Scan(&total); err != nil {
 		return 0, err
 	}
 
@@ -112,7 +117,7 @@ func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 		"createdAt":  "p.created_at",
 		"updatedAt":  "p.updated_at",
 	}, "p.name")
-	query := procedureSelect + where + order + params.PaginationClause()
+	query := procedureSelect + procedureCategoryJoins + where + order + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return 0, err
@@ -134,10 +139,10 @@ func (p *ProcedureList) GetAll(params ListParams) (int, error) {
 }
 
 func GetProcedureDropdown(params ListParams) ([]DropdownItem, error) {
-	where := ""
+	where := " WHERE p.is_active = 1"
 	var args []any
 	if fc, fa := params.FilterClause("p.name", "c.name", "pc.name"); fc != "" {
-		where = " WHERE " + fc
+		where += " AND " + fc
 		args = fa
 	}
 	query := `SELECT p.id, p.name, COALESCE(c.name, ''), COALESCE(pc.name, '')

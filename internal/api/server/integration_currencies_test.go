@@ -55,17 +55,18 @@ func TestUpdateCurrency_Success(t *testing.T) {
 	decodeEnvelope(t, rec.Body, &c)
 
 	rec = doRequest(t, e, http.MethodPut, "/api/currencies/"+c.ID,
-		asJSON(t, map[string]any{"id": "stripped", "name": "AlphaX", "exchangeRate": 2.5}), tok)
+		asJSON(t, map[string]any{"id": "stripped", "code": "BBB", "name": "AlphaX", "exchangeRate": 2.5}), tok)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("update: %d body=%s", rec.Code, rec.Body.String())
 	}
 	var got struct {
 		ID           string
+		Code         string
 		Name         string
 		ExchangeRate float64
 	}
 	decodeEnvelope(t, rec.Body, &got)
-	if got.Name != "AlphaX" || got.ExchangeRate != 2.5 {
+	if got.Code != "AAA" || got.Name != "AlphaX" || got.ExchangeRate != 2.5 {
 		t.Errorf("got %+v", got)
 	}
 	if got.ID != c.ID {

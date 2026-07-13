@@ -7,6 +7,7 @@ import (
 	"clinic-api/internal/tracking"
 	"clinic-api/internal/validation"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -67,6 +68,14 @@ func CreateClientInvoice(c echo.Context) error {
 	if len(req.Items) == 0 {
 		errs["items"] = "At least one item is required"
 	}
+	for i, item := range req.Items {
+		if msg := validation.Positive(float64(item.Quantity), "Quantity"); msg != "" {
+			errs[fmt.Sprintf("items[%d].quantity", i)] = msg
+		}
+		if msg := validation.Positive(item.Amount, "Price"); msg != "" {
+			errs[fmt.Sprintf("items[%d].amount", i)] = msg
+		}
+	}
 	if len(errs) > 0 {
 		tracking.Warn(c, "[CreateClientInvoice] validation failed")
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
@@ -122,6 +131,8 @@ func CreateClientInvoice(c echo.Context) error {
 	}
 	if err := inv.Create(); errors.Is(err, store.ErrConflict) {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
+	} else if errors.Is(err, store.ErrValidation) {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrValidation.Error()+": ")})
 	} else if err != nil {
 		log.Println("Error: CreateClientInvoice:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create invoice"})

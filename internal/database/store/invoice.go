@@ -205,11 +205,15 @@ func (inv *Invoice) Create() error {
 	if inv.DiscountID != "" {
 		var dType, vType string
 		var value float64
-		if err := tx.QueryRow(`SELECT discount_type, value_type, value FROM discounts WHERE id = ?`, inv.DiscountID).Scan(&dType, &vType, &value); err != nil {
+		var isActive int
+		if err := tx.QueryRow(`SELECT discount_type, value_type, value, is_active FROM discounts WHERE id = ?`, inv.DiscountID).Scan(&dType, &vType, &value, &isActive); err != nil {
 			return fmt.Errorf("discount %s: %w", inv.DiscountID, err)
 		}
 		if dType != "offer" {
 			return fmt.Errorf("invoice discount must be of type 'offer', got %q", dType)
+		}
+		if isActive != 1 {
+			return fmt.Errorf("%w: Discount is inactive", ErrValidation)
 		}
 		var dv float64
 		if vType == "percentage" {
@@ -787,7 +791,9 @@ func (inv *Invoice) Delete() error {
 	fromEntityType := bal.GetEntityType(fromBalance, tx)
 	toEntityType := bal.GetEntityType(toBalance, tx)
 
-	// Walk items to reverse stock and identify gift discounts to delete.
+	// Collect stock reversals and identify gift discounts to delete. Product
+	// deltas are aggregated because the same product can appear on multiple
+	// invoice lines.
 	rows, err := tx.Query(`SELECT id, item_type, item_id, quantity FROM invoice_items WHERE invoice_id = ?`, inv.ID)
 	if err != nil {
 		return err
@@ -808,6 +814,7 @@ func (inv *Invoice) Delete() error {
 	rows.Close()
 
 	var giftIDs []string
+	productDeltas := make(map[string]int)
 	for _, it := range items {
 		if it.itemType == "product" && it.itemID != "" {
 			var delta int
@@ -818,13 +825,47 @@ func (inv *Invoice) Delete() error {
 				delta += it.quantity
 			}
 			if delta != 0 {
-				if _, err := tx.Exec(`UPDATE products SET quantity = quantity + ? WHERE id = ?`, delta, it.itemID); err != nil {
-					return fmt.Errorf("reverse product quantity: %w", err)
-				}
+				productDeltas[it.itemID] += delta
 			}
 		}
 		if it.itemType == "gift" && it.itemID != "" {
 			giftIDs = append(giftIDs, it.itemID)
+		}
+	}
+
+	// Validate every outgoing reversal before changing stock. Supplier invoice
+	// deletion removes the quantities originally received; if some of that
+	// stock has since been consumed, the invoice must remain intact.
+	for productID, delta := range productDeltas {
+		if delta >= 0 {
+			continue
+		}
+		var name string
+		var quantity int
+		if err := tx.QueryRow(`SELECT name, quantity FROM products WHERE id = ?`, productID).Scan(&name, &quantity); err != nil {
+			return fmt.Errorf("check product stock: %w", err)
+		}
+		if quantity+delta < 0 {
+			return fmt.Errorf("%w: Deleting this invoice would make stock for %q negative (have %d, would remove %d)",
+				ErrConflict, name, quantity, -delta)
+		}
+	}
+
+	for productID, delta := range productDeltas {
+		res, err := tx.Exec(`UPDATE products
+			SET quantity = quantity + ?
+			WHERE id = ? AND (? >= 0 OR quantity + ? >= 0)`, delta, productID, delta, delta)
+		if err != nil {
+			return fmt.Errorf("reverse product quantity: %w", err)
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			var name string
+			var quantity int
+			if err := tx.QueryRow(`SELECT name, quantity FROM products WHERE id = ?`, productID).Scan(&name, &quantity); err != nil {
+				return fmt.Errorf("check product stock: %w", err)
+			}
+			return fmt.Errorf("%w: Deleting this invoice would make stock for %q negative (have %d, would remove %d)",
+				ErrConflict, name, quantity, -delta)
 		}
 	}
 

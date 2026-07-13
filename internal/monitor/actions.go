@@ -4,15 +4,24 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"clinic-api/internal/api/middleware"
+	"clinic-api/internal/config"
+	"clinic-api/internal/database"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/pdf"
 	"clinic-api/internal/realtime"
 )
 
 const pdfTTL = 15 * time.Minute
+
+// backupKeep is how many DB snapshots to retain (~3 days at the 3h cadence).
+const backupKeep = 24
+
+var lastBackupMod time.Time
 
 // CleanupPDFCache deletes cached PDFs past the TTL by scanning the tmp dir, so
 // files orphaned by a restart are reclaimed too.
@@ -46,6 +55,47 @@ func CleanupPDFCache() error {
 
 func CleanupExpiredTokens() error {
 	return (&store.Token{}).DeleteExpired()
+}
+
+func BackupDatabase() error {
+	mod, err := database.LiveModTime()
+	if err != nil {
+		return err
+	}
+	if !mod.After(lastBackupMod) {
+		return nil // nothing written since the last snapshot
+	}
+	dir := config.BackupDir()
+	path, err := database.Snapshot(dir)
+	if err != nil {
+		return err
+	}
+	lastBackupMod = mod
+	pruneBackups(dir, backupKeep)
+	log.Printf("monitor: db backup -> %s", path)
+	return nil
+}
+
+func pruneBackups(dir string, keep int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasPrefix(e.Name(), "clinic-") && strings.HasSuffix(e.Name(), ".db") {
+			names = append(names, e.Name())
+		}
+	}
+	if len(names) <= keep {
+		return
+	}
+	sort.Strings(names)
+	for _, n := range names[:len(names)-keep] {
+		if err := os.Remove(filepath.Join(dir, n)); err != nil && !os.IsNotExist(err) {
+			log.Printf("monitor: failed to delete backup %q: %v", n, err)
+		}
+	}
 }
 
 func ExpireDiscounts() error {
@@ -161,4 +211,3 @@ func formatBeirutTime(stored string) string {
 	}
 	return t.In(store.ClinicLocation()).Format("15:04")
 }
-

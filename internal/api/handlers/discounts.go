@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/validation"
 	"errors"
 	"log"
 	"net/http"
@@ -109,6 +110,10 @@ func UpdateDiscount(c echo.Context) error {
 	if err := d.Update(updates); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Discount not found"})
+		}
+		var validationErr validation.Errors
+		if errors.As(err, &validationErr) {
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 		}
 		log.Println("Error: [UpdateDiscount]:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update discount"})

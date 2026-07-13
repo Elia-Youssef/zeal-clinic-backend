@@ -152,7 +152,7 @@ func (cur *Currency) Create() error {
 
 func (cur *Currency) Update(updates map[string]any) error {
 	cols := map[string]string{
-		"code": "code", "name": "name", "symbol": "symbol", "exchangeRate": "exchange_rate",
+		"name": "name", "symbol": "symbol", "exchangeRate": "exchange_rate",
 	}
 	setClauses := ""
 	var args []any

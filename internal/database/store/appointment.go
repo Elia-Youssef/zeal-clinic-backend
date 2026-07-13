@@ -373,10 +373,11 @@ func (a *Appointment) Create() error {
 }
 
 func (a *Appointment) Update(updates map[string]any) error {
+	delete(updates, "patientId")
 	procedures, hasProcedures := parseProceduresUpdate(updates)
 
 	cols := map[string]string{
-		"patientId": "patient_id", "roomId": "room_id",
+		"roomId":    "room_id",
 		"startTime": "start_time", "endTime": "end_time",
 		"status": "status", "notes": "notes",
 		"cancelNotes": "cancel_notes", "completionNotes": "completion_notes",
@@ -442,9 +443,6 @@ func (a *Appointment) Update(updates map[string]any) error {
 
 	if hasProcedures {
 		patientID := current.PatientID
-		if v, ok := updates["patientId"].(string); ok {
-			patientID = v
-		}
 		if err := syncAppointmentProcedures(tx, a.ID, patientID, procedures); err != nil {
 			return err
 		}
@@ -457,6 +455,7 @@ func (a *Appointment) Update(updates map[string]any) error {
 }
 
 func (a *Appointment) Reschedule(overrides map[string]any) error {
+	delete(overrides, "patientId")
 	var old Appointment
 	old.ID = a.ID
 	if err := old.GetByID(old.ID); err != nil {
@@ -485,9 +484,6 @@ func (a *Appointment) Reschedule(overrides map[string]any) error {
 		Status:                "Scheduled",
 		Notes:                 old.Notes,
 		AppointmentProcedures: old.AppointmentProcedures,
-	}
-	if v, ok := overrides["patientId"].(string); ok && v != "" {
-		newApt.PatientID = v
 	}
 	if v, ok := overrides["roomId"].(string); ok && v != "" {
 		newApt.RoomID = v

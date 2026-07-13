@@ -154,6 +154,7 @@ func TestUpdateAppointment_StatusTransition(t *testing.T) {
 	tok := adminToken(t, e)
 
 	pid := createPatientAndGetID(t, e, tok, "Trans")
+	otherPID := createPatientAndGetID(t, e, tok, "OtherTrans")
 	rid := createRoom(t, e, tok, "Room Trans", "Procedure")
 	rec := doRequest(t, e, http.MethodPost, "/api/appointments",
 		asJSON(t, map[string]any{
@@ -164,12 +165,13 @@ func TestUpdateAppointment_StatusTransition(t *testing.T) {
 	decodeEnvelope(t, rec.Body, &apt)
 
 	rec = doRequest(t, e, http.MethodPut, "/api/appointments/"+apt.ID,
-		asJSON(t, map[string]any{"id": "stripped", "status": "Completed", "completionNotes": "done"}), tok)
+		asJSON(t, map[string]any{"id": "stripped", "patientId": otherPID, "status": "Completed", "completionNotes": "done"}), tok)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("update: %d body=%s", rec.Code, rec.Body.String())
 	}
 	var got struct {
 		ID              string `json:"id"`
+		PatientID       string `json:"patientId"`
 		Status          string `json:"status"`
 		CompletionNotes string `json:"completionNotes"`
 	}
@@ -179,6 +181,12 @@ func TestUpdateAppointment_StatusTransition(t *testing.T) {
 	}
 	if got.ID != apt.ID {
 		t.Errorf("ID changed")
+	}
+	if got.PatientID != pid {
+		t.Errorf("patientId = %q want original %q", got.PatientID, pid)
+	}
+	if n := countTableRows(t, "appointments", "id = ? AND patient_id = ?", apt.ID, pid); n != 1 {
+		t.Errorf("appointment patient changed")
 	}
 }
 
@@ -199,6 +207,7 @@ func TestRescheduleAppointment_CreatesNewAndMarksOld(t *testing.T) {
 	tok := adminToken(t, e)
 
 	pid := createPatientAndGetID(t, e, tok, "Resched")
+	otherPID := createPatientAndGetID(t, e, tok, "OtherResched")
 	rid := createRoom(t, e, tok, "Room Resched", "Procedure")
 	rec := doRequest(t, e, http.MethodPost, "/api/appointments",
 		asJSON(t, map[string]any{
@@ -210,6 +219,7 @@ func TestRescheduleAppointment_CreatesNewAndMarksOld(t *testing.T) {
 
 	rec = doRequest(t, e, http.MethodPost, "/api/appointments/"+old.ID+"/reschedule",
 		asJSON(t, map[string]any{
+			"patientId": otherPID,
 			"startTime": "2026-06-06T10:00:00Z", "endTime": "2026-06-06T11:00:00Z",
 		}), tok)
 	if rec.Code != http.StatusCreated {
@@ -217,6 +227,7 @@ func TestRescheduleAppointment_CreatesNewAndMarksOld(t *testing.T) {
 	}
 	var nu struct {
 		ID              string `json:"id"`
+		PatientID       string `json:"patientId"`
 		RescheduledFrom string `json:"rescheduledFrom"`
 		Status          string `json:"status"`
 	}
@@ -226,6 +237,12 @@ func TestRescheduleAppointment_CreatesNewAndMarksOld(t *testing.T) {
 	}
 	if nu.RescheduledFrom != old.ID {
 		t.Errorf("rescheduledFrom = %q want %q", nu.RescheduledFrom, old.ID)
+	}
+	if nu.PatientID != pid {
+		t.Errorf("patientId = %q want original %q", nu.PatientID, pid)
+	}
+	if n := countTableRows(t, "appointments", "id = ? AND patient_id = ?", nu.ID, pid); n != 1 {
+		t.Errorf("rescheduled appointment patient changed")
 	}
 	// Old appointment should now be marked Rescheduled.
 	if n := countTableRows(t, "appointments", "id = ? AND status = 'Rescheduled'", old.ID); n != 1 {

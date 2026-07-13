@@ -33,14 +33,16 @@ DEV_CLOUD_BINARY  := tmp/ZealClinicCloud_dev$(EXE)
 LOCAL_BINARY      := build/local/output/ZealClinic$(EXE)
 UPDATER_BINARY    := build/local/output/ZealUpdater$(EXE)
 CLOUD_BINARY      := build/cloud/output/ZealClinicCloud-$(VERSION)-linux-amd64
+LEGACYIMPORT_BINARY := tmp/ZealLegacyImport$(EXE)
 PKG               := ./cmd/server
 UPDATER_PKG       := ./cmd/updater
+LEGACYIMPORT_PKG  := ./cmd/legacyimport
 UPDATE_ZIP        := build/local/output/ZealClinicUpdate-$(VERSION).zip
 UPDATE_ZIP_CLOUD  := build/cloud/output/ZealClinicUpdate-$(VERSION)-linux-amd64.zip
 ISCC              ?= ISCC.exe
 FRONTEND          := ../zeal-clinic-frontend
 
-.PHONY: dev dev-seed dev-demo dev-cloud build build-cloud frontend release release-cloud update-zip update-zip-cloud installer deploy clean help
+.PHONY: dev dev-seed dev-demo dev-cloud build build-cloud legacyimport frontend release release-cloud update-zip update-zip-cloud installer deploy clean help
 
 dev: build
 	$(DEV_BINARY) --dev
@@ -62,6 +64,14 @@ build:
 build-cloud:
 	$(call MKDIR_P,tmp)
 	go build -tags cloud -ldflags "$(DEV_LDFLAGS)" -o $(DEV_CLOUD_BINARY) $(PKG)
+
+# One-off importer for the old software's CSV exports (cmd/legacyimport).
+# Binary lands in tmp/ (gitignored). Run it against a fresh DB, then copy that
+# DB to the cloud, e.g.:
+#   tmp/ZealLegacyImport --in old_data --db ./clinic.db
+legacyimport:
+	$(call MKDIR_P,tmp)
+	go build -ldflags "$(DEV_LDFLAGS)" -o $(LEGACYIMPORT_BINARY) $(LEGACYIMPORT_PKG)
 
 frontend:
 	cd $(FRONTEND) && npm run build
@@ -111,6 +121,7 @@ help:
 	@echo "dev-cloud      - cloud build and run as --dev (binary in tmp/)"
 	@echo "build          - debug build to $(DEV_BINARY)"
 	@echo "build-cloud    - cloud debug build to $(DEV_CLOUD_BINARY)"
+	@echo "legacyimport   - build the old-data CSV importer to $(LEGACYIMPORT_BINARY)"
 	@echo "frontend       - npm build the frontend and copy dist into client/dist"
 	@echo "release        - prod build (app + updater) to build/local/output (needs client/dist)"
 	@echo "release-cloud  - cloud prod build to $(CLOUD_BINARY) (needs client/dist)"

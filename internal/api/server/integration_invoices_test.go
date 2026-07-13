@@ -113,6 +113,7 @@ func TestClientInvoice_Create_ValidationFailures(t *testing.T) {
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 	cur := firstSeededCurrencyID(t)
+	pid := createPatientAndGetID(t, e, tok, "InvValidation")
 
 	cases := []struct {
 		name string
@@ -134,14 +135,63 @@ func TestClientInvoice_Create_ValidationFailures(t *testing.T) {
 			map[string]any{"patientId": "phantom", "currencyId": cur, "items": []any{map[string]any{"amount": 1}}},
 			http.StatusBadRequest,
 		},
+		{
+			"negative quantity",
+			map[string]any{"patientId": pid, "currencyId": cur, "items": []any{map[string]any{"quantity": -1, "amount": 10}}},
+			http.StatusBadRequest,
+		},
+		{
+			"negative price",
+			map[string]any{"patientId": pid, "currencyId": cur, "items": []any{map[string]any{"quantity": 1, "amount": -10}}},
+			http.StatusBadRequest,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			before := countTableRows(t, "invoices", "voided_at = ''")
 			rec := doRequest(t, e, http.MethodPost, "/api/client-invoices", asJSON(t, tc.body), tok)
 			if rec.Code != tc.want {
 				t.Errorf("code = %d want %d body=%s", rec.Code, tc.want, rec.Body.String())
 			}
+			if after := countTableRows(t, "invoices", "voided_at = ''"); after != before {
+				t.Errorf("active invoices changed from %d to %d", before, after)
+			}
 		})
+	}
+}
+
+func TestClientInvoice_Create_RejectsInactiveDiscount(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	pid := createPatientAndGetID(t, e, tok, "InvInactiveDiscount")
+
+	discount := store.Discount{
+		Name:         "Inactive offer",
+		DiscountType: "offer",
+		ValueType:    "fixed",
+		Value:        5,
+	}
+	if err := discount.Create(); err != nil {
+		t.Fatalf("create discount: %v", err)
+	}
+	if err := discount.Update(map[string]any{"isActive": 0}); err != nil {
+		t.Fatalf("deactivate discount: %v", err)
+	}
+
+	before := countTableRows(t, "invoices", "voided_at = ''")
+	rec := doRequest(t, e, http.MethodPost, "/api/client-invoices", asJSON(t, map[string]any{
+		"patientId":  pid,
+		"discountId": discount.ID,
+		"items": []map[string]any{
+			{"itemType": "other", "quantity": 1, "amount": 10},
+		},
+	}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("code = %d want %d body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if after := countTableRows(t, "invoices", "voided_at = ''"); after != before {
+		t.Errorf("active invoices changed from %d to %d", before, after)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -66,9 +67,17 @@ func CreateEmployee(c echo.Context) error {
 	username := strings.TrimSpace(body.Username)
 	password := strings.TrimSpace(body.Password)
 	if username != "" {
+		heldScopes, _ := c.Get("scopes").([]string)
+		if !slices.Contains(heldScopes, "users:write") {
+			return c.JSON(http.StatusForbidden, httpx.Response{Error: "You don't have permission"})
+		}
+
 		userRole := strings.TrimSpace(body.UserRole)
 		if userRole == "" {
 			userRole = "staff"
+		}
+		if !slices.Contains(assignableRoles, userRole) {
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid role"})
 		}
 		var hash string
 		if password != "" {

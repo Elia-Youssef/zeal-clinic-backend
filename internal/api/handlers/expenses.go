@@ -83,14 +83,12 @@ func UpdateExpense(c echo.Context) error {
 
 func DeleteExpense(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"balances": "entity_id"}) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete expense while it's in use"})
-	}
-
 	e := store.Expense{ID: id}
 	if err := e.Delete(); errors.Is(err, store.ErrNotFound) {
 		log.Println("Error: [DeleteExpense] expense not found:", id)
 		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Expense not found"})
+	} else if errors.Is(err, store.ErrConflict) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete expense while it's in use"})
 	} else if err != nil {
 		log.Println("Error: [DeleteExpense] failed to delete expense:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete expense"})

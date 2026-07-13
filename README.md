@@ -53,7 +53,8 @@ embeds `internal/config/local.env.defaults`, the `cloud` build (`-tags cloud`) e
 DB path:
 
 - Installed Windows: `%LOCALAPPDATA%\Zeal Clinic\Data\clinic.db` if that directory exists
-- Otherwise: `./tmp/clinic.db`
+- Cloud (Linux): `./data/clinic.db`
+- Otherwise (local dev): `./tmp/clinic.db`
 
 ## Layout
 

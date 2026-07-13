@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS patients (
     first_name              TEXT NOT NULL,
     middle_name             TEXT NOT NULL DEFAULT '',
     last_name               TEXT NOT NULL,
-    gender                  TEXT NOT NULL CHECK(gender IN ('Male','Female')),
+    gender                  TEXT NOT NULL DEFAULT '' CHECK(gender IN ('Male','Female','')),
     date_of_birth           TEXT NOT NULL,
     contact                 TEXT NOT NULL,
     email                   TEXT NOT NULL DEFAULT '',

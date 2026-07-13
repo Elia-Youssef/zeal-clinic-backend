@@ -134,6 +134,7 @@ func UpdateAppointment(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	delete(updates, "id")
+	delete(updates, "patientId")
 
 	apt := store.Appointment{ID: c.Param("id")}
 	if err := apt.Update(updates); err != nil {
@@ -160,6 +161,7 @@ func RescheduleAppointment(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	delete(overrides, "id")
+	delete(overrides, "patientId")
 	delete(overrides, "rescheduledFrom")
 
 	apt := store.Appointment{ID: c.Param("id")}

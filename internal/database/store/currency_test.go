@@ -73,7 +73,7 @@ func TestCurrency_CRUD(t *testing.T) {
 
 	// Update
 	c2 := Currency{ID: c.ID}
-	if err := c2.Update(map[string]any{"name": "ZedlandX", "exchangeRate": 2.0}); err != nil {
+	if err := c2.Update(map[string]any{"code": "CHANGED", "name": "ZedlandX", "exchangeRate": 2.0}); err != nil {
 		t.Fatal(err)
 	}
 	if c2.Name != "ZedlandX" || c2.ExchangeRate != 2.0 {

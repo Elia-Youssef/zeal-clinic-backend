@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 	"testing"
+
+	"clinic-api/internal/database/store"
 )
 
 // users
@@ -35,6 +37,88 @@ func TestCreateUser_Success(t *testing.T) {
 	// CreateUser forces IsActive true.
 	if !u.IsActive {
 		t.Errorf("expected user active")
+	}
+}
+
+func TestCreateUser_TrimsPassword(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	rec := doRequest(t, e, http.MethodPost, "/api/users",
+		asJSON(t, map[string]any{
+			"username": "trimmed-create", "displayName": "Trimmed Create",
+			"role": "staff", "password": "  pw-12345  ",
+		}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
+		asJSON(t, map[string]string{"username": "trimmed-create", "password": "pw-12345"}), "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login with trimmed password expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec = doRequest(t, e, http.MethodPost, "/api/users",
+		asJSON(t, map[string]any{
+			"username": "blank-password", "displayName": "Blank Password",
+			"role": "staff", "password": "   ",
+		}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("blank-password create expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var blankPasswordUser store.User
+	if err := blankPasswordUser.GetByUsername("blank-password"); err != nil {
+		t.Fatal(err)
+	}
+	if blankPasswordUser.PasswordHash != "" {
+		t.Error("whitespace-only password should be treated as empty")
+	}
+}
+
+func TestUpdateUser_TrimsPassword(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	rec := doRequest(t, e, http.MethodPost, "/api/users",
+		asJSON(t, map[string]any{
+			"username": "trimmed-update", "displayName": "Trimmed Update",
+			"role": "staff", "password": "old-pw",
+		}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var created struct{ ID string }
+	decodeEnvelope(t, rec.Body, &created)
+
+	var before store.User
+	if err := before.GetByID(created.ID); err != nil {
+		t.Fatal(err)
+	}
+	rec = doRequest(t, e, http.MethodPut, "/api/users/"+created.ID,
+		asJSON(t, map[string]any{"password": "   "}), tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("whitespace-only update expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var after store.User
+	if err := after.GetByID(created.ID); err != nil {
+		t.Fatal(err)
+	}
+	if after.PasswordHash != before.PasswordHash {
+		t.Error("whitespace-only password update should leave the password unchanged")
+	}
+
+	rec = doRequest(t, e, http.MethodPut, "/api/users/"+created.ID,
+		asJSON(t, map[string]any{"password": "  new-pw  "}), tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("password update expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
+		asJSON(t, map[string]string{"username": "trimmed-update", "password": "new-pw"}), "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login with trimmed updated password expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

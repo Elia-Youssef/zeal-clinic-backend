@@ -59,6 +59,10 @@ func (m *Employee) IsValid() error {
 const employeeColumnsNoId = `user_id, first_name, last_name, role, contact, email, date_of_birth, employment_type, created_at, updated_at`
 const employeeColumns = `id, ` + employeeColumnsNoId
 
+// employeeNameExpr is the full name "First Last". Searching this combined value
+// matches any part or combination of the name, instead of each column alone.
+const employeeNameExpr = `(first_name || ' ' || last_name)`
+
 type EmployeeList []Employee
 
 func (m *Employee) ScanRow(row *sql.Row) error {
@@ -89,7 +93,7 @@ func (l *EmployeeList) ScanRows(rows *sql.Rows) error {
 func (m *EmployeeList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []any
-	if fc, fa := params.FilterClause("first_name", "last_name", "role", "contact", "email"); fc != "" {
+	if fc, fa := params.FilterClause(employeeNameExpr, "role", "contact", "email"); fc != "" {
 		where = " WHERE " + fc
 		args = fa
 	}
@@ -134,11 +138,11 @@ func (m *EmployeeList) GetAll(params ListParams) (int, error) {
 func GetEmployeeDropdown(params ListParams) ([]DropdownItem, error) {
 	where := ""
 	var args []any
-	if fc, fa := params.FilterClause("first_name", "last_name"); fc != "" {
+	if fc, fa := params.FilterClause(employeeNameExpr); fc != "" {
 		where = " WHERE " + fc
 		args = fa
 	}
-	query := `SELECT id, first_name || ' ' || last_name as name FROM employees` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
+	query := `SELECT id, ` + employeeNameExpr + ` as name FROM employees` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err

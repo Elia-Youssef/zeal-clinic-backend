@@ -214,6 +214,70 @@ func TestProcedureDropdownAndList(t *testing.T) {
 	}
 }
 
+func TestGetAllProcedures_SearchesCategoryAndDirectParent(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	createCategory := func(name, parentID string) string {
+		t.Helper()
+		body := map[string]any{"name": name}
+		if parentID != "" {
+			body["parentId"] = parentID
+		}
+		rec := doRequest(t, e, http.MethodPost, "/api/procedure-categories", asJSON(t, body), tok)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("create category %q: %d body=%s", name, rec.Code, rec.Body.String())
+		}
+		var category struct{ ID string }
+		decodeEnvelope(t, rec.Body, &category)
+		return category.ID
+	}
+
+	grandparentID := createCategory("AncestorOnlyZXQ", "")
+	parentID := createCategory("DirectParentZXQ", grandparentID)
+	categoryID := createCategory("LeafCategoryZXQ", parentID)
+
+	rec := doRequest(t, e, http.MethodPost, "/api/procedures", asJSON(t, map[string]any{
+		"name": "NeedleServiceZXQ", "categoryId": categoryID, "price": 10,
+	}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create procedure: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var procedure struct{ ID string }
+	decodeEnvelope(t, rec.Body, &procedure)
+
+	containsProcedure := func(filter string) bool {
+		t.Helper()
+		rec := doRequest(t, e, http.MethodGet, "/api/procedures?filter="+filter, nil, tok)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("filter %q: %d body=%s", filter, rec.Code, rec.Body.String())
+		}
+		var page struct {
+			Items []struct {
+				ID string `json:"id"`
+			} `json:"items"`
+		}
+		decodeEnvelope(t, rec.Body, &page)
+		for _, item := range page.Items {
+			if item.ID == procedure.ID {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !containsProcedure("LeafCategoryZXQ") {
+		t.Error("procedure was not found by its category name")
+	}
+	if !containsProcedure("DirectParentZXQ") {
+		t.Error("procedure was not found by its category parent's name")
+	}
+	if containsProcedure("AncestorOnlyZXQ") {
+		t.Error("procedure should not be found through categories above its direct parent")
+	}
+}
+
 // procedure types
 
 func TestProcedureType_CRUD(t *testing.T) {

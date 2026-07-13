@@ -211,6 +211,16 @@ func TestPatientList_GetAll_FilterAndPaginate(t *testing.T) {
 		t.Errorf("got total=%d list=%+v", total, list)
 	}
 
+	// Multi-word filter ANDs each word across the name; all share last name
+	// "Smith", so "Alice Smith" (and the reverse order) matches only Alice.
+	for _, q := range []string{"Alice Smith", "Smith Alice"} {
+		list = nil
+		total, _ = list.GetAll(ListParams{Filter: q})
+		if total != 1 || list[0].FirstName != "Alice" {
+			t.Errorf("filter %q got total=%d list=%+v", q, total, list)
+		}
+	}
+
 	// Pagination.
 	list = nil
 	_, _ = list.GetAll(ListParams{Limit: 2})

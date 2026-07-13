@@ -187,6 +187,8 @@ func DeleteSupplierInvoice(c echo.Context) error {
 	productIDs := invoiceProductIDs(inv.Items)
 	if err := inv.Delete(); errors.Is(err, store.ErrNotFound) {
 		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
+	} else if errors.Is(err, store.ErrConflict) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
 	} else if err != nil {
 		log.Println("Error: DeleteSupplierInvoice:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete invoice"})

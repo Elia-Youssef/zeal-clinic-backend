@@ -7,7 +7,7 @@ Table users {
   username string [unique]
   password_hash string
   display_name string
-  role string [note: 'super-admin | admin | user']
+  role string [note: 'super-admin | admin | staff | nurse']
   is_active bool
   created_at datetime
   updated_at datetime
@@ -141,7 +141,7 @@ Table patients {
   first_name string
   middle_name string
   last_name string
-  gender string [note: 'Male | Female']
+  gender string [note: 'Male | Female | "" (empty when unknown, e.g. legacy imports)']
   date_of_birth date
   contact string
   email string
@@ -244,6 +244,10 @@ Table employee_salary_preparations {
   notes string
   created_by string
   created_at datetime
+
+  indexes {
+    (employee_id, period_start, period_end) [unique]
+  }
 }
 
 // ============================================================
@@ -256,10 +260,11 @@ Table appointments {
   room_id string [ref: > rooms.id]
   start_time datetime
   end_time datetime
-  status string [note: 'Scheduled | In-Progress | Completed | Cancelled']
+  status string [note: 'Scheduled | In-Progress | Completed | Cancelled | Rescheduled']
   notes string
   cancel_notes string
   completion_notes string
+  rescheduled_from string [ref: > appointments.id, note: 'nullable; original appointment this one replaced']
   created_at datetime
   updated_at datetime
 }

@@ -57,6 +57,7 @@ func UpdateCurrency(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	delete(updates, "id")
+	delete(updates, "code")
 
 	cur := store.Currency{ID: c.Param("id")}
 	if err := cur.Update(updates); err != nil {

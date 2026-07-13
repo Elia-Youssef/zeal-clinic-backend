@@ -178,13 +178,49 @@ func (e *Expense) Update(updates map[string]any) error {
 }
 
 func (e *Expense) Delete() error {
-	res, err := DB.Exec("DELETE FROM expenses WHERE id = ?", e.ID)
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	defer tx.Rollback()
+
+	var exists int
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM expenses WHERE id = ?)`, e.ID).Scan(&exists); err != nil {
+		return err
+	}
+	if exists == 0 {
 		return ErrNotFound
 	}
-	return nil
+
+	var blocked int
+	if err := tx.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1
+			FROM balances b
+			WHERE b.entity_type = 'expense' AND b.entity_id = ?
+			AND (
+				b.amount != 0
+				OR EXISTS (
+					SELECT 1 FROM balance_transactions bt
+					WHERE bt.from_balance_id = b.id OR bt.to_balance_id = b.id
+				)
+				OR EXISTS (
+					SELECT 1 FROM invoices i
+					WHERE i.from_balance_id = b.id OR i.to_balance_id = b.id
+				)
+			)
+		)`, e.ID).Scan(&blocked); err != nil {
+		return err
+	}
+	if blocked != 0 {
+		return ErrConflict
+	}
+
+	if _, err := tx.Exec(`DELETE FROM balances WHERE entity_type = 'expense' AND entity_id = ?`, e.ID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM expenses WHERE id = ?`, e.ID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const maxListLimit = 100
+
 func parseListParams(c echo.Context) store.ListParams {
 	var params store.ListParams
 	if v := c.QueryParam("offset"); v != "" {
@@ -16,7 +18,7 @@ func parseListParams(c echo.Context) store.ListParams {
 	}
 	if v := c.QueryParam("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			params.Limit = n
+			params.Limit = min(n, maxListLimit)
 		}
 	}
 	params.Filter = c.QueryParam("filter")
@@ -24,5 +26,10 @@ func parseListParams(c echo.Context) store.ListParams {
 	params.Order = c.QueryParam("order")
 	params.From = c.QueryParam("from")
 	params.To = c.QueryParam("to")
+	if v := c.QueryParam("active"); v != "" {
+		if active, err := strconv.ParseBool(v); err == nil {
+			params.Active = &active
+		}
+	}
 	return params
 }

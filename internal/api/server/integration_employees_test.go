@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"clinic-api/internal/database/store"
+
 	"github.com/labstack/echo/v4"
 )
 
@@ -83,6 +85,36 @@ func TestCreateEmployee_WithUserAccount(t *testing.T) {
 	}
 	if n := countTableRows(t, "users", "username = 'linkeduser'"); n != 1 {
 		t.Errorf("expected 1 linked user, got %d", n)
+	}
+}
+
+func TestCreateEmployee_WithUserAccountRequiresUsersWrite(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+
+	if _, err := store.DB.Exec(`UPDATE roles SET scopes = 'employees:write' WHERE name = 'staff'`); err != nil {
+		t.Fatal(err)
+	}
+	tok := generateTokenForRole(t, "staff", "employee-writer")
+
+	body := employeePayload("No", "AccountPermission")
+	body["username"] = "forbidden-linked-user"
+	body["password"] = "pw-12345"
+	rec := doRequest(t, e, http.MethodPost, "/api/employees", asJSON(t, body), tok)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if n := countTableRows(t, "users", "username = ?", "forbidden-linked-user"); n != 0 {
+		t.Errorf("expected no linked user to be created, got %d", n)
+	}
+	if n := countTableRows(t, "employees", "first_name = ? AND last_name = ?", "No", "AccountPermission"); n != 0 {
+		t.Errorf("expected no employee to be created, got %d", n)
+	}
+
+	rec = doRequest(t, e, http.MethodPost, "/api/employees",
+		asJSON(t, employeePayload("Employee", "Only")), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("employee-only create expected 201, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

@@ -14,25 +14,33 @@ func BoolToInt(b bool) int {
 }
 
 // FilterClause builds a SQL WHERE clause fragment that matches the filter
-// string against any of the given columns using LIKE.
+// against the given columns using LIKE. The filter is split on whitespace into
+// tokens: a row must match every token (AND), and each token may match any
+// column (OR). This makes multi-word search order-independent, so "jaden smith"
+// still finds "Jaden Will Smith" even though the words aren't adjacent.
 func (lp ListParams) FilterClause(columns ...string) (string, []any) {
-	if lp.Filter == "" {
+	tokens := strings.Fields(lp.Filter)
+	if len(tokens) == 0 {
 		return "", nil
 	}
-	var conditions []string
+	var groups []string
 	var args []any
-	// Escape LIKE wildcards so the filter matches literally; the backslash
-	// escape char is declared per-condition with ESCAPE.
-	esc := lp.Filter
-	esc = strings.ReplaceAll(esc, `\`, `\\`)
-	esc = strings.ReplaceAll(esc, "%", `\%`)
-	esc = strings.ReplaceAll(esc, "_", `\_`)
-	f := "%" + esc + "%"
-	for _, col := range columns {
-		conditions = append(conditions, col+` LIKE ? ESCAPE '\'`)
-		args = append(args, f)
+	for _, tok := range tokens {
+		// Escape LIKE wildcards so the token matches literally; the backslash
+		// escape char is declared per-condition with ESCAPE.
+		esc := tok
+		esc = strings.ReplaceAll(esc, `\`, `\\`)
+		esc = strings.ReplaceAll(esc, "%", `\%`)
+		esc = strings.ReplaceAll(esc, "_", `\_`)
+		f := "%" + esc + "%"
+		conditions := make([]string, 0, len(columns))
+		for _, col := range columns {
+			conditions = append(conditions, col+` LIKE ? ESCAPE '\'`)
+			args = append(args, f)
+		}
+		groups = append(groups, "("+strings.Join(conditions, " OR ")+")")
 	}
-	return "(" + strings.Join(conditions, " OR ") + ")", args
+	return strings.Join(groups, " AND "), args
 }
 
 // DateRangeClause builds a SQL condition fragment restricting column to the

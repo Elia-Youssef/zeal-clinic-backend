@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -56,8 +57,9 @@ func CreateUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	var hash string
-	if body.Password != "" {
-		h, err := auth.HashPassword(body.Password)
+	password := strings.TrimSpace(body.Password)
+	if password != "" {
+		h, err := auth.HashPassword(password)
 		if err != nil {
 			log.Println("Error: [CreateUser] failed to hash password:", err)
 			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user"})
@@ -85,13 +87,16 @@ func UpdateUser(c echo.Context) error {
 	var passwordHash string
 	if pw, ok := updates["password"]; ok {
 		delete(updates, "password")
-		if pwStr, ok := pw.(string); ok && pwStr != "" {
-			h, err := auth.HashPassword(pwStr)
-			if err != nil {
-				log.Println("Error: [UpdateUser] failed to hash password:", err)
-				return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
+		if pwStr, ok := pw.(string); ok {
+			pwStr = strings.TrimSpace(pwStr)
+			if pwStr != "" {
+				h, err := auth.HashPassword(pwStr)
+				if err != nil {
+					log.Println("Error: [UpdateUser] failed to hash password:", err)
+					return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
+				}
+				passwordHash = h
 			}
-			passwordHash = h
 		}
 	}
 

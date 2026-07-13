@@ -77,6 +77,10 @@ func TestCreateDiscount_ValidationFails(t *testing.T) {
 		{"bad discountType", map[string]any{"name": "x", "discountType": "weird", "valueType": "fixed", "value": 1.0}},
 		{"bad valueType", map[string]any{"name": "x", "discountType": "offer", "valueType": "weird", "value": 1.0}},
 		{"negative value", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": -1}},
+		{"percentage over 100", map[string]any{"name": "x", "discountType": "offer", "valueType": "percentage", "value": 100.01}},
+		{"invalid start date", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": 1, "startDate": "2026-02-30"}},
+		{"invalid end date", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": 1, "endDate": "not-a-date"}},
+		{"end before start", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": 1, "startDate": "2026-03-02", "endDate": "2026-03-01"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -85,6 +89,55 @@ func TestCreateDiscount_ValidationFails(t *testing.T) {
 				t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestUpdateDiscount_ValidationFailsWithoutChangingDiscount(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	body := offerPayload("Validated update")
+	body["startDate"] = "2026-03-10"
+	body["endDate"] = "2026-03-20"
+	rec := doRequest(t, e, http.MethodPost, "/api/discounts", asJSON(t, body), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var d struct{ ID string }
+	decodeEnvelope(t, rec.Body, &d)
+
+	cases := []struct {
+		name string
+		body map[string]any
+	}{
+		{"negative value", map[string]any{"value": -1}},
+		{"percentage over 100", map[string]any{"value": 101}},
+		{"invalid start date", map[string]any{"startDate": "2026-02-30"}},
+		{"start after stored end", map[string]any{"startDate": "2026-03-21"}},
+		{"end before stored start", map[string]any{"endDate": "2026-03-09"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := doRequest(t, e, http.MethodPut, "/api/discounts/"+d.ID, asJSON(t, tc.body), tok)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+
+	rec = doRequest(t, e, http.MethodGet, "/api/discounts/"+d.ID, nil, tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Value     float64 `json:"value"`
+		StartDate string  `json:"startDate"`
+		EndDate   string  `json:"endDate"`
+	}
+	decodeEnvelope(t, rec.Body, &got)
+	if !approxEqualF(got.Value, 10) || got.StartDate != "2026-03-10" || got.EndDate != "2026-03-20" {
+		t.Errorf("invalid updates changed discount: %+v", got)
 	}
 }
 
@@ -184,6 +237,62 @@ func TestGetAllDiscounts_ListShape(t *testing.T) {
 	decodeEnvelope(t, rec.Body, &page)
 	if page.Total != 2 {
 		t.Errorf("total = %d want 2", page.Total)
+	}
+}
+
+func TestGetAllDiscounts_ActiveFilter(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	activeRec := doRequest(t, e, http.MethodPost, "/api/discounts", asJSON(t, offerPayload("Enabled offer")), tok)
+	if activeRec.Code != http.StatusCreated {
+		t.Fatalf("create active offer: %d body=%s", activeRec.Code, activeRec.Body.String())
+	}
+	var active struct{ ID string }
+	decodeEnvelope(t, activeRec.Body, &active)
+
+	inactiveRec := doRequest(t, e, http.MethodPost, "/api/discounts", asJSON(t, offerPayload("Disabled offer")), tok)
+	if inactiveRec.Code != http.StatusCreated {
+		t.Fatalf("create inactive offer: %d body=%s", inactiveRec.Code, inactiveRec.Body.String())
+	}
+	var inactive struct{ ID string }
+	decodeEnvelope(t, inactiveRec.Body, &inactive)
+	if rec := doRequest(t, e, http.MethodPut, "/api/discounts/"+inactive.ID,
+		asJSON(t, map[string]any{"isActive": 0}), tok); rec.Code != http.StatusOK {
+		t.Fatalf("deactivate offer: %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	for _, tc := range []struct {
+		name     string
+		query    string
+		wantID   string
+		rejectID string
+	}{
+		{name: "active", query: "active=true&filter=Enabled", wantID: active.ID, rejectID: inactive.ID},
+		{name: "inactive", query: "active=false", wantID: inactive.ID, rejectID: active.ID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := doRequest(t, e, http.MethodGet, "/api/discounts?"+tc.query, nil, tok)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("list: %d body=%s", rec.Code, rec.Body.String())
+			}
+			var page struct {
+				Items []struct {
+					ID string `json:"id"`
+				} `json:"items"`
+				Total int `json:"total"`
+			}
+			decodeEnvelope(t, rec.Body, &page)
+			if page.Total != 1 || len(page.Items) != 1 || page.Items[0].ID != tc.wantID {
+				t.Errorf("got total=%d items=%+v, want only %q", page.Total, page.Items, tc.wantID)
+			}
+			for _, item := range page.Items {
+				if item.ID == tc.rejectID {
+					t.Errorf("filtered-out discount %q was returned", tc.rejectID)
+				}
+			}
+		})
 	}
 }
 

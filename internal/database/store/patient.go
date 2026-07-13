@@ -73,6 +73,11 @@ const patientColumnsNoId = `first_name, middle_name, last_name, gender, date_of_
 	weight, height, blood_type, country_id, city_id, address, referral_id, referral_source, notes, created_at, updated_at`
 const patientColumns = `id, ` + patientColumnsNoId
 
+// patientNameExpr is the full name "First Middle Last" (middle omitted when
+// blank). Searching this combined value matches any part or combination of the
+// name parts, instead of each column in isolation.
+const patientNameExpr = `(first_name || CASE WHEN middle_name != '' THEN ' ' || middle_name ELSE '' END || ' ' || last_name)`
+
 type PatientList []Patient
 
 func (p *Patient) ScanRow(row *sql.Row) error {
@@ -111,7 +116,7 @@ func (l *PatientList) ScanRows(rows *sql.Rows) error {
 func (p *PatientList) GetAll(params ListParams) (int, error) {
 	where := " WHERE 1=1"
 	var args []any
-	if fc, fa := params.FilterClause("first_name", "middle_name", "last_name", "contact", "email"); fc != "" {
+	if fc, fa := params.FilterClause(patientNameExpr, "contact", "email"); fc != "" {
 		where += " AND " + fc
 		args = append(args, fa...)
 	}
@@ -151,11 +156,11 @@ func (p *PatientList) GetAll(params ListParams) (int, error) {
 func GetPatientDropdown(params ListParams) ([]DropdownItem, error) {
 	where := ""
 	var args []any
-	if fc, fa := params.FilterClause("first_name", "last_name", "contact"); fc != "" {
+	if fc, fa := params.FilterClause(patientNameExpr, "contact"); fc != "" {
 		where = " WHERE " + fc
 		args = fa
 	}
-	query := `SELECT id, first_name || CASE WHEN middle_name != '' THEN ' ' || middle_name ELSE '' END || ' ' || last_name as name FROM patients` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
+	query := `SELECT id, ` + patientNameExpr + ` as name FROM patients` + where + ` ORDER BY first_name, last_name` + params.PaginationClause()
 	rows, err := RDB.Query(query, args...)
 	if err != nil {
 		return nil, err

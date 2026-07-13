@@ -22,15 +22,32 @@ func makeCtx(t *testing.T, query string) echo.Context {
 func TestParseListParams(t *testing.T) {
 	t.Run("empty query yields zero values", func(t *testing.T) {
 		p := parseListParams(makeCtx(t, ""))
-		if p.Offset != 0 || p.Limit != 0 || p.Filter != "" || p.Sort != "" || p.Order != "" {
+		if p.Offset != 0 || p.Limit != 0 || p.Filter != "" || p.Sort != "" || p.Order != "" || p.Active != nil {
 			t.Errorf("got %+v, want zero values", p)
 		}
 	})
 
 	t.Run("all fields parsed", func(t *testing.T) {
-		p := parseListParams(makeCtx(t, "offset=20&limit=50&filter=abc&sort=name&order=desc"))
-		if p.Offset != 20 || p.Limit != 50 || p.Filter != "abc" || p.Sort != "name" || p.Order != "desc" {
+		p := parseListParams(makeCtx(t, "offset=20&limit=50&filter=abc&sort=name&order=desc&active=true"))
+		if p.Offset != 20 || p.Limit != 50 || p.Filter != "abc" || p.Sort != "name" || p.Order != "desc" || p.Active == nil || !*p.Active {
 			t.Errorf("got %+v", p)
+		}
+	})
+
+	t.Run("active accepts false and ignores invalid values", func(t *testing.T) {
+		p := parseListParams(makeCtx(t, "active=false"))
+		if p.Active == nil || *p.Active {
+			t.Errorf("got %+v, want active=false", p)
+		}
+		if p := parseListParams(makeCtx(t, "active=invalid")); p.Active != nil {
+			t.Errorf("got %+v, want invalid active ignored", p)
+		}
+	})
+
+	t.Run("limit is clamped", func(t *testing.T) {
+		p := parseListParams(makeCtx(t, "offset=20&limit=1000000"))
+		if p.Offset != 20 || p.Limit != maxListLimit {
+			t.Errorf("got %+v, want offset 20 and limit %d", p, maxListLimit)
 		}
 	})
 

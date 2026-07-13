@@ -176,6 +176,9 @@ func startMonitor() *monitor.Monitor {
 		monitor.Action{Name: "cleanup-pdf-cache", Duration: 5 * time.Minute, Fn: monitor.CleanupPDFCache},
 		monitor.Action{Name: "cleanup-expired-tokens", Duration: time.Hour, Fn: monitor.CleanupExpiredTokens},
 	)
+	if buildmode.Cloud {
+		mon.Register(monitor.Action{Name: "backup-db", Duration: 3 * time.Hour, Fn: monitor.BackupDatabase})
+	}
 	mon.Start()
 	return mon
 }

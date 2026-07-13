@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
+	"math"
 
 	"github.com/google/uuid"
 )
@@ -43,8 +44,33 @@ func (d *Discount) IsValid() error {
 	} else if msg := validation.OneOf(d.ValueType, []string{"percentage", "fixed"}, "Value type"); msg != "" {
 		e["valueType"] = msg
 	}
-	if msg := validation.Positive(d.Value, "Value"); msg != "" {
+	if math.IsNaN(d.Value) || math.IsInf(d.Value, 0) {
+		e["value"] = "Value must be a finite number"
+	} else if msg := validation.Positive(d.Value, "Value"); msg != "" {
 		e["value"] = msg
+	} else if d.ValueType == "percentage" && d.Value > 100 {
+		e["value"] = "Percentage cannot exceed 100"
+	}
+
+	startValid := true
+	if d.StartDate != nil && !d.StartDate.IsZero() {
+		if _, err := d.StartDate.Time(); err != nil {
+			e["startDate"] = "Start date is invalid"
+			startValid = false
+		}
+	}
+	endValid := true
+	if d.EndDate != nil && !d.EndDate.IsZero() {
+		if _, err := d.EndDate.Time(); err != nil {
+			e["endDate"] = "End date is invalid"
+			endValid = false
+		}
+	}
+	if startValid && endValid &&
+		d.StartDate != nil && !d.StartDate.IsZero() &&
+		d.EndDate != nil && !d.EndDate.IsZero() &&
+		d.StartDate.After(*d.EndDate) {
+		e["endDate"] = "End date must be on or after start date"
 	}
 
 	hasPatient := d.PatientID != nil && *d.PatientID != ""
@@ -101,9 +127,17 @@ func (l *DiscountList) ScanRows(rows *sql.Rows) error {
 func (l *DiscountList) GetAll(params ListParams) (int, error) {
 	where := ""
 	var args []any
+	if params.Active != nil {
+		where = " WHERE is_active = ?"
+		args = append(args, BoolToInt(*params.Active))
+	}
 	if fc, fa := params.FilterClause("name", "description"); fc != "" {
-		where = " WHERE " + fc
-		args = fa
+		if where == "" {
+			where = " WHERE " + fc
+		} else {
+			where += " AND " + fc
+		}
+		args = append(args, fa...)
 	}
 
 	var total int
@@ -161,6 +195,10 @@ func (d *Discount) Create() error {
 }
 
 func (d *Discount) CreateWithTx(tx *sql.Tx) error {
+	if err := d.IsValid(); err != nil {
+		return err
+	}
+
 	d.ID = uuid.Must(uuid.NewV7()).String()
 	now := DateNow()
 	d.CreatedAt = now
@@ -181,6 +219,14 @@ func (d *Discount) CreateWithTx(tx *sql.Tx) error {
 }
 
 func (d *Discount) Update(updates map[string]any) error {
+	var next Discount
+	if err := next.GetByID(d.ID); err != nil {
+		return err
+	}
+	if err := applyDiscountUpdates(&next, updates); err != nil {
+		return err
+	}
+
 	cols := map[string]string{
 		"name": "name", "description": "description",
 		"valueType": "value_type", "value": "value",
@@ -193,9 +239,7 @@ func (d *Discount) Update(updates map[string]any) error {
 	for jsonKey, dbCol := range cols {
 		if val, ok := updates[jsonKey]; ok {
 			if dbCol == "value" {
-				if f, ok := val.(float64); ok {
-					val = Round2(f)
-				}
+				val = Round2(next.Value)
 			}
 			if setClauses != "" {
 				setClauses += ", "
@@ -215,6 +259,88 @@ func (d *Discount) Update(updates map[string]any) error {
 		return err
 	}
 	return d.GetByID(d.ID)
+}
+
+func applyDiscountUpdates(next *Discount, updates map[string]any) error {
+	if value, ok := updates["name"]; ok {
+		name, valid := value.(string)
+		if !valid {
+			return validation.Errors{"name": "Name must be a string"}
+		}
+		next.Name = name
+	}
+	if value, ok := updates["valueType"]; ok {
+		valueType, valid := value.(string)
+		if !valid {
+			return validation.Errors{"valueType": "Value type must be a string"}
+		}
+		next.ValueType = valueType
+	}
+	if value, ok := updates["value"]; ok {
+		number, valid := discountNumber(value)
+		if !valid {
+			return validation.Errors{"value": "Value must be a number"}
+		}
+		next.Value = number
+	}
+	if value, ok := updates["startDate"]; ok {
+		date, valid := discountDate(value)
+		if !valid {
+			return validation.Errors{"startDate": "Start date must be a string or null"}
+		}
+		next.StartDate = date
+	}
+	if value, ok := updates["endDate"]; ok {
+		date, valid := discountDate(value)
+		if !valid {
+			return validation.Errors{"endDate": "End date must be a string or null"}
+		}
+		next.EndDate = date
+	}
+	return next.IsValid()
+}
+
+func discountNumber(value any) (float64, bool) {
+	switch number := value.(type) {
+	case float64:
+		return number, true
+	case float32:
+		return float64(number), true
+	case int:
+		return float64(number), true
+	case int8:
+		return float64(number), true
+	case int16:
+		return float64(number), true
+	case int32:
+		return float64(number), true
+	case int64:
+		return float64(number), true
+	case uint:
+		return float64(number), true
+	case uint8:
+		return float64(number), true
+	case uint16:
+		return float64(number), true
+	case uint32:
+		return float64(number), true
+	case uint64:
+		return float64(number), true
+	default:
+		return 0, false
+	}
+}
+
+func discountDate(value any) (*Date, bool) {
+	if value == nil {
+		return nil, true
+	}
+	dateString, ok := value.(string)
+	if !ok {
+		return nil, false
+	}
+	date := Date(dateString)
+	return &date, true
 }
 
 func (d *Discount) Delete() error {

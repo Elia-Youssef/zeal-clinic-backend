@@ -76,7 +76,14 @@ func DataDir() string {
 			}
 		}
 	}
+	if buildmode.Cloud {
+		return "./data"
+	}
 	return "./tmp"
+}
+
+func BackupDir() string {
+	return filepath.Join(filepath.Dir(DataDir()), "backup")
 }
 
 func parseDuration(s string) time.Duration {
