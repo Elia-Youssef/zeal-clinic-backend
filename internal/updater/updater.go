@@ -21,6 +21,7 @@ import (
 
 	"clinic-api/internal/buildmode"
 	"clinic-api/internal/config"
+	"clinic-api/internal/database"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/tracking"
 	"clinic-api/internal/updater/updatestate"
@@ -199,12 +200,9 @@ func cleanupArtifacts(st updatestate.State) {
 
 // checkpointAndCloseDB flushes the WAL and closes the DB so the snapshot is consistent.
 func checkpointAndCloseDB() {
-	if store.RDB != nil {
-		_ = store.RDB.Close()
-	}
-	if store.DB != nil {
-		_, _ = store.DB.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
-		_ = store.DB.Close()
+	if err := database.Close(); err != nil {
+		log.Printf("[update] close database: %v", err)
+		tracking.CaptureError(nil, fmt.Errorf("[update] close database: %w", err))
 	}
 }
 

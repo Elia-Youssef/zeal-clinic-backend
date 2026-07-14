@@ -19,7 +19,6 @@ type Config struct {
 	JWTLifetime   time.Duration
 	PeerURL       string
 	SyncSecret    string
-	SentryDSN     string
 	PublicURL     string
 	PublishSecret string
 }
@@ -40,7 +39,6 @@ func Load() *Config {
 		JWTLifetime:   parseDuration(env["JWT_LIFETIME"]),
 		PeerURL:       env["PEER_URL"],
 		SyncSecret:    env["SYNC_SECRET"],
-		SentryDSN:     env["SENTRY_DSN"],
 		PublicURL:     env["PUBLIC_URL"],
 		PublishSecret: env["PUBLISH_SECRET"],
 	}

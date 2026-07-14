@@ -13,6 +13,6 @@ func SetupDiscountRoutes(api *echo.Group) {
 	api.PUT("/discounts/:id", handlers.UpdateDiscount, scope("discounts:write"), cache("discounts"))
 	api.DELETE("/discounts/:id", handlers.DeleteDiscount, scope("discounts:delete"), cache("discounts"))
 	// Standalone gift-card redemption: credits a patient's balance.
-	api.POST("/gift-cards/redeem", handlers.RedeemGiftCode, scope("discounts:write"),
+	api.POST("/gift-cards/redeem", handlers.RedeemGiftCode, criticalSync, scope("discounts:write"),
 		cache("discounts", "balances", "client-payments", "analytics"))
 }

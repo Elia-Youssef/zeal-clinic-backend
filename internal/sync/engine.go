@@ -9,8 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"clinic-api/internal/tracking"
 )
 
 // Engine runs pull-then-push replication when writes, SSE, or PollLog wake it.
@@ -26,6 +24,9 @@ type Engine struct {
 	stopWait sync.WaitGroup
 
 	cycleMu sync.Mutex // serializes pull-then-push so RunNow can't race the loop
+
+	sessionMu    sync.RWMutex
+	sessionToken string
 }
 
 type Config struct {
@@ -75,9 +76,12 @@ func (e *Engine) Start(ctx context.Context) {
 		return
 	}
 
-	e.stopWait.Add(1)
+	e.stopWait.Add(2)
 	go e.run(ctx)
-	go runSSEListener(ctx, e)
+	go func() {
+		defer e.stopWait.Done()
+		runSSEListener(ctx, e)
+	}()
 	log.Printf("[sync] engine started: peer=%s", e.cfg.PeerURL)
 }
 
@@ -91,7 +95,10 @@ func (e *Engine) Stop() {
 	e.cancel()
 	e.running = false
 	e.mu.Unlock()
+	debounce.unbind(e)
 	e.stopWait.Wait()
+	e.httpC.CloseIdleConnections()
+	sseClient.CloseIdleConnections()
 }
 
 func (e *Engine) run(ctx context.Context) {
@@ -114,17 +121,19 @@ func (e *Engine) cycle(ctx context.Context) {
 	e.cycleMu.Lock()
 	defer e.cycleMu.Unlock()
 	if err := e.pull(ctx); err != nil {
-		log.Printf("[sync] pull error: %v", err)
 		if ctx.Err() == nil {
-			tracking.CaptureError(nil, fmt.Errorf("[sync] pull: %w", err))
+			e.handleCycleFailure(ctx, "pull", err)
 		}
 		return
 	}
 	if err := e.push(ctx); err != nil {
-		log.Printf("[sync] push error: %v", err)
 		if ctx.Err() == nil {
-			tracking.CaptureError(nil, fmt.Errorf("[sync] push: %w", err))
+			e.handleCycleFailure(ctx, "push", err)
 		}
+		return
+	}
+	if err := e.acknowledgeReady(ctx); err != nil && ctx.Err() == nil {
+		log.Printf("[sync] ready acknowledgement: %v", err)
 	}
 }
 
@@ -145,6 +154,9 @@ func RunNow(ctx context.Context) error {
 	}
 	if err := eng.push(ctx); err != nil {
 		return fmt.Errorf("push: %w", err)
+	}
+	if err := eng.acknowledgeReady(ctx); err != nil {
+		return fmt.Errorf("ready: %w", err)
 	}
 	return nil
 }

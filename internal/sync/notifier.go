@@ -3,6 +3,7 @@ package sync
 import (
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -91,6 +92,19 @@ func (d *writeDebouncer) bind(e *Engine) {
 	d.mu.Unlock()
 }
 
+func (d *writeDebouncer) unbind(e *Engine) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.engine != e {
+		return
+	}
+	d.engine = nil
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
+}
+
 // OnWrite debounces write-triggered sync wake-ups.
 func OnWrite() { debounce.fire() }
 
@@ -128,12 +142,22 @@ func Middleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			err := next(c)
-			switch c.Request().Method {
-			case http.MethodGet, http.MethodHead, http.MethodOptions:
-			default:
+			if err == nil && shouldNotifyWrite(c.Request().Method, c.Request().URL.Path) && c.Response().Status < http.StatusBadRequest {
 				OnWrite()
 			}
 			return err
 		}
+	}
+}
+
+func shouldNotifyWrite(method, path string) bool {
+	if strings.HasPrefix(path, "/api/sync/") {
+		return false
+	}
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return false
+	default:
+		return true
 	}
 }

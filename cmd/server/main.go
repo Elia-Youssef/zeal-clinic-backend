@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"flag"
 	"log"
 	"os"
@@ -23,7 +24,7 @@ import (
 	"clinic-api/internal/tracking"
 	"clinic-api/internal/updater"
 
-	"github.com/getsentry/sentry-go"
+	"github.com/labstack/echo/v4"
 )
 
 type appOptions struct {
@@ -40,6 +41,7 @@ const (
 	syncDelay    = 2 * time.Second
 	monitorDelay = 4 * time.Second
 	serverDelay  = 2 * time.Second
+	shutdownWait = time.Second
 )
 
 func main() {
@@ -48,12 +50,12 @@ func main() {
 	opts := parseOptions()
 	cfg := config.Load()
 
-	tracking.Init(cfg.SentryDSN, buildmode.Version, environmentName(opts))
+	tracking.Init(buildmode.Version, environmentName(opts))
 	defer tracking.Flush(2 * time.Second)
 	defer tracking.Info(nil, "[main] Server shutting down")
 	defer tracking.Recover()
 
-	tracking.CaptureMessage(nil, sentry.LevelDebug, "[main] Server starting")
+	tracking.Debug(nil, "[main] Server starting")
 
 	if !buildmode.Cloud && !opts.seedOnly && !opts.postUpdate && alreadyRunning() {
 		handoffToRunningInstance(opts, cfg)
@@ -70,7 +72,12 @@ func main() {
 	if err != nil {
 		tracking.Fatal("Failed to open database", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Printf("Database shutdown: %v", err)
+			tracking.CaptureError(nil, err)
+		}
+	}()
 
 	if opts.seedOnly {
 		runSeed(db, opts)
@@ -92,7 +99,7 @@ func main() {
 		time.Sleep(monitorDelay)
 	}
 
-	mon := startMonitor()
+	mon := startMonitor(opts)
 	defer mon.Stop()
 
 	if opts.startup {
@@ -168,7 +175,7 @@ func startSync(db *sql.DB, cfg *config.Config) (*syncpkg.Engine, context.CancelF
 	return engine, cancel
 }
 
-func startMonitor() *monitor.Monitor {
+func startMonitor(opts appOptions) *monitor.Monitor {
 	mon := monitor.New(1 * time.Minute)
 	mon.Register(
 		monitor.Action{Name: "expire-discounts", Duration: 10 * time.Minute, Fn: monitor.ExpireDiscounts},
@@ -176,7 +183,7 @@ func startMonitor() *monitor.Monitor {
 		monitor.Action{Name: "cleanup-pdf-cache", Duration: 5 * time.Minute, Fn: monitor.CleanupPDFCache},
 		monitor.Action{Name: "cleanup-expired-tokens", Duration: time.Hour, Fn: monitor.CleanupExpiredTokens},
 	)
-	if buildmode.Cloud {
+	if buildmode.Cloud || !opts.dev {
 		mon.Register(monitor.Action{Name: "backup-db", Duration: 3 * time.Hour, Fn: monitor.BackupDatabase})
 	}
 	mon.Start()
@@ -197,9 +204,7 @@ func runServer(cfg *config.Config, opts appOptions) {
 		defer stop()
 		<-ctx.Done()
 
-		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = e.Shutdown(shutCtx)
+		shutdownServer(e, shutdownWait)
 		return
 	}
 
@@ -209,6 +214,27 @@ func runServer(cfg *config.Config, opts appOptions) {
 	}()
 
 	systray.Run(func(ctx context.Context) error {
-		return e.Shutdown(ctx)
+		return shutdownServerContext(e, ctx)
 	})
+}
+
+func shutdownServer(e *echo.Echo, timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if err := shutdownServerContext(e, ctx); err != nil {
+		log.Printf("HTTP server shutdown: %v", err)
+	}
+}
+
+func shutdownServerContext(e *echo.Echo, ctx context.Context) error {
+	err := e.Shutdown(ctx)
+	if err == nil {
+		return nil
+	}
+	// Long-lived SSE handlers can outlive the graceful window. Close their
+	// sockets so the remaining component shutdown can finish immediately.
+	if closeErr := e.Close(); closeErr != nil {
+		return errors.Join(err, closeErr)
+	}
+	return nil
 }

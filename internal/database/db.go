@@ -5,17 +5,21 @@ import (
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/tracking"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/vfs/adiantum"
 )
 
 const encryptionKey = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+var closeMu sync.Mutex
 
 func Open(pathOverride string) (*sql.DB, error) {
 	path := pathOverride
@@ -32,28 +36,62 @@ func Open(pathOverride string) (*sql.DB, error) {
 	db.SetMaxOpenConns(1)
 
 	if err := db.Ping(); err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
 
 	if err := Migrate(db); err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 
 	rdb, err := sql.Open("sqlite3", dsn)
 	if err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("open read db: %w", err)
 	}
 	rdb.SetMaxOpenConns(4)
 
 	if err := rdb.Ping(); err != nil {
+		_ = rdb.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("ping read db: %w", err)
 	}
 
+	closeMu.Lock()
 	store.DB = db
 	store.RDB = rdb
+	closeMu.Unlock()
 
 	log.Println("Database initialized at", dbPath)
 	return db, nil
+}
+
+// Close checkpoints SQLite and closes both the read and write connection
+// pools installed by Open. It is safe to call more than once.
+func Close() error {
+	closeMu.Lock()
+	rdb := store.RDB
+	db := store.DB
+	store.RDB = nil
+	store.DB = nil
+	closeMu.Unlock()
+
+	var errs []error
+	if rdb != nil {
+		if err := rdb.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close read db: %w", err))
+		}
+	}
+	if db != nil {
+		if _, err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil && err != sql.ErrConnDone {
+			errs = append(errs, fmt.Errorf("checkpoint db: %w", err))
+		}
+		if err := db.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close write db: %w", err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // buildDSN returns the encrypted SQLite URI. hexKey must be 64 hex chars.

@@ -12,6 +12,7 @@ import (
 
 	"clinic-api/internal/buildmode"
 	"clinic-api/internal/realtime"
+	"clinic-api/internal/tracking"
 
 	"github.com/labstack/echo/v4"
 )
@@ -39,6 +40,8 @@ func (a *API) RegisterRoutes(e *echo.Echo) {
 	// diagnostics.
 	g.GET("/pull", a.handlePull, a.requireVersion)
 	g.POST("/push", a.handlePush, a.requireVersion)
+	g.POST("/ready", a.handleReady, a.requireVersion)
+	g.POST("/failed", a.handleFailed, a.requireVersion)
 	g.GET("/events", a.handleEvents, a.requireVersion)
 	g.GET("/status", a.handleStatus)
 	log.Printf("[sync] API mounted under /api/sync (self=%s)", nodeLabel())
@@ -80,6 +83,13 @@ func errResp(c echo.Context, status int, err error) error {
 	return c.JSON(status, map[string]string{"error": err.Error()})
 }
 
+func (a *API) inboundSyncFailure(c echo.Context, err error) error {
+	failCurrentCriticalSession()
+	tracking.CaptureError(c, err)
+	notifySyncFailure(a.DB)
+	return errResp(c, http.StatusInternalServerError, err)
+}
+
 // handlePull returns rows after since and prunes rows the caller has confirmed.
 func (a *API) handlePull(c echo.Context) error {
 	since, _ := strconv.ParseInt(c.QueryParam("since"), 10, 64)
@@ -90,10 +100,10 @@ func (a *API) handlePull(c echo.Context) error {
 
 	rows, err := LoadBatch(a.DB, since, limit)
 	if err != nil {
-		return errResp(c, http.StatusInternalServerError, fmt.Errorf("load batch (since=%d limit=%d): %w", since, limit, err))
+		return a.inboundSyncFailure(c, fmt.Errorf("[sync] load pull batch (since=%d limit=%d): %w", since, limit, err))
 	}
 	if err := enrichBatch(a.DB, rows); err != nil {
-		return errResp(c, http.StatusInternalServerError, fmt.Errorf("enrich batch: %w", err))
+		return a.inboundSyncFailure(c, fmt.Errorf("[sync] enrich pull batch: %w", err))
 	}
 	maxSeq, _ := MaxLogSeq(a.DB)
 
@@ -120,7 +130,7 @@ func (a *API) handlePush(c echo.Context) error {
 
 	applied, conflicts, err := Apply(a.DB, req.Rows)
 	if err != nil {
-		return errResp(c, http.StatusInternalServerError, fmt.Errorf("apply %d rows: %w", len(req.Rows), err))
+		return a.inboundSyncFailure(c, fmt.Errorf("[sync] apply push batch (%d rows): %w", len(req.Rows), err))
 	}
 	if len(req.Rows) > len(conflicts) {
 		realtime.Broadcast(realtime.Event{Type: "data_changed"})
@@ -128,7 +138,36 @@ func (a *API) handlePush(c echo.Context) error {
 	return c.JSON(http.StatusOK, PushResponse{AppliedSeq: applied, Conflicts: conflicts})
 }
 
+func (a *API) handleReady(c echo.Context) error {
+	var req readyRequest
+	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
+		return errResp(c, http.StatusBadRequest, fmt.Errorf("decode: %w", err))
+	}
+	if !markCriticalSessionReady(req.SessionToken) {
+		return c.JSON(http.StatusConflict, map[string]string{"error": "stale sync session"})
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"ready": true})
+}
+
+func (a *API) handleFailed(c echo.Context) error {
+	var req readyRequest
+	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
+		return errResp(c, http.StatusBadRequest, fmt.Errorf("decode: %w", err))
+	}
+	if !failCriticalSession(req.SessionToken) {
+		return c.JSON(http.StatusConflict, map[string]string{"error": "stale sync session"})
+	}
+	notifySyncFailure(a.DB)
+	return c.JSON(http.StatusOK, map[string]bool{"ready": false})
+}
+
 func (a *API) handleEvents(c echo.Context) error {
+	token, err := beginCriticalSession()
+	if err != nil {
+		return errResp(c, http.StatusInternalServerError, fmt.Errorf("create sync session: %w", err))
+	}
+	defer endCriticalSession(token)
+
 	res := c.Response()
 	h := res.Header()
 	h.Set("Content-Type", "text/event-stream")
@@ -145,7 +184,8 @@ func (a *API) handleEvents(c echo.Context) error {
 	log.Printf("[sync] events peer=%s connected", peer)
 	defer log.Printf("[sync] events peer=%s disconnected", peer)
 
-	if _, err := res.Write([]byte("event: hello\n\n")); err != nil {
+	hello, _ := json.Marshal(readyRequest{SessionToken: token})
+	if _, err := fmt.Fprintf(res, "event: hello\ndata: %s\n\n", hello); err != nil {
 		return nil
 	}
 	res.Flush()

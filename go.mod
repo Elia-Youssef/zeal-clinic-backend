@@ -4,7 +4,6 @@ go 1.26.1
 
 require (
 	github.com/getlantern/systray v1.2.2
-	github.com/getsentry/sentry-go v0.46.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/johnfercher/maroto/v2 v2.4.0
@@ -14,6 +13,7 @@ require (
 	github.com/pressly/goose/v3 v3.27.1
 	golang.org/x/crypto v0.50.0
 	golang.org/x/sys v0.43.0
+	golang.org/x/time v0.8.0
 )
 
 require (
@@ -31,7 +31,6 @@ require (
 	github.com/hhrutter/pkcs7 v0.2.0 // indirect
 	github.com/hhrutter/tiff v1.0.2 // indirect
 	github.com/johnfercher/go-tree v1.1.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
@@ -51,7 +50,6 @@ require (
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
-	golang.org/x/time v0.8.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/adiantum v1.1.1 // indirect
 )

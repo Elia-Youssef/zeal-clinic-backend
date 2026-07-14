@@ -2,91 +2,117 @@ package tracking
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"path/filepath"
+	"runtime/debug"
+	"sync"
 	"time"
 
-	"github.com/getsentry/sentry-go"
+	"clinic-api/internal/config"
+
 	"github.com/labstack/echo/v4"
 )
 
-var enabled bool
+type Level string
 
-func Init(dsn, release, environment string) {
-	if dsn == "" {
-		log.Println("[tracking] Sentry disabled (no DSN)")
+const (
+	LevelDebug   Level = "debug"
+	LevelInfo    Level = "info"
+	LevelWarning Level = "warning"
+	LevelError   Level = "error"
+)
+
+const (
+	logMaxSize = 10 * 1024 * 1024
+	logBackups = 5
+)
+
+var (
+	logMu   sync.Mutex
+	logFile *rollingWriter
+)
+
+// Init configures the process-wide standard logger. All existing log package
+// calls are mirrored to stderr and the rotating application log.
+func Init(release, environment string) {
+	logMu.Lock()
+	defer logMu.Unlock()
+	if logFile != nil {
+		log.SetOutput(os.Stderr)
+		_ = logFile.Close()
+		logFile = nil
+	}
+
+	dir := filepath.Join(config.DataDir(), "logs")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		log.Printf("[tracking] create log directory: %v", err)
 		return
 	}
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              dsn,
-		Release:          release,
-		Environment:      environment,
-		AttachStacktrace: true,
-	}); err != nil {
-		log.Printf("[tracking] init failed: %v", err)
+	w, err := newRollingWriter(filepath.Join(dir, "clinic.log"), logMaxSize, logBackups)
+	if err != nil {
+		log.Printf("[tracking] open log file: %v", err)
 		return
 	}
-	enabled = true
-	log.Printf("[tracking] Sentry enabled (env=%s release=%s)", environment, release)
+	logFile = w
+	log.SetOutput(io.MultiWriter(os.Stderr, w))
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC)
+	log.Printf("[tracking] local logging enabled path=%s environment=%s release=%s", w.path, environment, release)
 }
 
+// Flush closes the local log. Local writes are unbuffered; timeout is retained
+// so existing shutdown callers need no special handling.
 func Flush(timeout time.Duration) {
-	if enabled {
-		sentry.Flush(timeout)
+	_ = timeout
+	logMu.Lock()
+	defer logMu.Unlock()
+	if logFile == nil {
+		return
 	}
-}
-
-func Hub(c echo.Context) *sentry.Hub {
-	if c != nil {
-		if h := sentry.GetHubFromContext(c.Request().Context()); h != nil {
-			return h
-		}
+	log.SetOutput(os.Stderr)
+	if err := logFile.Close(); err != nil {
+		log.Printf("[tracking] close log file: %v", err)
 	}
-	return sentry.CurrentHub()
+	logFile = nil
 }
 
 func CaptureError(c echo.Context, err error) {
-	if !enabled || err == nil {
+	if err == nil {
 		return
 	}
-	Hub(c).CaptureException(err)
+	if c != nil {
+		log.Printf("[error] %s %s: %v", c.Request().Method, c.Request().URL.Path, err)
+		return
+	}
+	log.Printf("[error] %v", err)
 }
 
-func CaptureMessage(c echo.Context, level sentry.Level, msg string) {
+func CaptureMessage(c echo.Context, level Level, msg string) {
 	CaptureMessageWith(c, level, msg, nil)
 }
 
-// CaptureMessageWith captures a message with a structured context block attached
-// so the details (not just the summary) land on the Sentry event.
-func CaptureMessageWith(c echo.Context, level sentry.Level, msg string, details map[string]any) {
-	if !enabled {
+func CaptureMessageWith(c echo.Context, level Level, msg string, details map[string]any) {
+	prefix := ""
+	if c != nil {
+		prefix = fmt.Sprintf("%s %s: ", c.Request().Method, c.Request().URL.Path)
+	}
+	if len(details) > 0 {
+		log.Printf("[%s] %s%s details=%v", level, prefix, msg, details)
 		return
 	}
-	h := Hub(c)
-	h.WithScope(func(s *sentry.Scope) {
-		s.SetLevel(level)
-		if len(details) > 0 {
-			s.SetContext("details", details)
-		}
-		h.CaptureMessage(msg)
-	})
+	log.Printf("[%s] %s%s", level, prefix, msg)
 }
 
-func Warn(c echo.Context, msg string) { CaptureMessage(c, sentry.LevelWarning, msg) }
-func Info(c echo.Context, msg string) { CaptureMessage(c, sentry.LevelInfo, msg) }
+func Debug(c echo.Context, msg string) { CaptureMessage(c, LevelDebug, msg) }
+func Warn(c echo.Context, msg string)  { CaptureMessage(c, LevelWarning, msg) }
+func Info(c echo.Context, msg string)  { CaptureMessage(c, LevelInfo, msg) }
 
 func WarnWith(c echo.Context, msg string, details map[string]any) {
-	CaptureMessageWith(c, sentry.LevelWarning, msg, details)
+	CaptureMessageWith(c, LevelWarning, msg, details)
 }
 
 func Fatal(msg string, err error) {
-	if enabled {
-		if err != nil {
-			sentry.CaptureException(fmt.Errorf("%s: %w", msg, err))
-		} else {
-			CaptureMessage(nil, sentry.LevelFatal, msg)
-		}
-		sentry.Flush(5 * time.Second)
-	}
 	if err != nil {
 		log.Fatalf("%s: %v", msg, err)
 	}
@@ -95,10 +121,7 @@ func Fatal(msg string, err error) {
 
 func Recover() {
 	if r := recover(); r != nil {
-		if enabled {
-			sentry.CurrentHub().Recover(r)
-			sentry.Flush(2 * time.Second)
-		}
+		log.Printf("[panic] %v\n%s", r, debug.Stack())
 		panic(r)
 	}
 }
@@ -106,27 +129,20 @@ func Recover() {
 func Middleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) (err error) {
-			if !enabled {
-				return next(c)
-			}
-			hub := sentry.CurrentHub().Clone()
-			hub.Scope().SetRequest(c.Request())
-			ctx := sentry.SetHubOnContext(c.Request().Context(), hub)
-			c.SetRequest(c.Request().WithContext(ctx))
-
 			defer func() {
 				if r := recover(); r != nil {
-					hub.RecoverWithContext(ctx, r)
+					log.Printf("[panic] %s %s: %v\n%s", c.Request().Method, c.Request().URL.Path, r, debug.Stack())
 					panic(r)
 				}
 			}()
 
 			err = next(c)
 			if status := c.Response().Status; status >= 500 {
+				msg := fmt.Sprintf("HTTP %d %s %s", status, c.Request().Method, c.Request().URL.Path)
 				if err != nil {
-					hub.CaptureException(err)
+					log.Printf("[error] %s: %v", msg, err)
 				} else {
-					hub.CaptureMessage(fmt.Sprintf("HTTP %d %s %s", status, c.Request().Method, c.Request().URL.Path))
+					log.Printf("[error] %s", msg)
 				}
 			}
 			return err

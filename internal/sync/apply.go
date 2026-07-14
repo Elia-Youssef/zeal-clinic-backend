@@ -152,7 +152,7 @@ func recalcBalancesForApplied(tx *sql.Tx, entries []LogEntry) error {
 }
 
 // reportApplyOutcome fires only when an apply produced conflicts. Successful
-// applies happen on every change and would flood Sentry; errors are tracked
+// applies happen on every change and would flood logs; errors are tracked
 // at the cycle/handler level instead.
 func reportApplyOutcome(total int, conflicts []ConflictEntry) {
 	if len(conflicts) == 0 {

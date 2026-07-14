@@ -37,9 +37,11 @@ func Run(shutdown func(ctx context.Context) error) {
 			}()
 		},
 		func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
-			shutdown(ctx)
+			if err := shutdown(ctx); err != nil {
+				log.Printf("[systray] server shutdown: %v", err)
+			}
 		},
 	)
 }

@@ -47,6 +47,7 @@ var SyncedTables = []TableInfo{
 	{Name: "holidays", HasUpdatedAt: true, CacheKeys: []string{"holidays", "employee-schedules", "analytics"}},
 	{Name: "employee_schedule_changes", HasUpdatedAt: true, CacheKeys: []string{"employee-schedules", "analytics"}},
 	{Name: "employee_salaries", HasUpdatedAt: true, CacheKeys: []string{"employee-payments", "balances", "analytics"}},
+	{Name: "employee_salary_preparations", CacheKeys: []string{"employee-payments", "balances", "analytics"}},
 	{Name: "patient_allergies", CacheKeys: []string{"patients"}},
 	{Name: "patient_medicines", CacheKeys: []string{"patients"}},
 	{Name: "procedure_allergy_conflicts", CacheKeys: []string{"procedures"}},

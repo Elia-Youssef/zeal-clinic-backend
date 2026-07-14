@@ -46,7 +46,6 @@ embeds `internal/config/local.env.defaults`, the `cloud` build (`-tags cloud`) e
 | `SYNC_SECRET`    | empty                            | Enables cloud `/api/sync/*` routes               |
 | `PUBLIC_URL`     | empty                            | Cloud build advertises this at `/api/server-url` |
 | `PUBLISH_SECRET` | empty                            | Enables cloud `POST /api/versions`               |
-| `SENTRY_DSN`     | empty                            | Error tracking endpoint                          |
 
 > `DB_ENCRYPTION_KEY` is intentionally unused — the at-rest key is a hardcoded constant.
 
@@ -66,7 +65,7 @@ DB path:
 - `internal/monitor`: periodic jobs
 - `internal/pdf`: invoice and report PDF generation
 - `internal/realtime`: in-memory SSE hub
-- `internal/tracking`: Sentry error tracking
+- `internal/tracking`: rotating local application logs
 - `client`: embedded Vite build
 - `build/local`: Windows installer script/assets
 
