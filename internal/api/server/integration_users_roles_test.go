@@ -134,6 +134,7 @@ func TestCreateUser_ValidationFails(t *testing.T) {
 		{"short username", map[string]any{"username": "ab", "displayName": "X", "role": "staff"}},
 		{"missing displayName", map[string]any{"username": "validname", "role": "staff"}},
 		{"bad role", map[string]any{"username": "validname", "displayName": "X", "role": "wizard"}},
+		{"super-admin role", map[string]any{"username": "validname", "displayName": "X", "role": "super-admin"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -214,9 +215,30 @@ func TestGetAllUsers_ListShape(t *testing.T) {
 		Total int              `json:"total"`
 	}
 	decodeEnvelope(t, rec.Body, &page)
-	// At least the seeded admin user exists.
-	if page.Total < 1 {
-		t.Errorf("expected at least 1 user, got %d", page.Total)
+	if page.Total != 0 || len(page.Items) != 0 {
+		t.Errorf("seeded super-admin must be hidden, got total=%d items=%v", page.Total, page.Items)
+	}
+}
+
+func TestUser_SuperAdminNotReachable(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	const superAdminID = "b10829b3-19a0-4813-8e1c-df6f5990737b"
+
+	for _, tc := range []struct {
+		method string
+		path   string
+		body   []byte
+	}{
+		{http.MethodGet, "/api/users/" + superAdminID, nil},
+		{http.MethodGet, "/api/users/" + superAdminID + "/actions", nil},
+		{http.MethodPut, "/api/users/" + superAdminID, asJSON(t, map[string]any{"displayName": "Changed"})},
+	} {
+		rec := doRequest(t, e, tc.method, tc.path, tc.body, tok)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("%s %s: code = %d want 404", tc.method, tc.path, rec.Code)
+		}
 	}
 }
 
@@ -256,7 +278,6 @@ func TestGetRoleByName_FoundAndNotFound(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
-
 	rec = doRequest(t, e, http.MethodGet, "/api/roles/nonexistent", nil, tok)
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", rec.Code)
@@ -302,6 +323,43 @@ func TestUpdateRole_AdminCantDropManagementScopes(t *testing.T) {
 		asJSON(t, map[string]any{"scopes": []string{"patients:read"}}), tok)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateRole_IsAtomic(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	var originalLabel, originalScopes string
+	if err := store.RDB.QueryRow(`SELECT label, scopes FROM roles WHERE name = 'staff'`).
+		Scan(&originalLabel, &originalScopes); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DB.Exec(`
+		CREATE TEMP TRIGGER fail_role_label_update
+		BEFORE UPDATE OF label ON roles
+		WHEN NEW.name = 'staff'
+		BEGIN
+			SELECT RAISE(ABORT, 'forced label failure');
+		END`); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := doRequest(t, e, http.MethodPut, "/api/roles/staff",
+		asJSON(t, map[string]any{"scopes": []string{"patients:read"}, "label": "Changed"}), tok)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var label, roleScopes string
+	if err := store.RDB.QueryRow(`SELECT label, scopes FROM roles WHERE name = 'staff'`).
+		Scan(&label, &roleScopes); err != nil {
+		t.Fatal(err)
+	}
+	if label != originalLabel || roleScopes != originalScopes {
+		t.Errorf("partial role update persisted: label=%q scopes=%q, want label=%q scopes=%q",
+			label, roleScopes, originalLabel, originalScopes)
 	}
 }
 

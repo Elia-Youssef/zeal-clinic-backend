@@ -14,9 +14,13 @@ import (
 // UpdateGate returns 503 for /api/* while this node is mid self-update, except
 // the status endpoint so the UI can keep polling.
 func UpdateGate() echo.MiddlewareFunc {
+	return updateGate(updater.IsInstalling)
+}
+
+func updateGate(isInstalling func() bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if updater.IsInstalling() {
+			if isInstalling() {
 				p := c.Request().URL.Path
 				if strings.HasPrefix(p, "/api/") && p != "/api/update/status" {
 					return c.JSON(http.StatusServiceUnavailable, httpx.Response{Error: "Update in progress, please wait"})

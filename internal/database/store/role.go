@@ -116,6 +116,8 @@ func (r *Role) GetByName(name string) error {
 }
 
 func (r *Role) Update(updates map[string]any) error {
+	var scopesValue string
+	scopesChanged := false
 	if raw, ok := updates["scopes"]; ok {
 		if slice, ok := raw.([]any); ok {
 			var parts []string
@@ -136,15 +138,35 @@ func (r *Role) Update(updates map[string]any) error {
 					}
 				}
 			}
-			if _, err := DB.Exec("UPDATE roles SET scopes = ? WHERE name = ?", strings.Join(parts, ","), r.Name); err != nil {
-				return err
-			}
+			scopesValue = strings.Join(parts, ",")
+			scopesChanged = true
 		}
 	}
-	if label, ok := updates["label"]; ok {
-		if _, err := DB.Exec("UPDATE roles SET label = ? WHERE name = ?", label, r.Name); err != nil {
+
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if scopesChanged {
+		if _, err := tx.Exec("UPDATE roles SET scopes = ? WHERE name = ?", scopesValue, r.Name); err != nil {
 			return err
 		}
 	}
-	return r.GetByName(r.Name)
+	if label, ok := updates["label"]; ok {
+		if _, err := tx.Exec("UPDATE roles SET label = ? WHERE name = ?", label, r.Name); err != nil {
+			return err
+		}
+	}
+
+	var updated Role
+	if err := updated.ScanRow(tx.QueryRow(`SELECT `+roleColumns+` FROM roles WHERE name = ?`, r.Name)); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	*r = updated
+	return nil
 }

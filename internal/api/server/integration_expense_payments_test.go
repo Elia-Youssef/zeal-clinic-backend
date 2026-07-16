@@ -154,6 +154,11 @@ func TestExpensePayment_ValidationFailures(t *testing.T) {
 			http.StatusBadRequest,
 		},
 		{
+			"zero amount",
+			map[string]any{"expenseId": expID, "currencyId": curID, "amount": 0},
+			http.StatusBadRequest,
+		},
+		{
 			"negative amount",
 			map[string]any{"expenseId": expID, "currencyId": curID, "amount": -1},
 			http.StatusBadRequest,

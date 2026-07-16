@@ -125,3 +125,14 @@ func TestPositive(t *testing.T) {
 		t.Errorf("negative message = %q", got)
 	}
 }
+
+func TestGreaterThanZero(t *testing.T) {
+	if GreaterThanZero(5, "Amount") != "" {
+		t.Error("positive value should pass")
+	}
+	for _, value := range []float64{0, -1} {
+		if got := GreaterThanZero(value, "Amount"); got != "Amount must be greater than 0" {
+			t.Errorf("GreaterThanZero(%v) message = %q", value, got)
+		}
+	}
+}

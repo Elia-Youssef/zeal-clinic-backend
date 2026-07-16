@@ -96,7 +96,7 @@ func (e *AuditLogEntryList) GetByUserID(userID string, params ListParams) (int, 
 }
 
 func (e *AuditLogEntryList) GetAll(entityType, entityID, action, userID string, params ListParams) (int, error) {
-	where := " WHERE 1=1"
+	where := " WHERE a.user_role != 'super-admin'"
 	var args []any
 
 	if entityType != "" {

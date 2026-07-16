@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"clinic-api/internal/api/server"
 	"clinic-api/internal/browser"
 	"clinic-api/internal/buildmode"
+	"clinic-api/internal/cloudrestore"
 	"clinic-api/internal/config"
 	"clinic-api/internal/database"
 	"clinic-api/internal/database/store"
@@ -91,16 +93,11 @@ func main() {
 		time.Sleep(syncDelay)
 	}
 
-	engine, syncCancel := startSync(db, cfg)
-	defer syncCancel()
-	defer engine.Stop()
-
-	if opts.startup {
-		time.Sleep(monitorDelay)
-	}
-
-	mon := startMonitor(opts)
-	defer mon.Stop()
+	services := &backgroundServices{cfg: cfg, opts: opts}
+	services.Resume(db)
+	defer services.Pause()
+	cloudrestore.SetRuntime(services)
+	defer cloudrestore.SetRuntime(nil)
 
 	if opts.startup {
 		time.Sleep(serverDelay)
@@ -178,16 +175,62 @@ func startSync(db *sql.DB, cfg *config.Config) (*syncpkg.Engine, context.CancelF
 func startMonitor(opts appOptions) *monitor.Monitor {
 	mon := monitor.New(1 * time.Minute)
 	mon.Register(
-		monitor.Action{Name: "expire-discounts", Duration: 10 * time.Minute, Fn: monitor.ExpireDiscounts},
-		monitor.Action{Name: "appointment-reminders", Duration: 1 * time.Minute, Fn: monitor.SendAppointmentReminders},
-		monitor.Action{Name: "cleanup-pdf-cache", Duration: 5 * time.Minute, Fn: monitor.CleanupPDFCache},
-		monitor.Action{Name: "cleanup-expired-tokens", Duration: time.Hour, Fn: monitor.CleanupExpiredTokens},
+		monitor.Action{Name: "expire-discounts", Duration: 10 * time.Minute, Target: monitor.ActionLocal, Fn: monitor.ExpireDiscounts},
+		monitor.Action{Name: "appointment-reminders", Duration: 1 * time.Minute, Target: monitor.ActionBoth, Fn: monitor.SendAppointmentReminders},
+		monitor.Action{Name: "cleanup-pdf-cache", Duration: 5 * time.Minute, Target: monitor.ActionBoth, Fn: monitor.CleanupPDFCache},
+		monitor.Action{Name: "cleanup-expired-tokens", Duration: time.Hour, Target: monitor.ActionBoth, Fn: monitor.CleanupExpiredTokens},
 	)
 	if buildmode.Cloud || !opts.dev {
-		mon.Register(monitor.Action{Name: "backup-db", Duration: 3 * time.Hour, Fn: monitor.BackupDatabase})
+		mon.Register(monitor.Action{Name: "backup-db", Duration: 3 * time.Hour, Target: monitor.ActionBoth, Fn: monitor.BackupDatabase})
 	}
 	mon.Start()
 	return mon
+}
+
+// backgroundServices owns every component that can access the database outside
+// an HTTP request. cloudrestore pauses it before closing the pools and resumes
+// it with the newly-opened pool after commit or rollback.
+type backgroundServices struct {
+	mu         sync.Mutex
+	cfg        *config.Config
+	opts       appOptions
+	engine     *syncpkg.Engine
+	syncCancel context.CancelFunc
+	monitor    *monitor.Monitor
+}
+
+func (s *backgroundServices) Pause() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.monitor != nil {
+		s.monitor.Stop()
+		s.monitor = nil
+	}
+	monitor.WaitAsync()
+	if s.syncCancel != nil {
+		s.syncCancel()
+		s.syncCancel = nil
+	}
+	if s.engine != nil {
+		s.engine.Stop()
+		s.engine = nil
+	}
+}
+
+func (s *backgroundServices) Resume(db *sql.DB) {
+	if db == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine != nil || s.monitor != nil {
+		return
+	}
+	s.engine, s.syncCancel = startSync(db, s.cfg)
+	if s.opts.startup {
+		time.Sleep(monitorDelay)
+	}
+	s.monitor = startMonitor(s.opts)
 }
 
 func runServer(cfg *config.Config, opts appOptions) {

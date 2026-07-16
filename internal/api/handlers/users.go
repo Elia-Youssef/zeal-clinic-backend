@@ -36,6 +36,9 @@ func GetUserByID(c echo.Context) error {
 		log.Println("Error: [GetUserByID] failed to fetch user:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load user"})
 	}
+	if item.Role == "super-admin" {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
+	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: item})
 }
 
@@ -129,6 +132,9 @@ func UpdateUser(c echo.Context) error {
 		log.Println("Error: [UpdateUser] failed to load user:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
 	}
+	if current.Role == "super-admin" {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
+	}
 
 	demoting := roleChanging && current.Role == "admin" && newRole != "admin"
 	if current.Role == "admin" && current.IsActive && (demoting || deactivating) {
@@ -178,6 +184,9 @@ func GetUserActions(c echo.Context) error {
 	} else if err != nil {
 		log.Println("Error: [GetUserActions] failed to load user:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load activity"})
+	}
+	if user.Role == "super-admin" {
+		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
 	}
 	params := parseListParams(c)
 	entries := store.AuditLogEntryList{}

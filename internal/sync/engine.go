@@ -132,9 +132,13 @@ func (e *Engine) cycle(ctx context.Context) {
 		}
 		return
 	}
-	if err := e.acknowledgeReady(ctx); err != nil && ctx.Err() == nil {
-		log.Printf("[sync] ready acknowledgement: %v", err)
+	if err := e.acknowledgeReady(ctx); err != nil {
+		if ctx.Err() == nil {
+			log.Printf("[sync] ready acknowledgement: %v", err)
+		}
+		return
 	}
+	markSyncRecovered()
 }
 
 // RunNow runs one synchronous pull-then-push cycle (no-op without a peer).
@@ -158,5 +162,6 @@ func RunNow(ctx context.Context) error {
 	if err := eng.acknowledgeReady(ctx); err != nil {
 		return fmt.Errorf("ready: %w", err)
 	}
+	markSyncRecovered()
 	return nil
 }

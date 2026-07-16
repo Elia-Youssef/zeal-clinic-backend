@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"clinic-api/internal/api/httpx"
+	"clinic-api/internal/cloudrestore"
 	"clinic-api/internal/realtime"
 	"clinic-api/internal/sync"
 
@@ -32,6 +33,7 @@ func StreamEvents(c echo.Context) error {
 
 	client := realtime.Register(userID)
 	defer client.Close()
+	cloudrestore.MarkLongLivedReady(c)
 
 	if err := writeSSE(res, realtime.Event{Type: "hello"}); err != nil {
 		return nil
@@ -39,7 +41,6 @@ func StreamEvents(c echo.Context) error {
 	if err := writeSSE(res, realtime.Event{Type: "cloud_connection", Data: sync.IsCloudConnected()}); err != nil {
 		return nil
 	}
-
 	heartbeat := time.NewTicker(heartbeatInterval)
 	defer heartbeat.Stop()
 

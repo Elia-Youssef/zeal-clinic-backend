@@ -163,6 +163,21 @@ func (bt *BalanceTransaction) CreateWithTx(tx *sql.Tx) error {
 // detected via matching created_at + reverse direction + same amount and
 // voided atomically as well.
 func (bt *BalanceTransaction) Delete() error {
+	return bt.delete("")
+}
+
+// DeleteForEntityType voids the transaction only when it belongs to the
+// requested entity payment scope. A scoped payment must be an active,
+// non-charge transaction between the clinic's self balance and a balance of
+// entityType. Out-of-scope IDs are treated as not found.
+func (bt *BalanceTransaction) DeleteForEntityType(entityType string) error {
+	if entityType == "" {
+		return ErrNotFound
+	}
+	return bt.delete(entityType)
+}
+
+func (bt *BalanceTransaction) delete(entityType string) error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
@@ -179,6 +194,26 @@ func (bt *BalanceTransaction) Delete() error {
 		return ErrNotFound
 	} else if err != nil {
 		return err
+	}
+
+	if entityType != "" {
+		var fromEntityType, toEntityType string
+		err = tx.QueryRow(`SELECT fb.entity_type, tb.entity_type
+			FROM balances fb
+			JOIN balances tb ON tb.id = ?
+			WHERE fb.id = ?`, orig.ToBalanceID, orig.FromBalanceID).
+			Scan(&fromEntityType, &toEntityType)
+		if err == sql.ErrNoRows {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+
+		inScope := (fromEntityType == entityType && toEntityType == "self") ||
+			(fromEntityType == "self" && toEntityType == entityType)
+		if !inScope || orig.TransactionType == "charge" {
+			return ErrNotFound
+		}
 	}
 
 	voidedAt := DateNow()

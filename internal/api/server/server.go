@@ -1,11 +1,13 @@
 package server
 
 import (
+	"database/sql"
 	"net/http"
 
 	mw "clinic-api/internal/api/middleware"
 	"clinic-api/internal/api/routes"
 	"clinic-api/internal/buildmode"
+	"clinic-api/internal/cloudrestore"
 	"clinic-api/internal/config"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/pdf"
@@ -18,6 +20,12 @@ import (
 
 func CreateServer() *echo.Echo {
 	e := echo.New()
+	cfg := config.Current()
+	restoreAPI := cloudrestore.New(cloudrestore.Config{
+		PeerURL:    cfg.PeerURL,
+		Secret:     cfg.SyncSecret,
+		Invalidate: mw.InvalidateCacheAll,
+	})
 
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "${time_rfc3339} | ${status} | ${latency_human} | ${method} ${uri}\n",
@@ -26,6 +34,7 @@ func CreateServer() *echo.Echo {
 	e.Use(tracking.Middleware())
 	e.Use(middleware.CORS())
 	e.Use(mw.UpdateGate())
+	e.Use(restoreAPI.Middleware())
 	e.Use(syncpkg.Middleware())
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -48,6 +57,9 @@ func CreateServer() *echo.Echo {
 	api.Use(mw.AuditLogger())
 
 	routes.SetupAuthRoutes(authGroup, api)
+	if !buildmode.Cloud {
+		api.POST("/cloud-restore", restoreAPI.HandleLocal, mw.RequireScope("cloud-restore:write"))
+	}
 
 	sse := e.Group("/api")
 	sse.Use(mw.AuthMiddleware())
@@ -58,12 +70,15 @@ func CreateServer() *echo.Echo {
 		register(api)
 	}
 
-	cfg := config.Current()
 	syncAPI := &syncpkg.API{
 		DB:     store.DB,
+		DBFunc: func() *sql.DB { return store.DB },
 		Secret: cfg.SyncSecret,
 	}
 	syncAPI.RegisterRoutes(e)
+	if buildmode.Cloud && cfg.SyncSecret != "" {
+		e.POST("/api/cloud-restore", restoreAPI.HandleCloud)
+	}
 
 	routes.SetupUpdatePublicRoutes(e, cfg)
 

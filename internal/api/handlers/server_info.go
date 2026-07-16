@@ -12,23 +12,25 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type ServerURLInfo struct {
-	URL  string `json:"url"`
-	Host string `json:"host"`
-	Port string `json:"port"`
+type ServerInfo struct {
+	URL     string `json:"url"`
+	Host    string `json:"host"`
+	Port    string `json:"port"`
+	IsCloud bool   `json:"isCloud"`
 }
 
-func GetServerURL(c echo.Context) error {
+func GetServerInfo(c echo.Context) error {
 	cfg := config.Current()
 
 	if buildmode.Cloud && cfg.PublicURL != "" {
 		host, port := splitURLHostPort(cfg.PublicURL, cfg.Port)
 		return c.JSON(http.StatusOK, httpx.Response{
 			Success: true,
-			Data: ServerURLInfo{
-				URL:  cfg.PublicURL,
-				Host: host,
-				Port: port,
+			Data: ServerInfo{
+				URL:     cfg.PublicURL,
+				Host:    host,
+				Port:    port,
+				IsCloud: buildmode.Cloud,
 			},
 		})
 	}
@@ -38,10 +40,11 @@ func GetServerURL(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, httpx.Response{
 		Success: true,
-		Data: ServerURLInfo{
-			URL:  "http://" + net.JoinHostPort(host, port),
-			Host: host,
-			Port: port,
+		Data: ServerInfo{
+			URL:     "http://" + net.JoinHostPort(host, port),
+			Host:    host,
+			Port:    port,
+			IsCloud: buildmode.Cloud,
 		},
 	})
 }

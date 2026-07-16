@@ -32,7 +32,9 @@ var (
 	ErrNoUpdate          = errors.New("no update available")
 )
 
-// installing gates the API while this node downloads and stages a build.
+// installing gates the API from the start of an update until the replacement
+// build passes its health check. The replacement process restores this flag
+// from the persisted update state during boot.
 var installing atomic.Bool
 
 func IsInstalling() bool { return installing.Load() }
@@ -153,7 +155,10 @@ func ConfirmStartup() { confirmStartup() }
 // FinalizeOnBoot reconciles a finished/interrupted update from the state file.
 // postUpdate means the swapper just relaunched us, so a still-Applying state is normal.
 func FinalizeOnBoot(postUpdate bool) {
-	sp := statePath()
+	finalizeOnBoot(statePath(), postUpdate)
+}
+
+func finalizeOnBoot(sp string, postUpdate bool) {
 	st, err := updatestate.Read(sp)
 	if err != nil {
 		log.Printf("[update] read state: %v", err)
@@ -161,11 +166,13 @@ func FinalizeOnBoot(postUpdate bool) {
 	}
 	switch st.Phase {
 	case updatestate.Success:
+		installing.Store(false)
 		log.Printf("[update] update to %s applied", buildmode.Version)
 		tracking.Info(nil, "[update] applied "+buildmode.Version)
 		cleanupArtifacts(st)
 		_ = updatestate.Clear(sp)
 	case updatestate.Failed:
+		installing.Store(false)
 		log.Printf("[update] update to %s failed, rolled back to %s: %s", st.Target, st.From, st.Error)
 		tracking.CaptureError(nil, fmt.Errorf("[update] rolled back to %s after failed update to %s: %s", st.From, st.Target, st.Error))
 		cleanupArtifacts(st)
@@ -173,6 +180,8 @@ func FinalizeOnBoot(postUpdate bool) {
 	case updatestate.Applying:
 		// Applying on a non-post-update boot means the swapper died mid-update; reconcile so we don't stick.
 		if postUpdate {
+			installing.Store(true)
+			go waitForHealthCheckResult(sp)
 			return
 		}
 		if buildmode.Version == st.Target {
@@ -184,6 +193,33 @@ func FinalizeOnBoot(postUpdate bool) {
 		}
 		cleanupArtifacts(st)
 		_ = updatestate.Clear(sp)
+	case updatestate.Trial:
+		// Linux promotes Applying to Trial before opening the DB. Its
+		// in-process health check clears the gate after confirmation.
+		installing.Store(true)
+	}
+}
+
+func waitForHealthCheckResult(sp string) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		st, err := updatestate.Read(sp)
+		if err != nil {
+			continue
+		}
+		switch st.Phase {
+		case updatestate.Applying, updatestate.Trial:
+			continue
+		case updatestate.Success, updatestate.Failed:
+			installing.Store(false)
+			return
+		default:
+			// A missing or unknown state is not a confirmed health-check result.
+			// Keep the API closed rather than risk writes before a rollback.
+			continue
+		}
 	}
 }
 

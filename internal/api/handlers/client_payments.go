@@ -42,7 +42,7 @@ func CreateClientPayment(c echo.Context) error {
 	if msg := validation.Required(req.PatientID, "Patient ID"); msg != "" {
 		errs["patientId"] = msg
 	}
-	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
+	if msg := validation.GreaterThanZero(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
 	}
 	if msg := validation.OneOf(req.TransactionMethod, []string{"cash", "card", "transfer", "discount", "other"}, "Method"); msg != "" {

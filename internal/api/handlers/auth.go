@@ -114,12 +114,12 @@ func Me(c echo.Context) error {
 	if !ok {
 		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Please sign in again"})
 	}
-	scopes, _ := c.Get("scopes").([]string)
+	grantedScopes, _ := c.Get("scopes").([]string)
 	data := map[string]any{
 		"userId": user.ID,
 		"user":   user.DisplayName,
 		"role":   user.Role,
-		"scopes": scopes,
+		"scopes": grantedScopes,
 	}
 	if empID, err := store.EmployeeIDForUser(user.ID); err == nil {
 		data["employeeId"] = empID

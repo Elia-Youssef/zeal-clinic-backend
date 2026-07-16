@@ -112,6 +112,7 @@ func ExpireDiscounts() error {
 		log.Printf("monitor: expired %d discount(s)", n)
 		middleware.InvalidateCache("discounts")
 		middleware.InvalidateCache("invoice-item-discounts")
+		middleware.InvalidateCache("analytics")
 	}
 	return nil
 }

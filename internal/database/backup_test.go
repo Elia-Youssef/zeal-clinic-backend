@@ -64,3 +64,39 @@ func TestSnapshot_RoundTrip(t *testing.T) {
 		t.Errorf("snapshot opened with wrong key; expected failure")
 	}
 }
+
+func TestRestoreSnapshot_RollsBackDatabaseFile(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "restore-target.db")
+	db, err := Open(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO rooms (id, name, type) VALUES ('restore-room', 'Before', 'General')`); err != nil {
+		t.Fatal(err)
+	}
+	backup, err := Snapshot(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE rooms SET name = 'Damaged' WHERE id = 'restore-room'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := RestoreSnapshot(backup, target); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := Open(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer Close()
+	var name string
+	if err := restored.QueryRow(`SELECT name FROM rooms WHERE id = 'restore-room'`).Scan(&name); err != nil {
+		t.Fatal(err)
+	}
+	if name != "Before" {
+		t.Fatalf("restored name = %q, want Before", name)
+	}
+}

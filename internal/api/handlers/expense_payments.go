@@ -42,7 +42,7 @@ func CreateExpensePayment(c echo.Context) error {
 	if msg := validation.Required(req.ExpenseID, "Expense ID"); msg != "" {
 		errs["expenseId"] = msg
 	}
-	if msg := validation.Positive(req.Amount, "Amount"); msg != "" {
+	if msg := validation.GreaterThanZero(req.Amount, "Amount"); msg != "" {
 		errs["amount"] = msg
 	}
 	if msg := validation.OneOf(req.TransactionMethod, []string{"cash", "card", "transfer", "discount", "other"}, "Method"); msg != "" {

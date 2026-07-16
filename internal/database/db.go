@@ -67,6 +67,27 @@ func Open(pathOverride string) (*sql.DB, error) {
 	return db, nil
 }
 
+// OpenStandalone opens one encrypted SQLite pool without running migrations or
+// installing it into store.DB/store.RDB. It is intended for maintenance tasks
+// that must keep the normal application pools closed while inspecting or
+// repairing the database.
+func OpenStandalone(path string) (*sql.DB, error) {
+	dbPath := resolveSQLitePath(path)
+	db, err := sql.Open("sqlite3", buildDSN(dbPath, encryptionKey))
+	if err != nil {
+		return nil, fmt.Errorf("open standalone db: %w", err)
+	}
+	db.SetMaxOpenConns(1)
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("ping standalone db: %w", err)
+	}
+	return db, nil
+}
+
+// DefaultPath returns the database file used by the current build.
+func DefaultPath() string { return defaultDBPath() }
+
 // Close checkpoints SQLite and closes both the read and write connection
 // pools installed by Open. It is safe to call more than once.
 func Close() error {

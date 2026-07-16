@@ -107,3 +107,10 @@ func Positive(value float64, label string) string {
 	}
 	return ""
 }
+
+func GreaterThanZero(value float64, label string) string {
+	if value <= 0 {
+		return fmt.Sprintf("%s must be greater than 0", label)
+	}
+	return ""
+}

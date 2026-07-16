@@ -21,15 +21,20 @@ import (
 const syncFailureAction = "sync-failure"
 
 var syncFailureNotifyMu sync.Mutex
+var syncFailureEpisodeActive bool
 
-// notifySyncFailure creates at most one unread failure notification per active
-// user and pushes newly-created notifications to all of that user's sessions.
+// notifySyncFailure creates notifications only when syncing transitions into a
+// failed episode. Repeated retries during the same outage do not recreate a
+// notification that a user has read or deleted.
 func notifySyncFailure(db *sql.DB) {
 	if db == nil {
 		return
 	}
 	syncFailureNotifyMu.Lock()
 	defer syncFailureNotifyMu.Unlock()
+	if syncFailureEpisodeActive {
+		return
+	}
 
 	rows, err := db.Query(`SELECT id FROM users WHERE is_active = 1 AND NOT EXISTS (
 		SELECT 1 FROM notifications n
@@ -47,6 +52,7 @@ func notifySyncFailure(db *sql.DB) {
 		}
 	}
 	rows.Close()
+	syncFailureEpisodeActive = true
 
 	const title = "Data sync failed"
 	const description = "Data synchronization failed. Critical cloud actions are disabled until syncing recovers."
@@ -65,6 +71,14 @@ func notifySyncFailure(db *sql.DB) {
 			"action": syncFailureAction, "isRead": false, "createdAt": createdAt,
 		}})
 	}
+}
+
+// markSyncRecovered re-arms failure notifications after a complete successful
+// pull/push/ready cycle. A later failure is then a new episode.
+func markSyncRecovered() {
+	syncFailureNotifyMu.Lock()
+	syncFailureEpisodeActive = false
+	syncFailureNotifyMu.Unlock()
 }
 
 // reportFailureToPeer closes the cloud gate for the current SSE session. It is

@@ -466,6 +466,42 @@ func TestBalanceTransaction_Delete_NotFound(t *testing.T) {
 	}
 }
 
+func TestBalanceTransaction_DeleteForEntityType_RejectsDifferentScope(t *testing.T) {
+	setupTestDB(t)
+	cur := seededCurrency(t)
+	self := seededSelfBalance(t, cur.ID)
+	supplierID := "supplier-scoped-delete"
+	supplier := Balance{
+		EntityType: "supplier", EntityID: &supplierID,
+		EntityName: "Supplier", CurrencyID: cur.ID,
+	}
+	if err := supplier.GetOrCreate(); err != nil {
+		t.Fatal(err)
+	}
+
+	bt := BalanceTransaction{
+		FromBalanceID: self.ID, ToBalanceID: supplier.ID, Amount: 75, CurrencyID: cur.ID,
+		TransactionType: "payment",
+	}
+	if err := bt.Create(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := bt.DeleteForEntityType("patient"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-scope delete error = %v, want ErrNotFound", err)
+	}
+	if n := countRows(t, "balance_transactions", "id = ? AND voided_at = ''", bt.ID); n != 1 {
+		t.Fatalf("cross-scope delete changed the transaction; active rows = %d", n)
+	}
+
+	if err := bt.DeleteForEntityType("supplier"); err != nil {
+		t.Fatalf("in-scope delete: %v", err)
+	}
+	if n := countRows(t, "balance_transactions", "id = ? AND voided_at != ''", bt.ID); n != 1 {
+		t.Errorf("in-scope transaction should be voided; rows = %d", n)
+	}
+}
+
 func TestBalanceTransactionList_GetByBalanceID(t *testing.T) {
 	setupTestDB(t)
 	cur := seededCurrency(t)

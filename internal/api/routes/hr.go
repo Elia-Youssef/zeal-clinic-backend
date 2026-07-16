@@ -17,7 +17,7 @@ func SetupHRRoutes(api *echo.Group) {
 	api.DELETE("/employee-schedule-changes/:id", handlers.DeleteEmployeeScheduleChange, scope("hr:delete"), cache("employee-schedules", "analytics"))
 
 	api.GET("/holidays", handlers.GetAllHolidays, scope("hr:read"), cache("holidays", "employee-schedules"))
-	api.POST("/holidays", handlers.CreateHoliday, scope("hr:write"), cache("holidays", "employee-schedules", "analytics"))
-	api.PUT("/holidays/:id", handlers.UpdateHoliday, scope("hr:write"), cache("holidays", "employee-schedules", "analytics"))
-	api.DELETE("/holidays/:id", handlers.DeleteHoliday, scope("hr:delete"), cache("holidays", "employee-schedules", "analytics"))
+	api.POST("/holidays", handlers.CreateHoliday, scope("hr:write"), cache("holidays", "employee-schedules", "appointments", "analytics"))
+	api.PUT("/holidays/:id", handlers.UpdateHoliday, scope("hr:write"), cache("holidays", "employee-schedules", "appointments", "analytics"))
+	api.DELETE("/holidays/:id", handlers.DeleteHoliday, scope("hr:delete"), cache("holidays", "employee-schedules", "appointments", "analytics"))
 }

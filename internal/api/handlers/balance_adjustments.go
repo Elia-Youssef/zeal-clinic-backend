@@ -11,16 +11,31 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// DeleteBalanceTransaction removes a balance transaction (payment, adjustment,
-// write-off, etc.) and reverses the balance updates it made. If the transaction
-// was created as part of a paired charge+payment (expense payment), both legs
-// are removed atomically.
-func DeleteBalanceTransaction(c echo.Context) error {
+func DeleteClientPayment(c echo.Context) error {
+	return deleteBalanceTransaction(c, "patient")
+}
+
+func DeleteSupplierPayment(c echo.Context) error {
+	return deleteBalanceTransaction(c, "supplier")
+}
+
+func DeleteEmployeePayment(c echo.Context) error {
+	return deleteBalanceTransaction(c, "employee")
+}
+
+func DeleteExpensePayment(c echo.Context) error {
+	return deleteBalanceTransaction(c, "expense")
+}
+
+// deleteBalanceTransaction removes a payment-list transaction only when it
+// belongs to the endpoint's entity scope. Expense payment pairs are still
+// removed atomically by the store.
+func deleteBalanceTransaction(c echo.Context, entityType string) error {
 	bt := store.BalanceTransaction{ID: c.Param("id")}
-	if err := bt.Delete(); errors.Is(err, store.ErrNotFound) {
+	if err := bt.DeleteForEntityType(entityType); errors.Is(err, store.ErrNotFound) {
 		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Transaction not found"})
 	} else if err != nil {
-		log.Println("Error: DeleteBalanceTransaction:", err)
+		log.Printf("Error: deleteBalanceTransaction[%s]: %v", entityType, err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete transaction"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})

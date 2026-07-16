@@ -6,7 +6,16 @@ import (
 	"sync"
 	"time"
 
+	"clinic-api/internal/buildmode"
 	syncpkg "clinic-api/internal/sync"
+)
+
+type ActionTarget string
+
+const (
+	ActionBoth  ActionTarget = "both"
+	ActionLocal ActionTarget = "local"
+	ActionCloud ActionTarget = "cloud"
 )
 
 // Action is a named unit of periodic work the Monitor evaluates on every tick.
@@ -16,7 +25,21 @@ import (
 type Action struct {
 	Name     string
 	Duration time.Duration
+	Target   ActionTarget
 	Fn       func() error
+}
+
+func (a Action) runsOn(cloud bool) bool {
+	switch a.Target {
+	case "", ActionBoth:
+		return true
+	case ActionLocal:
+		return !cloud
+	case ActionCloud:
+		return cloud
+	default:
+		return false
+	}
 }
 
 // Monitor runs a dynamically-extensible list of Actions on a fixed interval
@@ -85,6 +108,9 @@ func (m *Monitor) tick() {
 	now := time.Now()
 	var due []Action
 	for _, a := range m.actions {
+		if !a.runsOn(buildmode.Cloud) {
+			continue
+		}
 		if a.Duration > 0 && now.Sub(m.lastFired[a.Name]) < a.Duration {
 			continue
 		}

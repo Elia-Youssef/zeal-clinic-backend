@@ -94,11 +94,11 @@ func (u *User) IsValid() error {
 }
 
 func (l *UserList) GetAll(params ListParams) (int, error) {
-	where := ""
+	where := " WHERE role != 'super-admin'"
 	var args []any
 	if fc, fa := params.FilterClause("username", "display_name", "role"); fc != "" {
-		where = " WHERE " + fc
-		args = fa
+		where += " AND " + fc
+		args = append(args, fa...)
 	}
 
 	var total int

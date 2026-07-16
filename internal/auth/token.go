@@ -21,7 +21,7 @@ type TokenResult struct {
 	EmployeeID *string  `json:"employeeId,omitempty"`
 }
 
-func GenerateToken(user store.User, scopes []string) (TokenResult, error) {
+func GenerateToken(user store.User, grantedScopes []string) (TokenResult, error) {
 	cfg := config.Current()
 	now := time.Now().UTC()
 	expiresAt := now.Add(cfg.JWTLifetime)
@@ -58,7 +58,7 @@ func GenerateToken(user store.User, scopes []string) (TokenResult, error) {
 		UserID:    user.ID,
 		User:      user.DisplayName,
 		Role:      user.Role,
-		Scopes:    scopes,
+		Scopes:    grantedScopes,
 	}
 	if empID, err := store.EmployeeIDForUser(user.ID); err == nil {
 		result.EmployeeID = &empID

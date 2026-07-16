@@ -19,7 +19,15 @@ import (
 
 type API struct {
 	DB     *sql.DB
+	DBFunc func() *sql.DB
 	Secret string
+}
+
+func (a *API) activeDB() *sql.DB {
+	if a.DBFunc != nil {
+		return a.DBFunc()
+	}
+	return a.DB
 }
 
 func nodeLabel() string {
@@ -86,33 +94,35 @@ func errResp(c echo.Context, status int, err error) error {
 func (a *API) inboundSyncFailure(c echo.Context, err error) error {
 	failCurrentCriticalSession()
 	tracking.CaptureError(c, err)
-	notifySyncFailure(a.DB)
+	notifySyncFailure(a.activeDB())
 	return errResp(c, http.StatusInternalServerError, err)
 }
 
 // handlePull returns rows after since and prunes rows the caller has confirmed.
 func (a *API) handlePull(c echo.Context) error {
+	db := a.activeDB()
+	if db == nil {
+		return errResp(c, http.StatusServiceUnavailable, fmt.Errorf("database unavailable"))
+	}
 	since, _ := strconv.ParseInt(c.QueryParam("since"), 10, 64)
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 	if limit <= 0 || limit > 2000 {
 		limit = pullBatchSize
 	}
 
-	rows, err := LoadBatch(a.DB, since, limit)
+	rows, err := LoadBatch(db, since, limit)
 	if err != nil {
 		return a.inboundSyncFailure(c, fmt.Errorf("[sync] load pull batch (since=%d limit=%d): %w", since, limit, err))
 	}
-	if err := enrichBatch(a.DB, rows); err != nil {
+	if err := enrichBatch(db, rows); err != nil {
 		return a.inboundSyncFailure(c, fmt.Errorf("[sync] enrich pull batch: %w", err))
 	}
-	maxSeq, _ := MaxLogSeq(a.DB)
+	maxSeq, _ := MaxLogSeq(db)
 
 	if since > 0 {
-		go func(s int64) {
-			if _, err := PruneOutgoing(a.DB, s); err != nil {
-				log.Printf("[sync] prune outgoing (through seq=%d): %v", s, err)
-			}
-		}(since)
+		if _, err := PruneOutgoing(db, since); err != nil {
+			log.Printf("[sync] prune outgoing (through seq=%d): %v", since, err)
+		}
 	}
 
 	return c.JSON(http.StatusOK, PullResponse{Rows: rows, MaxSeq: maxSeq})
@@ -120,6 +130,10 @@ func (a *API) handlePull(c echo.Context) error {
 
 // handlePush applies rows from the caller and broadcasts when data lands.
 func (a *API) handlePush(c echo.Context) error {
+	db := a.activeDB()
+	if db == nil {
+		return errResp(c, http.StatusServiceUnavailable, fmt.Errorf("database unavailable"))
+	}
 	var req PushRequest
 	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
 		return errResp(c, http.StatusBadRequest, fmt.Errorf("decode: %w", err))
@@ -128,7 +142,7 @@ func (a *API) handlePush(c echo.Context) error {
 		return c.JSON(http.StatusOK, PushResponse{})
 	}
 
-	applied, conflicts, err := Apply(a.DB, req.Rows)
+	applied, conflicts, err := Apply(db, req.Rows)
 	if err != nil {
 		return a.inboundSyncFailure(c, fmt.Errorf("[sync] apply push batch (%d rows): %w", len(req.Rows), err))
 	}
@@ -146,6 +160,7 @@ func (a *API) handleReady(c echo.Context) error {
 	if !markCriticalSessionReady(req.SessionToken) {
 		return c.JSON(http.StatusConflict, map[string]string{"error": "stale sync session"})
 	}
+	markSyncRecovered()
 	return c.JSON(http.StatusOK, map[string]bool{"ready": true})
 }
 
@@ -157,7 +172,7 @@ func (a *API) handleFailed(c echo.Context) error {
 	if !failCriticalSession(req.SessionToken) {
 		return c.JSON(http.StatusConflict, map[string]string{"error": "stale sync session"})
 	}
-	notifySyncFailure(a.DB)
+	notifySyncFailure(a.activeDB())
 	return c.JSON(http.StatusOK, map[string]bool{"ready": false})
 }
 
@@ -216,8 +231,12 @@ func (a *API) handleEvents(c echo.Context) error {
 }
 
 func (a *API) handleStatus(c echo.Context) error {
-	maxSeq, _ := MaxLogSeq(a.DB)
-	pushed, pulled, _ := GetState(a.DB, SyncedPeer)
+	db := a.activeDB()
+	if db == nil {
+		return errResp(c, http.StatusServiceUnavailable, fmt.Errorf("database unavailable"))
+	}
+	maxSeq, _ := MaxLogSeq(db)
+	pushed, pulled, _ := GetState(db, SyncedPeer)
 	return c.JSON(http.StatusOK, map[string]any{
 		"self_id":         nodeLabel(),
 		"max_log_seq":     maxSeq,

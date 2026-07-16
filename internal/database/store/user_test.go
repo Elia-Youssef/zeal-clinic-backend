@@ -240,9 +240,9 @@ func TestUser_UpdatePassword(t *testing.T) {
 
 func TestUserList_GetAll_PaginationAndFilter(t *testing.T) {
 	setupTestDB(t)
-	// Account for migrations seeding the default admin: query existing total.
+	// Account for seeded users visible to the management list.
 	var preTotal int
-	RDB.QueryRow("SELECT COUNT(*) FROM users").Scan(&preTotal)
+	RDB.QueryRow("SELECT COUNT(*) FROM users WHERE role != 'super-admin'").Scan(&preTotal)
 
 	for _, name := range []string{"alpha", "bravo", "charlie", "delta", "echo"} {
 		u := User{Username: name, DisplayName: name + " full", Role: "staff", IsActive: true}

@@ -3,10 +3,13 @@ package monitor
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/realtime"
 )
+
+var lowStockWG sync.WaitGroup
 
 // CheckLowStock evaluates the given products against their min_threshold and
 // keeps low-stock notifications in sync: products at or below threshold get a
@@ -37,8 +40,17 @@ func CheckLowStock(productIDs []string) {
 		return
 	}
 
-	go runLowStockCheck(ids)
+	lowStockWG.Add(1)
+	go func() {
+		defer lowStockWG.Done()
+		runLowStockCheck(ids)
+	}()
 }
+
+// WaitAsync waits for low-stock work already launched by completed HTTP
+// requests. The restore lifecycle calls it after gating new requests and
+// before closing database pools.
+func WaitAsync() { lowStockWG.Wait() }
 
 func runLowStockCheck(ids []string) {
 	defer func() {

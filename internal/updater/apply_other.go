@@ -108,6 +108,7 @@ func confirmStartup() {
 	_ = os.Remove(st.BackupExe)
 	_ = os.Remove(st.DBSnapshot)
 	_ = updatestate.Clear(sp)
+	installing.Store(false)
 	log.Printf("[update] update to %s confirmed", buildmode.Version)
 	tracking.Info(nil, "[update] applied "+buildmode.Version)
 }

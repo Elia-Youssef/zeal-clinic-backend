@@ -6,6 +6,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func SetupServerInfoRoutes(pub *echo.Group) {
-	pub.GET("/server-url", handlers.GetServerURL, cache("server-url"))
+func SetupServerInfoRoutes(api *echo.Group) {
+	api.GET("/server-info", handlers.GetServerInfo, cache("server-info"))
 }

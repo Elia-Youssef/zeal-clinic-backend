@@ -10,6 +10,7 @@ var All = []string{
 	"appointments:read", "appointments:write", "appointments:delete",
 	"audit:read",
 	"balances:read",
+	"cloud-restore:write",
 	"currencies:read", "currencies:write", "currencies:delete",
 	"discounts:read", "discounts:write", "discounts:delete",
 	"employees:read", "employees:write", "employees:delete",

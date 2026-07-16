@@ -53,6 +53,7 @@ func TestClientPayment_ValidationFailures(t *testing.T) {
 		want int
 	}{
 		{"missing patientId", map[string]any{"currencyId": curID, "amount": 1.0}, http.StatusBadRequest},
+		{"zero amount", map[string]any{"patientId": pid, "currencyId": curID, "amount": 0}, http.StatusBadRequest},
 		{"negative amount", map[string]any{"patientId": pid, "currencyId": curID, "amount": -5}, http.StatusBadRequest},
 		{"unknown patient", map[string]any{"patientId": "ghost", "currencyId": curID, "amount": 1.0}, http.StatusBadRequest},
 	}
@@ -156,6 +157,81 @@ func TestClientPayment_DeleteVoidsTransaction(t *testing.T) {
 	}
 	if n := countTableRows(t, "balance_transactions", "id = ? AND voided_at != ''", bt.ID); n != 1 {
 		t.Errorf("payment tx should be voided")
+	}
+}
+
+func TestPaymentDeletes_AreEntityScoped(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	curID := firstSeededCurrencyID(t)
+
+	patientID := createPatientAndGetID(t, e, tok, "ScopedPatient")
+	supplierID := createSupplier(t, e, tok, "ScopedSupplier")
+	employeeID := createEmployee(t, e, tok, "Scoped", "Employee")
+	expenseID := createExpense(t, e, tok, "ScopedExpense")
+
+	createPayment := func(path string, body map[string]any) string {
+		t.Helper()
+		rec := doRequest(t, e, http.MethodPost, path, asJSON(t, body), tok)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("create %s: %d body=%s", path, rec.Code, rec.Body.String())
+		}
+		var transaction struct{ ID string }
+		decodeEnvelope(t, rec.Body, &transaction)
+		return transaction.ID
+	}
+
+	clientPaymentID := createPayment("/api/client-payments", map[string]any{
+		"patientId": patientID, "amount": 10.0, "currencyId": curID,
+		"transactionMethod": "cash", "description": "client",
+	})
+	supplierPaymentID := createPayment("/api/supplier-payments", map[string]any{
+		"supplierId": supplierID, "amount": 20.0, "currencyId": curID,
+		"transactionMethod": "cash", "description": "supplier",
+	})
+	employeePaymentID := createPayment("/api/employee-payments", map[string]any{
+		"employeeId": employeeID, "amount": 30.0, "currencyId": curID,
+		"transactionMethod": "cash", "description": "employee",
+	})
+	expensePaymentID := createPayment("/api/expense-payments", map[string]any{
+		"expenseId": expenseID, "amount": 40.0, "currencyId": curID,
+		"transactionMethod": "cash", "description": "expense",
+	})
+
+	wrongScopeDeletes := []struct {
+		path          string
+		transactionID string
+	}{
+		{"/api/client-payments/", supplierPaymentID},
+		{"/api/supplier-payments/", employeePaymentID},
+		{"/api/employee-payments/", expensePaymentID},
+		{"/api/expense-payments/", clientPaymentID},
+	}
+	for _, tc := range wrongScopeDeletes {
+		rec := doRequest(t, e, http.MethodDelete, tc.path+tc.transactionID, nil, tok)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("cross-scope delete %s: code = %d want 404, body=%s", tc.path, rec.Code, rec.Body.String())
+		}
+		if n := countTableRows(t, "balance_transactions", "id = ? AND voided_at = ''", tc.transactionID); n != 1 {
+			t.Errorf("cross-scope delete %s changed transaction %s", tc.path, tc.transactionID)
+		}
+	}
+
+	correctScopeDeletes := []struct {
+		path          string
+		transactionID string
+	}{
+		{"/api/client-payments/", clientPaymentID},
+		{"/api/supplier-payments/", supplierPaymentID},
+		{"/api/employee-payments/", employeePaymentID},
+		{"/api/expense-payments/", expensePaymentID},
+	}
+	for _, tc := range correctScopeDeletes {
+		rec := doRequest(t, e, http.MethodDelete, tc.path+tc.transactionID, nil, tok)
+		if rec.Code != http.StatusOK {
+			t.Errorf("in-scope delete %s: code = %d want 200, body=%s", tc.path, rec.Code, rec.Body.String())
+		}
 	}
 }
 

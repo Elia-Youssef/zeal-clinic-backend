@@ -80,19 +80,24 @@ Filename: "netsh"; Parameters: "advfirewall firewall delete rule name=""{#AppNam
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  DataDir: String;
+  DataDir, BackupDir: String;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
     DataDir := ExpandConstant('{localappdata}\{#AppName}\Data');
-    if DirExists(DataDir) then
+    BackupDir := ExpandConstant('{localappdata}\{#AppName}\backup');
+    if DirExists(DataDir) or DirExists(BackupDir) then
     begin
-      if MsgBox('Also delete the ' + '{#AppName}' + ' data folder?' + #13#10 +
-                DataDir + #13#10 + #13#10 +
-                'This will permanently remove the database and all records. ' +
+      if MsgBox('Also delete the ' + '{#AppName}' + ' data and database backups?' + #13#10 +
+                DataDir + #13#10 +
+                BackupDir + #13#10 + #13#10 +
+                'This will permanently remove the database, all records, and all backups. ' +
                 'Choose No to keep your data (recommended).',
                 mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      begin
         DelTree(DataDir, True, True, True);
+        DelTree(BackupDir, True, True, True);
+      end;
     end;
   end;
 end;

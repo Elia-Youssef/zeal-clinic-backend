@@ -88,7 +88,7 @@ func newDemoCtx(ctx context.Context, tx *sql.Tx) (*demoCtx, error) {
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM balances WHERE entity_type = 'self' AND currency_id = ?`, c.currencyID).Scan(&c.selfBalanceID); err != nil {
 		return nil, err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = 'admin'`).Scan(&c.adminUserID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = 'super-admin'`).Scan(&c.adminUserID); err != nil {
 		return nil, err
 	}
 	if err := loadNameMap(ctx, tx, `SELECT id, name FROM rooms`, c.rooms); err != nil {
