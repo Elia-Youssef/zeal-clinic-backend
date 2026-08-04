@@ -17,13 +17,17 @@ import (
 //                 the frontend converts clinic-local boundaries to UTC) or
 //                 bare YYYY-MM-DD UTC dates (calendar-day inclusive on both
 //                 ends).
-//   itemKind:     "" | products | procedures | other | all (root toggle, drill mode)
+//   itemKind:     "" | products | procedures | other | discounts | all
+//                 (root toggle, drill mode). "discounts" reports invoice
+//                 offers as negative amounts (revenue given up rather than
+//                 earned), so it never mixes into the other kinds or "all".
 //   typeId:       drill into a procedure type
 //   categoryId:   drill into a procedure or product category
 //   level:        "" | kind | procedure-type | procedure-category |
-//                 product-category | procedure | product. When set, the
-//                 report aggregates flat across the whole dataset at that
-//                 level; typeId / categoryId become scope filters.
+//                 product-category | procedure | product | other | discount.
+//                 When set, the report aggregates flat across the whole
+//                 dataset at that level; typeId / categoryId become scope
+//                 filters.
 func GetRevenueReport(c echo.Context) error {
 	from, to := parseRange(c)
 	report, err := (&store.Reports{}).Revenue(store.RevenueParams{

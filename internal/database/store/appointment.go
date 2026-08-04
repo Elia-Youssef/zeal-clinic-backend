@@ -25,7 +25,10 @@ type Appointment struct {
 	UpdatedAt       Date   `json:"updatedAt"`
 	// Joined / transient: serves as input on create/update/reschedule
 	// (procedureId, assignedToId, notes) and as the joined output.
+	// PatientBalance is read-only and populated only by the list methods that
+	// call LoadPatientBalances; everywhere else it stays nil and is omitted.
 	PatientName           string                   `json:"patientName,omitempty"`
+	PatientBalance        *float64                 `json:"patientBalance,omitempty"`
 	AppointmentProcedures AppointmentProcedureList `json:"appointmentProcedures,omitempty"`
 }
 
@@ -156,6 +159,62 @@ func (l *AppointmentList) LoadProcedures() error {
 		}
 	}
 
+	return apRows.Err()
+}
+
+// LoadPatientBalances populates PatientBalance with each patient's USD balance
+// amount, negative when the patient owes the clinic. Only the list methods
+// whose consumers display it call this; everywhere else the field stays nil and
+// is omitted from the response, so it is never echoed back on a write.
+// A patient with no balance row yet reads as 0, same as a settled one.
+func (l *AppointmentList) LoadPatientBalances() error {
+	if len(*l) == 0 {
+		return nil
+	}
+
+	args := []any{USDCurrencyID}
+	seen := make(map[string]bool, len(*l))
+	placeholders := ""
+	for _, a := range *l {
+		if a.PatientID == "" || seen[a.PatientID] {
+			continue
+		}
+		seen[a.PatientID] = true
+		if placeholders != "" {
+			placeholders += ","
+		}
+		placeholders += "?"
+		args = append(args, a.PatientID)
+	}
+	if placeholders == "" {
+		return nil
+	}
+
+	rows, err := RDB.Query(`SELECT entity_id, amount FROM balances
+		WHERE entity_type = 'patient' AND currency_id = ?
+		AND entity_id IN (`+placeholders+`)`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	amounts := make(map[string]float64, len(seen))
+	for rows.Next() {
+		var patientID string
+		var amount float64
+		if err := rows.Scan(&patientID, &amount); err != nil {
+			continue
+		}
+		amounts[patientID] = amount
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for i := range *l {
+		amount := amounts[(*l)[i].PatientID]
+		(*l)[i].PatientBalance = &amount
+	}
 	return nil
 }
 
@@ -166,6 +225,14 @@ func nullableID(s string) any {
 		return nil
 	}
 	return s
+}
+
+// occupiesSlot reports whether an appointment in this status holds its room, and
+// so can collide with another booking. Mirrors the status filter below; the two
+// must agree, or a row could be revived into a slot it is then said to conflict
+// with (or worse, revived into one it silently double-books).
+func occupiesSlot(status string) bool {
+	return status != "Cancelled" && status != "Rescheduled"
 }
 
 func checkAppointmentConflict(db DBTX, roomID string, startTime, endTime Date, excludeID string) error {
@@ -198,14 +265,22 @@ func (a *AppointmentList) GetAll(date string, params ListParams) (int, error) {
 		t = ClinicNow()
 	}
 	dayStart, dayEnd := ClinicDayBounds(t)
-	return a.getAllBetween(dayStart, dayEnd, params)
+	total, err := a.getAllBetween(dayStart, dayEnd, params)
+	if err != nil {
+		return total, err
+	}
+	return total, a.LoadPatientBalances()
 }
 
 // GetWeek loads appointments for the Monday-Sunday week containing date,
 // matching the weekly appointment grid (GetAppointmentCountPerRoom).
 func (a *AppointmentList) GetWeek(date string, params ListParams) (int, error) {
 	dayStart, dayEnd := weekBounds(date)
-	return a.getAllBetween(dayStart, dayEnd, params)
+	total, err := a.getAllBetween(dayStart, dayEnd, params)
+	if err != nil {
+		return total, err
+	}
+	return total, a.LoadPatientBalances()
 }
 
 // weekBounds returns the half-open UTC instants of the Monday-Sunday clinic
@@ -226,10 +301,13 @@ func weekBounds(date string) (Date, Date) {
 }
 
 // getAllBetween loads appointments whose start_time falls in the half-open
-// UTC range [dayStart, dayEnd), excluding cancelled/rescheduled rows.
+// UTC range [dayStart, dayEnd). Cancelled rows are returned: the calendar
+// hides them client-side, and the schedule PDF prints them marked as cancelled.
+// Rescheduled rows are excluded: the replacement appointment already sits in
+// the range, so keeping them would list the same booking twice.
 func (a *AppointmentList) getAllBetween(dayStart, dayEnd Date, params ListParams) (int, error) {
 	return a.listByWhere(
-		" WHERE a.start_time >= ? AND a.start_time < ? AND a.status NOT IN ('Cancelled','Rescheduled')",
+		" WHERE a.start_time >= ? AND a.start_time < ? AND a.status != 'Rescheduled'",
 		[]any{dayStart, dayEnd},
 		"a.start_time, (SELECT name FROM rooms WHERE id = a.room_id)",
 		params,
@@ -319,9 +397,13 @@ func (a *AppointmentList) GetByPatientID(patientID string, params ListParams) (i
 // week containing date. Empty/invalid date falls back to the current week.
 func (a *AppointmentList) GetByEmployeeWeek(employeeID string, date string, params ListParams) (int, error) {
 	dayStart, dayEnd := weekBounds(date)
-	return a.listByWhere(
+	total, err := a.listByWhere(
 		" WHERE a.start_time >= ? AND a.start_time < ? AND a.id IN (SELECT appointment_id FROM appointment_procedures WHERE assigned_to_id = ?)",
 		[]any{dayStart, dayEnd, employeeID}, "a.start_time", params)
+	if err != nil {
+		return total, err
+	}
+	return total, a.LoadPatientBalances()
 }
 
 func (a *AppointmentList) GetByProcedureID(procedureID string, params ListParams) (int, error) {
@@ -368,6 +450,8 @@ func (a *Appointment) Create() error {
 		return err
 	}
 
+	// Read-only field, never accepted as input: drop anything the client sent.
+	a.PatientBalance = nil
 	RDB.QueryRow(`SELECT COALESCE(first_name || ' ' || last_name, '') FROM patients WHERE id = ?`, a.PatientID).Scan(&a.PatientName)
 	return nil
 }
@@ -403,10 +487,21 @@ func (a *Appointment) Update(updates map[string]any) error {
 	_, roomChanged := updates["roomId"]
 	_, startChanged := updates["startTime"]
 	_, endChanged := updates["endTime"]
-	if roomChanged || startChanged || endChanged || hasProcedures {
+	_, statusChanged := updates["status"]
+	if roomChanged || startChanged || endChanged || statusChanged || hasProcedures {
 		if err := current.GetByID(a.ID); err != nil {
 			return err
 		}
+	}
+
+	// A cancelled (or rescheduled) row doesn't hold its slot: checkAppointmentConflict
+	// skips it, so the room may have been booked by someone else in the meantime.
+	// Bringing the row back into an occupying status has to clear the same check a
+	// fresh booking would, even when the room and times are untouched.
+	revived := !occupiesSlot(current.Status)
+	if revived {
+		v, ok := updates["status"].(string)
+		revived = ok && occupiesSlot(v)
 	}
 
 	tx, err := DB.Begin()
@@ -415,7 +510,7 @@ func (a *Appointment) Update(updates map[string]any) error {
 	}
 	defer tx.Rollback()
 
-	if roomChanged || startChanged || endChanged {
+	if roomChanged || startChanged || endChanged || revived {
 		roomID := current.RoomID
 		startTime := current.StartTime
 		endTime := current.EndTime

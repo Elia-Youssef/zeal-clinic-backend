@@ -48,9 +48,7 @@ func (p *Patient) IsValid() error {
 	} else if msg := validation.OneOf(p.Gender, []string{"Male", "Female"}, "Gender"); msg != "" {
 		e["gender"] = msg
 	}
-	if msg := validation.Required(string(p.DateOfBirth), "Date of birth"); msg != "" {
-		e["dateOfBirth"] = msg
-	} else if msg := validation.Date(string(p.DateOfBirth)); msg != "" {
+	if msg := validateDateOfBirth(p.DateOfBirth); msg != "" {
 		e["dateOfBirth"] = msg
 	}
 	p.Contact = validation.NormalizePhone(p.Contact)
@@ -66,6 +64,19 @@ func (p *Patient) IsValid() error {
 		return e
 	}
 	return nil
+}
+
+// validateDateOfBirth checks an optional date of birth: blank is accepted, a
+// value must be a real YYYY-MM-DD date, and it can't be in the future (compared
+// against the clinic's calendar day, not UTC's).
+func validateDateOfBirth(dob Date) string {
+	if msg := validation.Date(string(dob)); msg != "" {
+		return msg
+	}
+	if !dob.IsZero() && dob.After(ClinicToday()) {
+		return "date of birth can't be in the future"
+	}
+	return ""
 }
 
 const patientColumnsNoId = `first_name, middle_name, last_name, gender, date_of_birth,
@@ -217,6 +228,16 @@ func (p *Patient) Create() error {
 }
 
 func (p *Patient) Update(updates map[string]any) error {
+	if v, ok := updates["dateOfBirth"]; ok {
+		dob, isString := v.(string)
+		if !isString {
+			return validation.Errors{"dateOfBirth": "invalid date format (expected YYYY-MM-DD)"}
+		}
+		if msg := validateDateOfBirth(Date(dob)); msg != "" {
+			return validation.Errors{"dateOfBirth": msg}
+		}
+	}
+
 	cols := map[string]string{
 		"firstName": "first_name", "middleName": "middle_name", "lastName": "last_name",
 		"gender": "gender", "dateOfBirth": "date_of_birth", "contact": "contact", "email": "email",

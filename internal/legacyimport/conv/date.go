@@ -3,6 +3,9 @@ package conv
 import (
 	"fmt"
 	"strings"
+	"time"
+
+	"clinic-api/internal/database/store"
 )
 
 var months = map[string]int{
@@ -71,6 +74,11 @@ func Date(v string, isDOB bool) (out string, ok bool, err error) {
 	return fmt.Sprintf("%04d-%02d-%02d", y, m, d), true, nil
 }
 
+// DateTimeZ anchors a date-only legacy value (the `createdat` columns) at UTC
+// midnight. These carry no time component, so there is no Beirut wall clock to
+// convert: anchoring at 00:00:00Z keeps the row on the same calendar day whether
+// it is read as UTC or displayed in the clinic's timezone. Only values that
+// really carry a time (see AppointmentDateTime) are shifted.
 func DateTimeZ(v string) (out string, ok bool, err error) {
 	d, ok, err := Date(v, false)
 	if !ok || err != nil {
@@ -79,16 +87,25 @@ func DateTimeZ(v string) (out string, ok bool, err error) {
 	return d + "T00:00:00Z", true, nil
 }
 
+// AppointmentDateTime combines a legacy date with an HH:MM time into an RFC3339
+// UTC instant. The old software recorded appointment times as clinic-local
+// (Beirut) wall clock, while this schema stores UTC, so the pair is interpreted
+// in store.ClinicLocation() and converted, rather than stamped with a "Z" it
+// never earned.
 func AppointmentDateTime(date, hhmm string) (out string, ok bool, err error) {
-	d, dok, err := Date(date, false)
-	if !dok || err != nil {
-		return "", dok, err
+	if IsBlankDate(date) {
+		return "", false, nil
 	}
-	hh, mm, terr := parseHHMM(hhmm)
-	if terr != nil {
-		return "", false, terr
+	y, mo, d, err := parseDMY(date, false)
+	if err != nil {
+		return "", false, err
 	}
-	return fmt.Sprintf("%sT%02d:%02d:00Z", d, hh, mm), true, nil
+	hh, mm, err := parseHHMM(hhmm)
+	if err != nil {
+		return "", false, err
+	}
+	local := time.Date(y, time.Month(mo), d, hh, mm, 0, 0, store.ClinicLocation())
+	return local.UTC().Format(store.DateTimeFormat), true, nil
 }
 
 func parseHHMM(v string) (h, m int, err error) {

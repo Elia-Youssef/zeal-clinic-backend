@@ -769,6 +769,55 @@ func (inv *InvoiceList) GetByItem(itemID, itemType string, params ListParams) (i
 	return total, nil
 }
 
+// GetByDiscount returns every invoice a discount touched, optionally bounded
+// by params.From / params.To on the invoice date. An offer is linked
+// invoice-wide through invoices.discount_id; a gift is linked through the
+// invoice line that issued it (item_type='gift', item_id = the gift's id).
+// Redeeming a gift produces a balance transaction rather than an invoice, so
+// redemptions have no row here; the revenue report's "discounts" kind counts
+// those.
+func (inv *InvoiceList) GetByDiscount(discountID string, params ListParams) (int, error) {
+	baseFrom := ` FROM invoices i
+		LEFT JOIN invoice_items ii ON ii.invoice_id = i.id
+			AND ii.item_type = 'gift' AND ii.item_id = ?
+		WHERE (i.discount_id = ? OR ii.id IS NOT NULL) AND i.voided_at = ''`
+	args := []any{discountID, discountID}
+	if dc, da := params.DateRangeClause("i.created_at"); dc != "" {
+		baseFrom += " AND " + dc
+		args = append(args, da...)
+	}
+
+	var total int
+	if err := RDB.QueryRow("SELECT COUNT(DISTINCT i.id)"+baseFrom, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	query := `SELECT DISTINCT i.id, i.invoice_number, i.from_balance_id, i.to_balance_id,
+		i.amount, i.discount_id, i.discount_value, i.final_amount, i.currency_id,
+		i.notes, i.created_by, i.created_at, i.updated_at` +
+		baseFrom + " ORDER BY i.created_at DESC" + params.PaginationClause()
+
+	rows, err := RDB.Query(query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	if err := inv.ScanRows(rows); err != nil {
+		return 0, err
+	}
+	for i := range *inv {
+		(*inv)[i].Items.GetByInvoice((*inv)[i].ID)
+		if (*inv)[i].FromBalanceID != "" {
+			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].FromBalanceID).Scan(&(*inv)[i].FromEntityID, &(*inv)[i].FromEntityName)
+		}
+		if (*inv)[i].ToBalanceID != "" {
+			RDB.QueryRow(`SELECT COALESCE(entity_id, ''), entity_name FROM balances WHERE id = ?`, (*inv)[i].ToBalanceID).Scan(&(*inv)[i].ToEntityID, &(*inv)[i].ToEntityName)
+		}
+	}
+	return total, nil
+}
+
 // Delete reverses Invoice.Create's side effects, then soft-voids the invoice
 // (voided_at) so the deletion replicates. Refuses if a created gift was redeemed.
 func (inv *Invoice) Delete() error {

@@ -21,7 +21,7 @@ var searchTargets = []SearchTarget{
 	{Table: "employees", Scope: "employees:read", Fields: []string{"first_name", "last_name", "contact", "email"}, Match: []string{employeeNameExpr, "contact", "email"}},
 }
 
-const searchLimit = 3
+const searchLimit = 5
 
 type SearchHit map[string]any
 type SearchResults map[string][]SearchHit

@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/validation"
 	"errors"
 	"log"
 	"net/http"
@@ -91,6 +92,11 @@ func UpdatePatient(c echo.Context) error {
 		if errors.Is(err, store.ErrNotFound) {
 			log.Println("Error: [UpdatePatient] patient not found:", c.Param("id"))
 			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Patient not found"})
+		}
+		var validationErr validation.Errors
+		if errors.As(err, &validationErr) {
+			log.Println("Error: [UpdatePatient] validation failed:", err.Error())
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 		}
 		log.Println("Error: [UpdatePatient] failed to update patient:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update patient"})

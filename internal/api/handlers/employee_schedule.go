@@ -3,6 +3,7 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
+	"clinic-api/internal/validation"
 	"errors"
 	"log"
 	"net/http"
@@ -12,41 +13,32 @@ import (
 
 // Write-only resource; reads come through GetEmployeeSchedule.
 
-func CreateEmployeeSchedule(c echo.Context) error {
-	var sa store.EmployeeSchedule
-	if err := c.Bind(&sa); err != nil {
-		log.Println("Error: CreateEmployeeSchedule invalid request:", err)
+// SaveEmployeeScheduleDay writes the complete shift set for one weekday. The
+// shifts in the body are the shifts that exist from startDate on; a weekday may
+// carry several as long as they don't overlap, and an empty list turns it into a
+// day off. Saving the whole day at once keeps a multi-shift weekday from ever
+// being half-written.
+func SaveEmployeeScheduleDay(c echo.Context) error {
+	var version store.EmployeeScheduleVersion
+	if err := c.Bind(&version); err != nil {
+		log.Println("Error: [SaveEmployeeScheduleDay] invalid request body:", err)
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
-	if err := sa.IsValid(); err != nil {
-		log.Println("Error: CreateEmployeeSchedule validation failed:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
-	}
-	if err := sa.Create(); err != nil {
-		log.Println("Error: CreateEmployeeSchedule failed to create employee schedule:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create employee schedule"})
-	}
-	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: sa})
-}
-
-func UpdateEmployeeSchedule(c echo.Context) error {
-	var updates map[string]any
-	if err := c.Bind(&updates); err != nil {
-		log.Println("Error: [UpdateEmployeeSchedule] invalid request body:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
-	}
-	sa := store.EmployeeSchedule{ID: c.Param("id")}
-	if err := sa.Update(updates); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [UpdateEmployeeSchedule] schedule entry not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Schedule entry not found"})
+	shifts, err := version.Save()
+	if err != nil {
+		var validationErr validation.Errors
+		if errors.As(err, &validationErr) {
+			log.Println("Error: [SaveEmployeeScheduleDay] validation failed:", err)
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 		}
-		log.Println("Error: [UpdateEmployeeSchedule] failed to update schedule entry:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update schedule entry"})
+		log.Println("Error: [SaveEmployeeScheduleDay] failed to save schedule day:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't save employee schedule"})
 	}
-	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: sa})
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: shifts})
 }
 
+// DeleteEmployeeSchedule removes the whole version the given shift belongs to,
+// leaving the dates it covered uncovered.
 func DeleteEmployeeSchedule(c echo.Context) error {
 	sa := store.EmployeeSchedule{ID: c.Param("id")}
 	if err := sa.Delete(); errors.Is(err, store.ErrNotFound) {

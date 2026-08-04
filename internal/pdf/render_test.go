@@ -49,7 +49,14 @@ func TestRenderPDFs(t *testing.T) {
 		{
 			PatientName: "Test Patient", RoomID: "r1", Status: "Completed",
 			StartTime: store.Date("2026-05-20T10:00:00Z"), EndTime: store.Date("2026-05-20T11:00:00Z"),
+			Notes:                 "Bring previous lab results",
 			AppointmentProcedures: []store.AppointmentProcedure{{ProcedureName: "Botox Full"}},
+		},
+		{
+			PatientName: "Cancelled Patient", RoomID: "r1", Status: "Cancelled",
+			StartTime: store.Date("2026-05-20T11:00:00Z"), EndTime: store.Date("2026-05-20T12:00:00Z"),
+			Notes: "Bring previous lab results", CancelNotes: "Patient called in sick",
+			AppointmentProcedures: []store.AppointmentProcedure{{ProcedureName: "Lips"}},
 		},
 	}
 	if p, err := GenerateAppointments(apts, map[string]string{"r1": "Room 1"}, "2026-05-20"); err != nil || p == "" {

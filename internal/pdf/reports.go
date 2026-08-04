@@ -127,6 +127,8 @@ func revenueReportSheet(level string) string {
 	switch level {
 	case "product", "product-category":
 		return "Clinic Products"
+	case "discount":
+		return "Clinic Discounts"
 	case "kind", "all", "other":
 		return "Clinic"
 	default:
@@ -150,6 +152,8 @@ func revenueReportAccumulate(level string) string {
 		return "Item"
 	case "other":
 		return "Other"
+	case "discount":
+		return "Discount"
 	default:
 		return "Procedure"
 	}
@@ -163,6 +167,8 @@ func reportNameHeader(level string) string {
 		return "Name"
 	case "other":
 		return "Description"
+	case "discount":
+		return "Discount"
 	default:
 		return "Procedure Name"
 	}

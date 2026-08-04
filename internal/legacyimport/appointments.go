@@ -3,6 +3,7 @@ package legacyimport
 import (
 	"time"
 
+	"clinic-api/internal/database/store"
 	"clinic-api/internal/legacyimport/conv"
 	"clinic-api/internal/legacyimport/csvutil"
 )
@@ -118,7 +119,7 @@ func migrateAppointments(c *Context, codeLabels map[string]string) (appts, apptP
 
 	sec.Counts(read, t.len(), skipped)
 	sec.Note("Past appointments (end time before now) -> Completed (%d). Cancelled stays Cancelled; still-future ones use the legacy mapping (Started/Arrived->In-Progress, Reserved/Confirmed->Scheduled).", completedPast)
-	sec.Note("start_time/end_time = appointment date (createdat) + time; procedure code preserved in notes.")
+	sec.Note("start_time/end_time = appointment date (createdat) + time, converted from clinic-local (%s) wall clock to UTC; procedure code preserved in notes.", store.ClinicTimezone)
 	sec.Note("Linked %d appointment(s) to a (deprecated) category-level procedure via appointment_procedures.", linked)
 	if backfilled > 0 {
 		sec.Note("%d appointment(s) referenced a patient not in patients.csv (backfilled by name).", backfilled)

@@ -17,8 +17,8 @@ func TestMutationCacheDependencies(t *testing.T) {
 		want   []string
 	}{
 		{"create discount", SetupDiscountRoutes, http.MethodPost, "/discounts", []string{"discounts", "analytics"}},
-		{"update discount", SetupDiscountRoutes, http.MethodPut, "/discounts/id", []string{"discounts", "invoices", "analytics"}},
-		{"delete discount", SetupDiscountRoutes, http.MethodDelete, "/discounts/id", []string{"discounts", "invoices", "analytics"}},
+		{"update discount", SetupDiscountRoutes, http.MethodPut, "/discounts/id", []string{"discounts", "invoices", "analytics", "reports"}},
+		{"delete discount", SetupDiscountRoutes, http.MethodDelete, "/discounts/id", []string{"discounts", "invoices", "analytics", "reports"}},
 		{"create employee salary", SetupEmployeeSalaryRoutes, http.MethodPost, "/employees/id/salaries", []string{"employees"}},
 		{"update employee salary", SetupEmployeeSalaryRoutes, http.MethodPut, "/employee-salaries/id", []string{"employees"}},
 		{"delete employee salary", SetupEmployeeSalaryRoutes, http.MethodDelete, "/employee-salaries/id", []string{"employees"}},

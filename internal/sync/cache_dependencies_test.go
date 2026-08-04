@@ -11,7 +11,7 @@ func TestSyncedTableCacheDependencies(t *testing.T) {
 		"lebanon_cities":       {"lebanon-cities", "analytics"},
 		"procedures":           {"procedures", "discounts", "appointments", "invoices", "analytics", "reports"},
 		"products":             {"products", "discounts", "invoices", "analytics", "reports"},
-		"discounts":            {"discounts", "invoices", "analytics"},
+		"discounts":            {"discounts", "invoices", "analytics", "reports"},
 		"employees":            {"employees", "employee-schedules", "appointments", "analytics"},
 		"balances":             {"balances", "invoices", "analytics", "reports"},
 		"holidays":             {"holidays", "employee-schedules", "appointments", "analytics"},

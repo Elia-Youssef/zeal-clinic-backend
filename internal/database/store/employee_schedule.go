@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
@@ -14,6 +15,13 @@ import (
 const employeeScheduleColumnsNoId = `employee_id, day_of_week, start_time, end_time, start_date, end_date, is_active, created_at, updated_at`
 const employeeScheduleColumns = `id, ` + employeeScheduleColumnsNoId
 
+// One shift of one weekday. Rows sharing (employee_id, day_of_week, start_date)
+// are a *version*: the complete set of shifts worked on that weekday from
+// start_date until end_date (exclusive). A weekday can hold several shifts
+// (09:00-13:00 then 15:00-18:00) as long as they don't overlap; the gaps between
+// them are the breaks. Superseded versions keep is_active=0 and an end_date so
+// historical dates still resolve. Versions are written whole, through
+// EmployeeScheduleVersion.Save.
 type EmployeeSchedule struct {
 	ID         string `json:"id"`
 	EmployeeID string `json:"employeeId"`
@@ -29,33 +37,192 @@ type EmployeeSchedule struct {
 	EmployeeName string `json:"employeeName,omitempty"`
 }
 
-func (sa *EmployeeSchedule) IsValid() error {
+type EmployeeScheduleList []EmployeeSchedule
+
+// A contiguous block of working time. Kind is "regular" or "overtime".
+type ScheduleShift struct {
+	StartTime string `json:"startTime"`
+	EndTime   string `json:"endTime"`
+	Kind      string `json:"kind,omitempty"`
+}
+
+// EmployeeScheduleVersion is the full shift set for one weekday, effective from
+// StartDate. Saving it replaces every shift on that weekday from that date on:
+// the shifts sent are the shifts that exist. An empty Shifts list turns the
+// weekday into a day off.
+type EmployeeScheduleVersion struct {
+	EmployeeID string          `json:"employeeId"`
+	DayOfWeek  int             `json:"dayOfWeek"`
+	StartDate  Date            `json:"startDate"`
+	Shifts     []ScheduleShift `json:"shifts"`
+}
+
+// normalize trims StartDate to a calendar day and orders the shifts, so the
+// overlap check below only has to compare each shift with the one before it.
+// A timestamp start_date would compare wrong against the YYYY-MM-DD work dates
+// the projection resolves against, so it is never stored as one.
+func (v *EmployeeScheduleVersion) normalize() {
+	// Checked before DateOnly, which renders an empty Date as "0001-01-01".
+	if v.StartDate.IsZero() {
+		v.StartDate = ClinicToday()
+	} else {
+		v.StartDate = Date(v.StartDate.DateOnly())
+	}
+	for i := range v.Shifts {
+		v.Shifts[i].Kind = "regular"
+	}
+	sortShiftsByStart(v.Shifts)
+}
+
+func (v *EmployeeScheduleVersion) IsValid() error {
 	e := make(validation.Errors)
-	if msg := validation.Required(sa.EmployeeID, "Employee ID"); msg != "" {
+	if msg := validation.Required(v.EmployeeID, "Employee ID"); msg != "" {
 		e["employeeId"] = msg
 	}
-	if msg := validation.Required(sa.StartTime, "Start time"); msg != "" {
-		e["startTime"] = msg
-	}
-	if msg := validation.Required(sa.EndTime, "End time"); msg != "" {
-		e["endTime"] = msg
-	}
-	if sa.DayOfWeek < 0 || sa.DayOfWeek > 6 {
+	if v.DayOfWeek < 0 || v.DayOfWeek > 6 {
 		e["dayOfWeek"] = "Day of week must be between 0 and 6"
 	}
+	if msg := validation.Date(v.StartDate.DateOnly()); msg != "" {
+		e["startDate"] = msg
+	}
+
+	// Shifts are sorted by normalize, so an overlap can only be with the
+	// previous one.
+	prevEnd := -1
+	for i, s := range v.Shifts {
+		startMin, okStart := minutesOfDay(s.StartTime)
+		endMin, okEnd := minutesOfDay(s.EndTime)
+		if !okStart || !okEnd {
+			e["shifts"] = fmt.Sprintf("Shift %d has an invalid time (expected HH:MM)", i+1)
+			break
+		}
+		// An overnight shift would have to span two weekday rows. The clinic
+		// doesn't run them, so reject it rather than silently score 0 hours.
+		if endMin <= startMin {
+			e["shifts"] = fmt.Sprintf("Shift %d must end after it starts, on the same day", i+1)
+			break
+		}
+		if startMin < prevEnd {
+			e["shifts"] = fmt.Sprintf("Shift %d overlaps the one before it", i+1)
+			break
+		}
+		prevEnd = endMin
+	}
+
 	if len(e) > 0 {
 		return e
 	}
 	return nil
 }
 
-func (sa *EmployeeSchedule) normalizeDates() {
-	if sa.StartDate.IsZero() {
-		sa.StartDate = ClinicToday()
+// Save writes Shifts as the version of this weekday in force from StartDate on.
+// Any version already starting on StartDate is replaced, the version running at
+// StartDate is closed there, and versions that start later keep their own
+// windows, so a version can be slotted in between two existing ones without
+// disturbing the chain. Returns the rows written, empty when the weekday is
+// being turned into a day off.
+func (v *EmployeeScheduleVersion) Save() ([]EmployeeSchedule, error) {
+	v.normalize()
+	if err := v.IsValid(); err != nil {
+		return nil, err
 	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// The next version along bounds this one, so the chain stays contiguous
+	// whether this save appends to the end or lands between two versions.
+	var nextStart Date
+	if err := tx.QueryRow(`SELECT MIN(start_date) FROM employee_schedules
+		WHERE employee_id = ? AND day_of_week = ? AND substr(start_date, 1, 10) > ?`,
+		v.EmployeeID, v.DayOfWeek, v.StartDate).Scan(&nextStart); err != nil {
+		return nil, err
+	}
+	// A pre-existing row may hold a timestamp; the boundary this writes must not.
+	// MIN is NULL when nothing follows, and DateOnly would turn that into a
+	// real-looking "0001-01-01" end_date, so leave an empty value alone.
+	if !nextStart.IsZero() {
+		nextStart = Date(nextStart.DateOnly())
+	}
+
+	now := DateNow()
+
+	// A version starting on the same date is being rewritten, not superseded:
+	// closing it out would leave zero-width rows behind.
+	if _, err := tx.Exec(`DELETE FROM employee_schedules
+		WHERE employee_id = ? AND day_of_week = ? AND substr(start_date, 1, 10) = ?`,
+		v.EmployeeID, v.DayOfWeek, v.StartDate); err != nil {
+		return nil, err
+	}
+
+	// Close the version that was running when this one starts. Only versions
+	// that started earlier are superseded; later ones are a separate chapter.
+	if _, err := tx.Exec(`UPDATE employee_schedules
+		SET is_active = 0, end_date = ?, updated_at = ?
+		WHERE employee_id = ? AND day_of_week = ? AND substr(start_date, 1, 10) < ?
+		  AND (end_date = '' OR substr(end_date, 1, 10) > ?)`,
+		v.StartDate, now, v.EmployeeID, v.DayOfWeek, v.StartDate, v.StartDate); err != nil {
+		return nil, err
+	}
+
+	// is_active marks the newest version of the weekday. Every shift in that
+	// version is active at once; a version slotted in before an existing one is
+	// already superseded the moment it is written.
+	isActive := nextStart.IsZero()
+	out := make([]EmployeeSchedule, 0, len(v.Shifts))
+	for _, s := range v.Shifts {
+		row := EmployeeSchedule{
+			ID:         uuid.Must(uuid.NewV7()).String(),
+			EmployeeID: v.EmployeeID,
+			DayOfWeek:  v.DayOfWeek,
+			StartTime:  s.StartTime,
+			EndTime:    s.EndTime,
+			StartDate:  v.StartDate,
+			EndDate:    nextStart,
+			IsActive:   isActive,
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		}
+		if _, err := tx.Exec(`INSERT INTO employee_schedules (`+employeeScheduleColumns+`)
+			VALUES (?,?,?,?,?,?,?,?,?,?)`,
+			row.ID, row.EmployeeID, row.DayOfWeek, row.StartTime, row.EndTime,
+			row.StartDate, row.EndDate, BoolToInt(row.IsActive), row.CreatedAt, row.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
-type EmployeeScheduleList []EmployeeSchedule
+// Delete removes the whole version the row belongs to: every shift sharing its
+// (employee, weekday, start_date). The dates it covered are left uncovered on
+// purpose: the versions around it keep their own boundaries.
+func (sa *EmployeeSchedule) Delete() error {
+	var current EmployeeSchedule
+	if err := current.GetByID(sa.ID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	res, err := DB.Exec(`DELETE FROM employee_schedules
+		WHERE employee_id = ? AND day_of_week = ? AND start_date = ?`,
+		current.EmployeeID, current.DayOfWeek, current.StartDate)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
 
 func (m *EmployeeSchedule) ScanRow(row *sql.Row) error {
 	if row == nil {
@@ -82,6 +249,8 @@ func (l *EmployeeScheduleList) ScanRows(rows *sql.Rows) error {
 		err := rows.Scan(&item.ID, &item.EmployeeID, &item.DayOfWeek, &item.StartTime, &item.EndTime,
 			&item.StartDate, &item.EndDate, &isActive, &item.CreatedAt, &item.UpdatedAt, &item.EmployeeName)
 		if err != nil {
+			// A dropped row silently removes a shift from the schedule, so say so.
+			log.Println("Error: EmployeeScheduleList.ScanRows skipping row:", err)
 			continue
 		}
 		item.IsActive = isActive == 1
@@ -96,11 +265,15 @@ func employeeScheduleSelect() string {
 		e.first_name || ' ' || e.last_name`
 }
 
-// ActiveSchedulesForWeek returns the active employee_schedules rows that
-// cover the given week (started on/before weekEnd and not yet ended at
-// weekStart). employeeID == "" returns every employee's.
-func ActiveSchedulesForWeek(employeeID string, weekStart, weekEnd Date) ([]EmployeeSchedule, error) {
-	where := ` WHERE sa.is_active = 1 AND sa.start_date <= ? AND (sa.end_date = '' OR sa.end_date >= ?)`
+// SchedulesForWeek returns the employee_schedules rows in force at any point
+// during the given week, superseded versions included: a week before a schedule
+// change is projected from the version that was current then, so that version
+// has to come back with it to stay editable. Several rows can share a
+// (day_of_week, start_date); those are the shifts of one version. end_date is
+// exclusive here, the same way shiftsInForce reads it. employeeID == "" returns
+// every employee's.
+func SchedulesForWeek(employeeID string, weekStart, weekEnd Date) ([]EmployeeSchedule, error) {
+	where := ` WHERE substr(sa.start_date, 1, 10) <= ? AND (sa.end_date = '' OR substr(sa.end_date, 1, 10) > ?)`
 	args := []any{weekEnd, weekStart}
 	if employeeID != "" {
 		where += ` AND sa.employee_id = ?`
@@ -109,7 +282,7 @@ func ActiveSchedulesForWeek(employeeID string, weekStart, weekEnd Date) ([]Emplo
 	rows, err := RDB.Query(employeeScheduleSelect()+`
 		FROM employee_schedules sa
 		JOIN employees e ON e.id = sa.employee_id`+where+`
-		ORDER BY e.first_name, sa.day_of_week, sa.start_time`, args...)
+		ORDER BY e.first_name, sa.day_of_week, sa.start_date, sa.start_time`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -127,198 +300,6 @@ func (sa *EmployeeSchedule) GetByID(id string) error {
 		FROM employee_schedules sa
 		JOIN employees e ON e.id = sa.employee_id
 		WHERE sa.id = ?`, id))
-}
-
-func (sa *EmployeeSchedule) Create() error {
-	if err := sa.IsValid(); err != nil {
-		return err
-	}
-	tx, err := DB.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := sa.createWithTx(tx); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-func (sa *EmployeeSchedule) createWithTx(tx *sql.Tx) error {
-	sa.ID = uuid.Must(uuid.NewV7()).String()
-	now := DateNow()
-	sa.CreatedAt = now
-	sa.UpdatedAt = now
-	sa.IsActive = true
-	sa.normalizeDates()
-
-	if _, err := tx.Exec(`UPDATE employee_schedules
-		SET is_active = 0, end_date = ?, updated_at = ?
-		WHERE employee_id = ? AND day_of_week = ? AND is_active = 1`,
-		sa.StartDate, now, sa.EmployeeID, sa.DayOfWeek); err != nil {
-		return err
-	}
-
-	_, err := tx.Exec(`INSERT INTO employee_schedules (`+employeeScheduleColumns+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		sa.ID, sa.EmployeeID, sa.DayOfWeek, sa.StartTime, sa.EndTime,
-		sa.StartDate, sa.EndDate, BoolToInt(sa.IsActive), sa.CreatedAt, sa.UpdatedAt)
-	return err
-}
-
-func (sa *EmployeeSchedule) Update(updates map[string]any) error {
-	var current EmployeeSchedule
-	if err := current.GetByID(sa.ID); err != nil {
-		return err
-	}
-
-	if current.IsActive && employeeScheduleNeedsVersion(updates) {
-		next := current
-		next.ID = ""
-		if v, ok := stringUpdate(updates, "startTime"); ok {
-			next.StartTime = v
-		}
-		if v, ok := stringUpdate(updates, "endTime"); ok {
-			next.EndTime = v
-		}
-		if v, ok := intUpdate(updates, "dayOfWeek"); ok {
-			next.DayOfWeek = v
-		}
-		if v, ok := dateUpdate(updates, "startDate"); ok {
-			next.StartDate = v
-		}
-		if v, ok := dateUpdate(updates, "endDate"); ok {
-			next.EndDate = v
-		} else {
-			next.EndDate = ""
-		}
-
-		if err := next.IsValid(); err != nil {
-			return err
-		}
-		tx, err := DB.Begin()
-		if err != nil {
-			return err
-		}
-		defer tx.Rollback()
-		now := DateNow()
-		if _, err := tx.Exec(`UPDATE employee_schedules SET is_active = 0, end_date = ?, updated_at = ? WHERE id = ?`,
-			next.StartDate, now, current.ID); err != nil {
-			return err
-		}
-		if err := next.createWithTx(tx); err != nil {
-			return err
-		}
-		if err := tx.Commit(); err != nil {
-			return err
-		}
-		*sa = next
-		return nil
-	}
-
-	cols := map[string]string{
-		"dayOfWeek": "day_of_week", "startTime": "start_time", "endTime": "end_time",
-		"startDate": "start_date", "endDate": "end_date",
-		"isActive": "is_active",
-	}
-	setClauses := ""
-	var args []any
-	for jsonKey, dbCol := range cols {
-		val, ok := updates[jsonKey]
-		if !ok {
-			continue
-		}
-		if dbCol == "is_active" {
-			b, ok := boolUpdate(updates, jsonKey)
-			if !ok {
-				return fmt.Errorf("invalid isActive")
-			}
-			val = BoolToInt(b)
-		}
-		if setClauses != "" {
-			setClauses += ", "
-		}
-		setClauses += dbCol + " = ?"
-		args = append(args, val)
-	}
-	if setClauses == "" {
-		return sa.GetByID(sa.ID)
-	}
-	setClauses += ", updated_at = ?"
-	args = append(args, DateNow(), sa.ID)
-	if _, err := DB.Exec("UPDATE employee_schedules SET "+setClauses+" WHERE id = ?", args...); err != nil {
-		return err
-	}
-	return sa.GetByID(sa.ID)
-}
-
-func employeeScheduleNeedsVersion(updates map[string]any) bool {
-	for _, key := range []string{"dayOfWeek", "startTime", "endTime", "startDate"} {
-		if _, ok := updates[key]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func stringUpdate(updates map[string]any, key string) (string, bool) {
-	v, ok := updates[key]
-	if !ok {
-		return "", false
-	}
-	s, ok := v.(string)
-	return s, ok
-}
-
-func dateUpdate(updates map[string]any, key string) (Date, bool) {
-	if s, ok := stringUpdate(updates, key); ok {
-		return Date(s), true
-	}
-	return "", false
-}
-
-func intUpdate(updates map[string]any, key string) (int, bool) {
-	v, ok := updates[key]
-	if !ok {
-		return 0, false
-	}
-	switch n := v.(type) {
-	case float64:
-		return int(n), true
-	case int:
-		return n, true
-	default:
-		return 0, false
-	}
-}
-
-func boolUpdate(updates map[string]any, key string) (bool, bool) {
-	v, ok := updates[key]
-	if !ok {
-		return false, false
-	}
-	b, ok := v.(bool)
-	return b, ok
-}
-
-func (sa *EmployeeSchedule) Delete() error {
-	res, err := DB.Exec("DELETE FROM employee_schedules WHERE id = ?", sa.ID)
-	if err != nil {
-		return err
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
-}
-
-// A contiguous block of working time. Kind is "regular" or "overtime".
-type ScheduleShift struct {
-	StartTime string `json:"startTime"`
-	EndTime   string `json:"endTime"`
-	Kind      string `json:"kind,omitempty"`
 }
 
 type EmployeeScheduleDay struct {
@@ -372,6 +353,10 @@ func EmployeeScheduleForRange(employeeID string, from Date, to Date) ([]Employee
 
 	var out []EmployeeScheduleDay
 	for _, emp := range employees {
+		byWeekday, err := scheduleVersionsForRange(emp.id, from, to)
+		if err != nil {
+			return nil, err
+		}
 		changes, err := acceptedScheduleChangesForRange(emp.id, from, to)
 		if err != nil {
 			return nil, err
@@ -386,27 +371,39 @@ func EmployeeScheduleForRange(employeeID string, from Date, to Date) ([]Employee
 				Shifts:       []ScheduleShift{},
 			}
 
-			startTime, endTime, hasShift, err := generalScheduleForDate(emp.id, d)
-			if err != nil {
-				return nil, err
-			}
+			template := shiftsInForce(byWeekday[int(d.Weekday())], workDate)
 			_, isHoliday := holidays[workDate]
 
 			var regularShifts []ScheduleShift
-			if hasShift && !isHoliday {
-				regularShifts = []ScheduleShift{{StartTime: startTime, EndTime: endTime, Kind: "regular"}}
+			if !isHoliday {
+				regularShifts = template
 			}
+
 			var overtimeShifts []ScheduleShift
 			for _, ch := range changes {
-				if !changeAppliesToDay(ch, workDate) {
+				if ch.Type != "overtime" || !changeAppliesToDay(ch, workDate) {
 					continue
 				}
-				if ch.Type == "overtime" {
-					overtimeShifts = append(overtimeShifts, ScheduleShift{
-						StartTime: ch.StartTime, EndTime: ch.EndTime, Kind: "overtime",
-					})
-				}
+				overtimeShifts = append(overtimeShifts, ScheduleShift{
+					StartTime: ch.StartTime, EndTime: ch.EndTime, Kind: "overtime",
+				})
 			}
+			// Two approved windows covering the same hour are one stretch of
+			// work, not two.
+			overtimeShifts = mergeShifts(overtimeShifts)
+			// Overtime is the part of the window worked outside the scheduled
+			// shift; the overlap is already counted as regular hours. On a
+			// holiday there is no regular shift to clip against, so the whole
+			// window stays overtime.
+			for _, r := range regularShifts {
+				rStart, okStart := minutesOfDay(r.StartTime)
+				rEnd, okEnd := minutesOfDay(r.EndTime)
+				if !okStart || !okEnd {
+					continue
+				}
+				overtimeShifts = subtractInterval(overtimeShifts, rStart, rEnd)
+			}
+
 			for _, ch := range changes {
 				if ch.Type != "timeoff" || !changeAppliesToDay(ch, workDate) {
 					continue
@@ -419,7 +416,7 @@ func EmployeeScheduleForRange(employeeID string, from Date, to Date) ([]Employee
 				overtimeShifts = subtractInterval(overtimeShifts, offStart, offEnd)
 			}
 
-			shifts := append(regularShifts, overtimeShifts...)
+			shifts := append(append([]ScheduleShift{}, regularShifts...), overtimeShifts...)
 			sortShiftsByStart(shifts)
 			day.Shifts = shifts
 
@@ -437,7 +434,7 @@ func EmployeeScheduleForRange(employeeID string, from Date, to Date) ([]Employee
 			day.IsOff = len(shifts) == 0
 			if day.IsOff {
 				switch {
-				case !hasShift:
+				case len(template) == 0:
 					day.OffReason = "no-schedule"
 				case isHoliday:
 					day.OffReason = "holiday"
@@ -451,23 +448,70 @@ func EmployeeScheduleForRange(employeeID string, from Date, to Date) ([]Employee
 	return out, nil
 }
 
-// Returns the active template shift for date d, or hasShift=false if none.
-func generalScheduleForDate(employeeID string, d time.Time) (string, string, bool, error) {
-	day := int(d.Weekday())
-	workDate := Date(d.Format(DateFormat))
-	var startTime, endTime string
-	err := RDB.QueryRow(`SELECT start_time, end_time
+// scheduleVersionsForRange loads every schedule row for the employee in force at
+// some point in [from, to], bucketed by weekday. Loading the range in one query
+// keeps the per-day resolution in memory, where the date comparisons run on
+// calendar days rather than raw column text.
+func scheduleVersionsForRange(employeeID string, from Date, to Date) (map[int][]EmployeeSchedule, error) {
+	rows, err := RDB.Query(`SELECT day_of_week, start_time, end_time, start_date, end_date
 		FROM employee_schedules
-		WHERE employee_id = ? AND day_of_week = ? AND start_date <= ? AND (end_date = '' OR end_date > ?)
-		ORDER BY start_date DESC, created_at DESC
-		LIMIT 1`, employeeID, day, workDate, workDate).Scan(&startTime, &endTime)
-	if err == sql.ErrNoRows {
-		return "", "", false, nil
-	}
+		WHERE employee_id = ?
+		  AND substr(start_date, 1, 10) <= ?
+		  AND (end_date = '' OR substr(end_date, 1, 10) > ?)
+		ORDER BY day_of_week, start_date, start_time`, employeeID, to, from)
 	if err != nil {
-		return "", "", false, err
+		return nil, err
 	}
-	return startTime, endTime, true, nil
+	defer rows.Close()
+
+	out := map[int][]EmployeeSchedule{}
+	for rows.Next() {
+		var r EmployeeSchedule
+		if err := rows.Scan(&r.DayOfWeek, &r.StartTime, &r.EndTime, &r.StartDate, &r.EndDate); err != nil {
+			return nil, err
+		}
+		out[r.DayOfWeek] = append(out[r.DayOfWeek], r)
+	}
+	return out, rows.Err()
+}
+
+// shiftsInForce returns the shifts of the version in force on workDate: every
+// row sharing the latest start_date that still covers the date. An empty result
+// means the employee doesn't work that weekday. rows must all be for the one
+// weekday.
+func shiftsInForce(rows []EmployeeSchedule, workDate Date) []ScheduleShift {
+	var version Date
+	found := false
+	for _, r := range rows {
+		if !scheduleRowCovers(r, workDate) {
+			continue
+		}
+		if !found || version.Before(r.StartDate) {
+			version, found = r.StartDate, true
+		}
+	}
+	if !found {
+		return nil
+	}
+
+	out := []ScheduleShift{}
+	for _, r := range rows {
+		if !scheduleRowCovers(r, workDate) || r.StartDate.DateOnly() != version.DateOnly() {
+			continue
+		}
+		out = append(out, ScheduleShift{StartTime: r.StartTime, EndTime: r.EndTime, Kind: "regular"})
+	}
+	sortShiftsByStart(out)
+	return out
+}
+
+// scheduleRowCovers reports whether a version row is in force on workDate.
+// end_date is exclusive: a version ends the day its successor starts.
+func scheduleRowCovers(r EmployeeSchedule, workDate Date) bool {
+	if r.StartDate.After(workDate) {
+		return false
+	}
+	return r.EndDate.IsZero() || r.EndDate.After(workDate)
 }
 
 func holidayMapForRange(start time.Time, end time.Time) (map[Date]string, error) {
@@ -569,6 +613,31 @@ func sortShiftsByStart(shifts []ScheduleShift) {
 	}
 }
 
+// mergeShifts folds overlapping or touching shifts into one, dropping any with
+// unreadable or empty windows. Callers pass shifts of a single kind.
+func mergeShifts(shifts []ScheduleShift) []ScheduleShift {
+	sortShiftsByStart(shifts)
+	out := make([]ScheduleShift, 0, len(shifts))
+	for _, s := range shifts {
+		start, okStart := minutesOfDay(s.StartTime)
+		end, okEnd := minutesOfDay(s.EndTime)
+		if !okStart || !okEnd || end <= start {
+			continue
+		}
+		if len(out) > 0 {
+			prev := &out[len(out)-1]
+			if prevEnd, ok := minutesOfDay(prev.EndTime); ok && start <= prevEnd {
+				if end > prevEnd {
+					prev.EndTime = s.EndTime
+				}
+				continue
+			}
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
 // subtractInterval removes [offStart, offEnd] (minutes-of-day) from each shift,
 // returning the remaining shift segments in order.
 func subtractInterval(shifts []ScheduleShift, offStart int, offEnd int) []ScheduleShift {
@@ -616,6 +685,25 @@ func minutesToClock(m int) string {
 		m = 1440
 	}
 	return fmt.Sprintf("%02d:%02d", m/60, m%60)
+}
+
+// Typed readers for the map[string]any update payloads. Shared with the other
+// HR models (holidays, schedule changes).
+
+func stringUpdate(updates map[string]any, key string) (string, bool) {
+	v, ok := updates[key]
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
+	return s, ok
+}
+
+func dateUpdate(updates map[string]any, key string) (Date, bool) {
+	if s, ok := stringUpdate(updates, key); ok {
+		return Date(s), true
+	}
+	return "", false
 }
 
 func parseDateRange(from Date, to Date) (time.Time, time.Time, error) {

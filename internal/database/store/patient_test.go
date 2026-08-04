@@ -34,7 +34,6 @@ func TestPatient_IsValid_Errors(t *testing.T) {
 		{"missing lastName", func(p *Patient) { p.LastName = "" }, "lastName"},
 		{"missing gender", func(p *Patient) { p.Gender = "" }, "gender"},
 		{"unknown gender", func(p *Patient) { p.Gender = "Other" }, "gender"},
-		{"missing DOB", func(p *Patient) { p.DateOfBirth = "" }, "dateOfBirth"},
 		{"bad DOB format", func(p *Patient) { p.DateOfBirth = "01/01/1990" }, "dateOfBirth"},
 		{"impossible DOB", func(p *Patient) { p.DateOfBirth = "2024-13-01" }, "dateOfBirth"},
 		{"missing phone", func(p *Patient) { p.Contact = "" }, "contact"},

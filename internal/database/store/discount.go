@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"math"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -124,20 +125,26 @@ func (l *DiscountList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
-func (l *DiscountList) GetAll(params ListParams) (int, error) {
-	where := ""
+// GetAll lists discounts, optionally narrowed to one discountType ("offer" or
+// "gift"). An unrecognized type matches nothing rather than being ignored.
+func (l *DiscountList) GetAll(discountType string, params ListParams) (int, error) {
+	var conditions []string
 	var args []any
+	if discountType != "" {
+		conditions = append(conditions, "discount_type = ?")
+		args = append(args, discountType)
+	}
 	if params.Active != nil {
-		where = " WHERE is_active = ?"
+		conditions = append(conditions, "is_active = ?")
 		args = append(args, BoolToInt(*params.Active))
 	}
 	if fc, fa := params.FilterClause("name", "description"); fc != "" {
-		if where == "" {
-			where = " WHERE " + fc
-		} else {
-			where += " AND " + fc
-		}
+		conditions = append(conditions, fc)
 		args = append(args, fa...)
+	}
+	where := ""
+	if len(conditions) > 0 {
+		where = " WHERE " + strings.Join(conditions, " AND ")
 	}
 
 	var total int

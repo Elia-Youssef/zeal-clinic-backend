@@ -14,7 +14,7 @@ import (
 func GetAllDiscounts(c echo.Context) error {
 	params := parseListParams(c)
 	items := store.DiscountList{}
-	total, err := items.GetAll(params)
+	total, err := items.GetAll(c.QueryParam("type"), params)
 	if err != nil {
 		log.Println("Error: [GetAllDiscounts]:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load discounts"})
@@ -35,6 +35,23 @@ func GetDiscountByID(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load discount"})
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: d})
+}
+
+// GetDiscountInvoices lists the invoices this discount was applied to: the
+// invoices carrying it as an offer, plus (for a gift) the invoice that issued
+// the gift card.
+func GetDiscountInvoices(c echo.Context) error {
+	params := parseListParams(c)
+	items := store.InvoiceList{}
+	total, err := items.GetByDiscount(c.Param("id"), params)
+	if err != nil {
+		log.Println("Error: [GetDiscountInvoices]:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load invoices"})
+	}
+	if items == nil {
+		items = []store.Invoice{}
+	}
+	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: httpx.PaginatedList{Items: items, Total: total}})
 }
 
 func CreateDiscount(c echo.Context) error {

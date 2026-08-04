@@ -85,8 +85,17 @@ func headerCell(size int, s string, a align.Type) core.Col {
 }
 
 // bodyCell: white background, hairline grid border.
+// bodyCell's Bottom padding is read only by AddAutoRow (maroto ignores it on
+// fixed-height rows), where it keeps a single-line row at the same ~7mm the
+// fixed tables use: 1.1 top + 2.9 of 8.2pt text + 3.0 bottom.
 func bodyCell(size int, s string, a align.Type) core.Col {
-	c := text.NewCol(size, s, props.Text{Size: 8.2, Color: clrInk, Align: a, Left: padLeft(a), Right: padRight(a), Top: 1.1})
+	return bodyCellColor(size, s, a, clrInk)
+}
+
+// bodyCellColor is bodyCell with the text colour overridden, used to flag a
+// row's state (a cancelled appointment) without disturbing the grid.
+func bodyCellColor(size int, s string, a align.Type, color *props.Color) core.Col {
+	c := text.NewCol(size, s, props.Text{Size: 8.2, Color: color, Align: a, Left: padLeft(a), Right: padRight(a), Top: 1.1, Bottom: 3.0})
 	c.WithStyle(&props.Cell{BorderType: border.Full, BorderColor: clrBorder, BorderThickness: 0.1})
 	return c
 }

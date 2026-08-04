@@ -21,19 +21,19 @@ type Reports struct{}
 type RevenueParams struct {
 	From       string
 	To         string
-	ItemKind   string // "" | "products" | "procedures" | "other" | "all"
+	ItemKind   string // "" | "products" | "procedures" | "other" | "discounts" | "all"
 	TypeID     string // procedure type id
 	CategoryID string // procedure or product category id
 	CurrencyID string
 	// Level pins the grouping to a flat level across the whole dataset,
 	// bypassing the tree drill-down. TypeID / CategoryID then act as
 	// filters that scope which rows feed the aggregation.
-	// "" | "kind" | "procedure-type" | "procedure-category" | "product-category" | "procedure" | "product" | "other" | "all"
+	// "" | "kind" | "procedure-type" | "procedure-category" | "product-category" | "procedure" | "product" | "other" | "discount" | "all"
 	Level string
 }
 
 type RevenueGroup struct {
-	GroupType  string  `json:"groupType"` // kind | procedure-type | procedure-category | product-category | procedure | product | other
+	GroupType  string  `json:"groupType"` // kind | procedure-type | procedure-category | product-category | procedure | product | other | discount
 	EntityID   string  `json:"entityId"`
 	EntityName string  `json:"entityName"`
 	Quantity   int     `json:"quantity"`
@@ -88,6 +88,8 @@ func (Reports) Revenue(p RevenueParams) (RevenueReport, error) {
 		return topProductCategoryGroups(p)
 	case "other":
 		return otherGroups(p)
+	case "discounts":
+		return discountGroups(p)
 	case "all":
 		return allItems(p)
 	default:
@@ -172,6 +174,44 @@ func otherGroups(p RevenueParams) (RevenueReport, error) {
 		return out, err
 	}
 	out.Level = "other"
+	return out, nil
+}
+
+// discountGroups: for ItemKind="discounts" / Level="discount", invoice offers,
+// grouped by the discount applied, with quantity counting the invoices it was
+// applied to. Amounts are negative: this is revenue the clinic gave up, not
+// revenue it earned, which is also why the kind is deliberately absent from
+// kindGroups and from "all": mixing it in would corrupt those totals.
+// Gift cards are not included; a card is a balance credit the patient spends
+// like cash, not a discount on an invoice.
+func discountGroups(p RevenueParams) (RevenueReport, error) {
+	q := `
+		SELECT d.id, d.name, COUNT(*),
+		       COALESCE(SUM(i.discount_value), 0)
+		FROM invoices i
+		JOIN discounts d ON d.id = i.discount_id
+		JOIN balances tb ON tb.id = i.to_balance_id
+		WHERE tb.entity_type = 'patient'
+		AND i.discount_id != ''
+		AND i.created_at >= ? AND i.created_at < ?
+			AND i.voided_at = ''`
+	args := []any{RangeStart(p.From), RangeEnd(p.To)}
+	q, args = applyCurrency(q, args, "i.currency_id", p.CurrencyID)
+	q += `
+		GROUP BY d.id
+		ORDER BY 4 DESC`
+
+	// Aggregated as positive magnitudes so scanGroups' ranking and percentage
+	// share come out the usual way (biggest discount first), then flipped.
+	out, err := scanGroups(q, args, "discount")
+	if err != nil {
+		return out, err
+	}
+	for i := range out.Items {
+		out.Items[i].Amount = -out.Items[i].Amount
+	}
+	out.Totals.Amount = -out.Totals.Amount
+	out.Level = "discount"
 	return out, nil
 }
 
@@ -478,6 +518,8 @@ func flatLevel(p RevenueParams) (RevenueReport, error) {
 		return allProducts(p)
 	case "other":
 		return otherGroups(p)
+	case "discount":
+		return discountGroups(p)
 	case "all":
 		return allItems(p)
 	default:

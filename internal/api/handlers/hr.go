@@ -11,9 +11,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// GetEmployeeSchedule returns one employee's projected week days, active
-// templates, overlapping schedule changes (any status), holidays, and monthly
-// hour totals in one response.
+// GetEmployeeSchedule returns one employee's projected week days, the schedule
+// templates covering that week (superseded versions included, so every day the
+// grid draws can be traced back to an editable row), overlapping schedule
+// changes (any status), holidays, and monthly hour totals in one response.
 func GetEmployeeSchedule(c echo.Context) error {
 	employeeID := c.Param("id")
 	if employeeID == "" {
@@ -37,7 +38,7 @@ func GetEmployeeSchedule(c echo.Context) error {
 		log.Println("Error: GetEmployeeSchedule project:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load employee schedules"})
 	}
-	templates, err := store.ActiveSchedulesForWeek(employeeID, weekStart, weekEnd)
+	templates, err := store.SchedulesForWeek(employeeID, weekStart, weekEnd)
 	if err != nil {
 		log.Println("Error: GetEmployeeSchedule templates:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load schedule templates"})

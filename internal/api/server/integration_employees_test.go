@@ -242,12 +242,15 @@ func TestGetEmployeeSchedule_Projection(t *testing.T) {
 	tok := adminToken(t, e)
 
 	empID := createEmployee(t, e, tok, "Proj", "Schedule")
-	// Add a Monday schedule template.
-	if rec := doRequest(t, e, http.MethodPost, "/api/employee-schedules",
+	// Add a split Monday: mornings and late afternoons.
+	if rec := doRequest(t, e, http.MethodPut, "/api/employee-schedules/day",
 		asJSON(t, map[string]any{
-			"employeeId": empID, "dayOfWeek": 1,
-			"startTime": "09:00", "endTime": "17:00", "startDate": "2026-01-01",
-		}), tok); rec.Code != http.StatusCreated {
+			"employeeId": empID, "dayOfWeek": 1, "startDate": "2026-01-01",
+			"shifts": []map[string]any{
+				{"startTime": "09:00", "endTime": "13:00"},
+				{"startTime": "15:00", "endTime": "18:00"},
+			},
+		}), tok); rec.Code != http.StatusOK {
 		t.Fatalf("seed schedule: %d %s", rec.Code, rec.Body.String())
 	}
 
@@ -263,8 +266,27 @@ func TestGetEmployeeSchedule_Projection(t *testing.T) {
 	if len(data.Days) == 0 {
 		t.Errorf("expected projected days")
 	}
-	if len(data.Templates) != 1 {
-		t.Errorf("expected 1 active template, got %d", len(data.Templates))
+	if len(data.Templates) != 2 {
+		t.Errorf("expected both shifts as templates, got %d", len(data.Templates))
+	}
+}
+
+func TestSaveEmployeeScheduleDay_RejectsOverlappingShifts(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	empID := createEmployee(t, e, tok, "Overlap", "Schedule")
+	rec := doRequest(t, e, http.MethodPut, "/api/employee-schedules/day",
+		asJSON(t, map[string]any{
+			"employeeId": empID, "dayOfWeek": 1, "startDate": "2026-01-01",
+			"shifts": []map[string]any{
+				{"startTime": "09:00", "endTime": "14:00"},
+				{"startTime": "13:00", "endTime": "18:00"},
+			},
+		}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for overlapping shifts, got %d %s", rec.Code, rec.Body.String())
 	}
 }
 
