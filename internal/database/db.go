@@ -17,17 +17,61 @@ import (
 	_ "github.com/ncruces/go-sqlite3/vfs/adiantum"
 )
 
-const encryptionKey = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-
 var closeMu sync.Mutex
 
+// The at-rest encryption key of every database this package opens or writes
+// (Open, OpenStandalone, Snapshot), set once at startup by SetKey.
+var (
+	keyMu  sync.RWMutex
+	dbKey  string
+	errKey = errors.New("database key not set")
+)
+
+// SetKey sets the at-rest encryption key: 64 hex characters (32 bytes). The
+// server takes it from the config (DB_ENCRYPTION_KEY); tests use their own.
+// The error never contains the key.
+func SetKey(hexKey string) error {
+	if !isHexKey(hexKey) {
+		return errors.New("database key must be 64 hex characters")
+	}
+	keyMu.Lock()
+	dbKey = hexKey
+	keyMu.Unlock()
+	return nil
+}
+
+func currentKey() (string, error) {
+	keyMu.RLock()
+	defer keyMu.RUnlock()
+	if dbKey == "" {
+		return "", errKey
+	}
+	return dbKey, nil
+}
+
+func isHexKey(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+			return false
+		}
+	}
+	return true
+}
+
 func Open(pathOverride string) (*sql.DB, error) {
+	key, err := currentKey()
+	if err != nil {
+		return nil, err
+	}
 	path := pathOverride
 	if path == "" {
 		path = defaultDBPath()
 	}
 	dbPath := resolveSQLitePath(path)
-	dsn := buildDSN(dbPath, encryptionKey)
+	dsn := buildDSN(dbPath, key)
 
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
@@ -72,8 +116,12 @@ func Open(pathOverride string) (*sql.DB, error) {
 // that must keep the normal application pools closed while inspecting or
 // repairing the database.
 func OpenStandalone(path string) (*sql.DB, error) {
+	key, err := currentKey()
+	if err != nil {
+		return nil, err
+	}
 	dbPath := resolveSQLitePath(path)
-	db, err := sql.Open("sqlite3", buildDSN(dbPath, encryptionKey))
+	db, err := sql.Open("sqlite3", buildDSN(dbPath, key))
 	if err != nil {
 		return nil, fmt.Errorf("open standalone db: %w", err)
 	}

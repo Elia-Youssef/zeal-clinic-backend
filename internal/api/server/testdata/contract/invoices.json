@@ -1,0 +1,1001 @@
+{
+  "resource": "invoices",
+  "cases": [
+    {
+      "name": "GET /api/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 195,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 195,
+                "fromBalanceId": "<id:2>",
+                "fromEntityId": "<id:3>",
+                "fromEntityName": "Acme Test Supplies",
+                "id": "<id:1>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 15,
+                    "createdAt": "<ts>",
+                    "finalAmount": 15,
+                    "id": "<id:4>",
+                    "invoiceId": "<id:1>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Delivery fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 180,
+                    "createdAt": "<ts>",
+                    "finalAmount": 180,
+                    "id": "<id:5>",
+                    "invoiceId": "<id:1>",
+                    "itemId": "<id:6>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 10
+                  }
+                ],
+                "notes": "First delivery, checked",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityId": "self",
+                "toEntityName": "Clinic",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 320,
+                "createdAt": "<ts>",
+                "createdBy": "Sam Sample",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 320,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:7>",
+                "invoiceNumber": 4,
+                "items": [
+                  {
+                    "amount": 320,
+                    "createdAt": "<ts>",
+                    "finalAmount": 320,
+                    "id": "<id:8>",
+                    "invoiceId": "<id:7>",
+                    "itemId": "<id:6>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 8
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:9>",
+                "toEntityId": "<id:10>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:12>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:11>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:13>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:14>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:15>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:16>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:17>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:18>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:19>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:20>",
+                "toEntityId": "<id:21>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 350,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 350,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:22>",
+                "invoiceNumber": 2,
+                "items": [
+                  {
+                    "amount": 300,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 300,
+                    "id": "<id:23>",
+                    "invoiceId": "<id:22>",
+                    "itemId": "<id:24>",
+                    "itemName": "Test Laser Session",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 50,
+                    "createdAt": "<ts>",
+                    "finalAmount": 50,
+                    "id": "<id:25>",
+                    "invoiceId": "<id:22>",
+                    "itemId": "<id:26>",
+                    "itemName": "Cleo Gift",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:9>",
+                "toEntityId": "<id:10>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 4
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/invoices?type=patient&sort=invoiceNumber&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices?type=patient&sort=invoiceNumber&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:12>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:11>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:13>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:14>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:15>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:16>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:17>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:18>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:19>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:20>",
+                "toEntityId": "<id:21>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 350,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 350,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:22>",
+                "invoiceNumber": 2,
+                "items": [
+                  {
+                    "amount": 300,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 300,
+                    "id": "<id:23>",
+                    "invoiceId": "<id:22>",
+                    "itemId": "<id:24>",
+                    "itemName": "Test Laser Session",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 50,
+                    "createdAt": "<ts>",
+                    "finalAmount": 50,
+                    "id": "<id:25>",
+                    "invoiceId": "<id:22>",
+                    "itemId": "<id:26>",
+                    "itemName": "Cleo Gift",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:9>",
+                "toEntityId": "<id:10>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 320,
+                "createdAt": "<ts>",
+                "createdBy": "Sam Sample",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 320,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:7>",
+                "invoiceNumber": 4,
+                "items": [
+                  {
+                    "amount": 320,
+                    "createdAt": "<ts>",
+                    "finalAmount": 320,
+                    "id": "<id:8>",
+                    "invoiceId": "<id:7>",
+                    "itemId": "<id:6>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 8
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:9>",
+                "toEntityId": "<id:10>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/invoices?type=supplier",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices?type=supplier"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 195,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 195,
+                "fromBalanceId": "<id:2>",
+                "fromEntityId": "<id:3>",
+                "fromEntityName": "Acme Test Supplies",
+                "id": "<id:1>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 15,
+                    "createdAt": "<ts>",
+                    "finalAmount": 15,
+                    "id": "<id:4>",
+                    "invoiceId": "<id:1>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Delivery fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 180,
+                    "createdAt": "<ts>",
+                    "finalAmount": 180,
+                    "id": "<id:5>",
+                    "invoiceId": "<id:1>",
+                    "itemId": "<id:6>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 10
+                  }
+                ],
+                "notes": "First delivery, checked",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityId": "self",
+                "toEntityName": "Clinic",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/invoices?filter=Ada",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices?filter=Ada"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:12>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:11>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:13>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:14>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:15>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:16>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:17>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:18>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:19>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:20>",
+                "toEntityId": "<id:21>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/invoices?from=<day-1>&to=<day+1>&type=patient",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices?from=<day-1>&to=<day+1>&type=patient"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 320,
+                "createdAt": "<ts>",
+                "createdBy": "Sam Sample",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 320,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:7>",
+                "invoiceNumber": 4,
+                "items": [
+                  {
+                    "amount": 320,
+                    "createdAt": "<ts>",
+                    "finalAmount": 320,
+                    "id": "<id:8>",
+                    "invoiceId": "<id:7>",
+                    "itemId": "<id:6>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 8
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:9>",
+                "toEntityId": "<id:10>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:12>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:11>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:13>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:14>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:15>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:16>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:17>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:18>",
+                    "invoiceId": "<id:11>",
+                    "itemId": "<id:19>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:20>",
+                "toEntityId": "<id:21>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 350,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 350,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:22>",
+                "invoiceNumber": 2,
+                "items": [
+                  {
+                    "amount": 300,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 300,
+                    "id": "<id:23>",
+                    "invoiceId": "<id:22>",
+                    "itemId": "<id:24>",
+                    "itemName": "Test Laser Session",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 50,
+                    "createdAt": "<ts>",
+                    "finalAmount": 50,
+                    "id": "<id:25>",
+                    "invoiceId": "<id:22>",
+                    "itemId": "<id:26>",
+                    "itemName": "Cleo Gift",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:9>",
+                "toEntityId": "<id:10>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/invoices/<id:11>",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices/<id:11>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "amount": 345,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountId": "<id:12>",
+            "discountValue": 34.5,
+            "finalAmount": 310.5,
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityId": "self",
+            "fromEntityName": "Clinic",
+            "id": "<id:11>",
+            "invoiceNumber": 1,
+            "items": [
+              {
+                "amount": 100,
+                "createdAt": "<ts>",
+                "finalAmount": 100,
+                "id": "<id:13>",
+                "invoiceId": "<id:11>",
+                "itemId": "<id:14>",
+                "itemName": "Test Gift Card",
+                "itemType": "gift",
+                "notes": "",
+                "quantity": 1
+              },
+              {
+                "amount": 160,
+                "categoryName": "Test Peels",
+                "createdAt": "<ts>",
+                "finalAmount": 160,
+                "id": "<id:15>",
+                "invoiceId": "<id:11>",
+                "itemId": "<id:16>",
+                "itemName": "Test Glow Peel",
+                "itemType": "procedure",
+                "notes": "",
+                "quantity": 1
+              },
+              {
+                "amount": 30,
+                "createdAt": "<ts>",
+                "finalAmount": 30,
+                "id": "<id:17>",
+                "invoiceId": "<id:11>",
+                "itemId": "",
+                "itemName": "Other",
+                "itemType": "other",
+                "notes": "Consultation fee",
+                "quantity": 1
+              },
+              {
+                "amount": 55,
+                "createdAt": "<ts>",
+                "finalAmount": 55,
+                "id": "<id:18>",
+                "invoiceId": "<id:11>",
+                "itemId": "<id:19>",
+                "itemName": "Test Cream",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 2
+              }
+            ],
+            "notes": "Visit, paid in two parts",
+            "toBalanceId": "<id:20>",
+            "toEntityId": "<id:21>",
+            "toEntityName": "Ada Example",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/invoices/<id:1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "amount": 195,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountValue": 0,
+            "finalAmount": 195,
+            "fromBalanceId": "<id:2>",
+            "fromEntityId": "<id:3>",
+            "fromEntityName": "Acme Test Supplies",
+            "id": "<id:1>",
+            "invoiceNumber": 1,
+            "items": [
+              {
+                "amount": 15,
+                "createdAt": "<ts>",
+                "finalAmount": 15,
+                "id": "<id:4>",
+                "invoiceId": "<id:1>",
+                "itemId": "",
+                "itemName": "Other",
+                "itemType": "other",
+                "notes": "Delivery fee",
+                "quantity": 1
+              },
+              {
+                "amount": 180,
+                "createdAt": "<ts>",
+                "finalAmount": 180,
+                "id": "<id:5>",
+                "invoiceId": "<id:1>",
+                "itemId": "<id:6>",
+                "itemName": "Test Serum",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 10
+              }
+            ],
+            "notes": "First delivery, checked",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityId": "self",
+            "toEntityName": "Clinic",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/invoices/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Invoice not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "invoice PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices/<id:11>/pdf"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/invoice-1-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: invoice PDF",
+      "request": {
+        "method": "GET",
+        "path": "/files/invoice-1-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "the nurse downloads another user's invoice PDF",
+      "request": {
+        "method": "GET",
+        "path": "/files/invoice-1-<ms>.pdf",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "download an invoice PDF without a token",
+      "request": {
+        "method": "GET",
+        "path": "/files/invoice-1-<ms>.pdf",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "Data": null,
+          "Error": "Please sign in again",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "supplier invoice PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices/<id:1>/pdf"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/invoice-1-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: supplier invoice PDF",
+      "request": {
+        "method": "GET",
+        "path": "/files/invoice-1-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "PDF of an unknown invoice",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices/00000000-0000-7000-8000-000000000000/pdf"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Invoice not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "staff asks for an invoice PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices/<id:11>/pdf",
+        "as": "staff"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/invoice-1-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "the nurse asks for an invoice PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/invoices/<id:11>/pdf",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "Data": null,
+          "Error": "You don't have permission",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,951 @@
+{
+  "resource": "reports",
+  "cases": [
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 27,
+                "entityId": "other",
+                "entityName": "Other",
+                "groupType": "kind",
+                "percentage": 3.2123735871505055,
+                "quantity": 1
+              },
+              {
+                "amount": 369.5,
+                "entityId": "product",
+                "entityName": "Products",
+                "groupType": "kind",
+                "percentage": 43.96192742415229,
+                "quantity": 10
+              },
+              {
+                "amount": 444,
+                "entityId": "procedure",
+                "entityName": "Procedures",
+                "groupType": "kind",
+                "percentage": 52.8256989886972,
+                "quantity": 2
+              }
+            ],
+            "level": "kind",
+            "totals": {
+              "amount": 840.5,
+              "quantity": 13
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue between clinic midnights",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1> 00:00 clinic&to=<day+2> 00:00 clinic"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 27,
+                "entityId": "other",
+                "entityName": "Other",
+                "groupType": "kind",
+                "percentage": 3.2123735871505055,
+                "quantity": 1
+              },
+              {
+                "amount": 369.5,
+                "entityId": "product",
+                "entityName": "Products",
+                "groupType": "kind",
+                "percentage": 43.96192742415229,
+                "quantity": 10
+              },
+              {
+                "amount": 444,
+                "entityId": "procedure",
+                "entityName": "Procedures",
+                "groupType": "kind",
+                "percentage": 52.8256989886972,
+                "quantity": 2
+              }
+            ],
+            "level": "kind",
+            "totals": {
+              "amount": 840.5,
+              "quantity": 13
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue for the last 30 days",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 27,
+                "entityId": "other",
+                "entityName": "Other",
+                "groupType": "kind",
+                "percentage": 3.2123735871505055,
+                "quantity": 1
+              },
+              {
+                "amount": 369.5,
+                "entityId": "product",
+                "entityName": "Products",
+                "groupType": "kind",
+                "percentage": 43.96192742415229,
+                "quantity": 10
+              },
+              {
+                "amount": 444,
+                "entityId": "procedure",
+                "entityName": "Procedures",
+                "groupType": "kind",
+                "percentage": 52.8256989886972,
+                "quantity": 2
+              }
+            ],
+            "level": "kind",
+            "totals": {
+              "amount": 840.5,
+              "quantity": 13
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=procedures",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=procedures"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 144,
+                "entityId": "<id:1>",
+                "entityName": "Test Aesthetic",
+                "groupType": "procedure-type",
+                "percentage": 32.432432432432435,
+                "quantity": 1
+              },
+              {
+                "amount": 300,
+                "entityId": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                "entityName": "Clinic Procedure",
+                "groupType": "procedure-type",
+                "percentage": 67.56756756756756,
+                "quantity": 1
+              }
+            ],
+            "level": "procedure-type",
+            "totals": {
+              "amount": 444,
+              "quantity": 2
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=products",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=products"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 369.5,
+                "entityId": "<id:2>",
+                "entityName": "Test Skincare",
+                "groupType": "product-category",
+                "percentage": 100,
+                "quantity": 10
+              }
+            ],
+            "level": "product-category",
+            "totals": {
+              "amount": 369.5,
+              "quantity": 10
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=other",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=other"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 27,
+                "entityId": "",
+                "entityName": "Consultation fee",
+                "groupType": "other",
+                "percentage": 100,
+                "quantity": 1
+              }
+            ],
+            "level": "other",
+            "totals": {
+              "amount": 27,
+              "quantity": 1
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=discounts",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=discounts"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": -34.5,
+                "entityId": "<id:3>",
+                "entityName": "Test Spring Offer",
+                "groupType": "discount",
+                "percentage": 100,
+                "quantity": 1
+              }
+            ],
+            "level": "discount",
+            "totals": {
+              "amount": -34.5,
+              "quantity": 1
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=all",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=all"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 144,
+                "entityId": "<id:4>",
+                "entityName": "Test Peels, Test Glow Peel",
+                "groupType": "procedure",
+                "percentage": 17.132659131469364,
+                "quantity": 1
+              },
+              {
+                "amount": 27,
+                "entityId": "",
+                "entityName": "Consultation fee",
+                "groupType": "other",
+                "percentage": 3.2123735871505055,
+                "quantity": 1
+              },
+              {
+                "amount": 300,
+                "entityId": "<id:5>",
+                "entityName": "Test Peels, Test Laser Session",
+                "groupType": "procedure",
+                "percentage": 35.693039857227845,
+                "quantity": 1
+              },
+              {
+                "amount": 320,
+                "entityId": "<id:6>",
+                "entityName": "Test Serum",
+                "groupType": "product",
+                "percentage": 38.07257584770969,
+                "quantity": 8
+              },
+              {
+                "amount": 49.5,
+                "entityId": "<id:7>",
+                "entityName": "Test Cream",
+                "groupType": "product",
+                "percentage": 5.889351576442594,
+                "quantity": 2
+              }
+            ],
+            "level": "all",
+            "totals": {
+              "amount": 840.5,
+              "quantity": 13
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=kind",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=kind"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 27,
+                "entityId": "other",
+                "entityName": "Other",
+                "groupType": "kind",
+                "percentage": 3.2123735871505055,
+                "quantity": 1
+              },
+              {
+                "amount": 369.5,
+                "entityId": "product",
+                "entityName": "Products",
+                "groupType": "kind",
+                "percentage": 43.96192742415229,
+                "quantity": 10
+              },
+              {
+                "amount": 444,
+                "entityId": "procedure",
+                "entityName": "Procedures",
+                "groupType": "kind",
+                "percentage": 52.8256989886972,
+                "quantity": 2
+              }
+            ],
+            "level": "kind",
+            "totals": {
+              "amount": 840.5,
+              "quantity": 13
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=procedure-type",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=procedure-type"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 144,
+                "entityId": "<id:1>",
+                "entityName": "Test Aesthetic",
+                "groupType": "procedure-type",
+                "percentage": 32.432432432432435,
+                "quantity": 1
+              },
+              {
+                "amount": 300,
+                "entityId": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                "entityName": "Clinic Procedure",
+                "groupType": "procedure-type",
+                "percentage": 67.56756756756756,
+                "quantity": 1
+              }
+            ],
+            "level": "procedure-type",
+            "totals": {
+              "amount": 444,
+              "quantity": 2
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=procedure-category",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=procedure-category"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 444,
+                "entityId": "<id:8>",
+                "entityName": "Test Skin Care, Test Peels",
+                "groupType": "procedure-category",
+                "percentage": 100,
+                "quantity": 2
+              }
+            ],
+            "level": "procedure-category",
+            "totals": {
+              "amount": 444,
+              "quantity": 2
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=product-category",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=product-category"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 320,
+                "entityId": "<id:9>",
+                "entityName": "Test Skincare, Test Serums",
+                "groupType": "product-category",
+                "percentage": 86.60351826792963,
+                "quantity": 8
+              },
+              {
+                "amount": 49.5,
+                "entityId": "<id:2>",
+                "entityName": "Test Skincare",
+                "groupType": "product-category",
+                "percentage": 13.396481732070365,
+                "quantity": 2
+              }
+            ],
+            "level": "product-category",
+            "totals": {
+              "amount": 369.5,
+              "quantity": 10
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=procedure",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=procedure"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 144,
+                "entityId": "<id:4>",
+                "entityName": "Test Peels, Test Glow Peel",
+                "groupType": "procedure",
+                "percentage": 32.432432432432435,
+                "quantity": 1
+              },
+              {
+                "amount": 300,
+                "entityId": "<id:5>",
+                "entityName": "Test Peels, Test Laser Session",
+                "groupType": "procedure",
+                "percentage": 67.56756756756756,
+                "quantity": 1
+              }
+            ],
+            "level": "procedure",
+            "totals": {
+              "amount": 444,
+              "quantity": 2
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=product",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=product"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 320,
+                "entityId": "<id:6>",
+                "entityName": "Test Serum",
+                "groupType": "product",
+                "percentage": 86.60351826792963,
+                "quantity": 8
+              },
+              {
+                "amount": 49.5,
+                "entityId": "<id:7>",
+                "entityName": "Test Cream",
+                "groupType": "product",
+                "percentage": 13.396481732070365,
+                "quantity": 2
+              }
+            ],
+            "level": "product",
+            "totals": {
+              "amount": 369.5,
+              "quantity": 10
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=other",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=other"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 27,
+                "entityId": "",
+                "entityName": "Consultation fee",
+                "groupType": "other",
+                "percentage": 100,
+                "quantity": 1
+              }
+            ],
+            "level": "other",
+            "totals": {
+              "amount": 27,
+              "quantity": 1
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=discount",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=discount"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": -34.5,
+                "entityId": "<id:3>",
+                "entityName": "Test Spring Offer",
+                "groupType": "discount",
+                "percentage": 100,
+                "quantity": 1
+              }
+            ],
+            "level": "discount",
+            "totals": {
+              "amount": -34.5,
+              "quantity": 1
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=procedures&typeId=<id:1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=procedures&typeId=<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 144,
+                "entityId": "<id:10>",
+                "entityName": "Test Skin Care",
+                "groupType": "procedure-category",
+                "percentage": 100,
+                "quantity": 1
+              }
+            ],
+            "level": "procedure-category",
+            "totals": {
+              "amount": 144,
+              "quantity": 1
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=procedures&categoryId=<id:10>",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=procedures&categoryId=<id:10>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 444,
+                "entityId": "<id:8>",
+                "entityName": "Test Skin Care, Test Peels",
+                "groupType": "procedure-category",
+                "percentage": 100,
+                "quantity": 2
+              }
+            ],
+            "level": "procedure-category",
+            "totals": {
+              "amount": 444,
+              "quantity": 2
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=products&categoryId=<id:2>",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&itemKind=products&categoryId=<id:2>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 320,
+                "entityId": "<id:9>",
+                "entityName": "Test Skincare, Test Serums",
+                "groupType": "product-category",
+                "percentage": 100,
+                "quantity": 8
+              }
+            ],
+            "level": "product-category",
+            "totals": {
+              "amount": 320,
+              "quantity": 8
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/revenue?from=<day-1>&to=<day+1>&level=bogus",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=<day-1>&to=<day+1>&level=bogus"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't load report",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/expenses?from=<day-1>&to=<day+1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/expenses?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "rows": [
+              {
+                "amount": 15,
+                "amountPerUnit": 15,
+                "date": "<ts>",
+                "description": "Delivery fee",
+                "notes": "First delivery, checked",
+                "quantity": 1,
+                "remainingBalance": -42,
+                "supplier": "Acme Test Supplies",
+                "total": -27
+              },
+              {
+                "amount": 180,
+                "amountPerUnit": 18,
+                "date": "<ts>",
+                "description": "Test Serum",
+                "notes": "First delivery, checked",
+                "quantity": 10,
+                "remainingBalance": -42,
+                "supplier": "Acme Test Supplies",
+                "total": 138
+              },
+              {
+                "amount": 500,
+                "amountPerUnit": 500,
+                "date": "<ts>",
+                "description": "March rent",
+                "notes": "",
+                "quantity": 1,
+                "remainingBalance": -20,
+                "supplier": "Test Rent",
+                "total": 480
+              }
+            ],
+            "totals": {
+              "amount": 695,
+              "remaining": -62
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/expenses for the last 30 days",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/expenses"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "rows": [
+              {
+                "amount": 15,
+                "amountPerUnit": 15,
+                "date": "<ts>",
+                "description": "Delivery fee",
+                "notes": "First delivery, checked",
+                "quantity": 1,
+                "remainingBalance": -42,
+                "supplier": "Acme Test Supplies",
+                "total": -27
+              },
+              {
+                "amount": 180,
+                "amountPerUnit": 18,
+                "date": "<ts>",
+                "description": "Test Serum",
+                "notes": "First delivery, checked",
+                "quantity": 10,
+                "remainingBalance": -42,
+                "supplier": "Acme Test Supplies",
+                "total": 138
+              },
+              {
+                "amount": 500,
+                "amountPerUnit": 500,
+                "date": "<ts>",
+                "description": "March rent",
+                "notes": "",
+                "quantity": 1,
+                "remainingBalance": -20,
+                "supplier": "Test Rent",
+                "total": 480
+              }
+            ],
+            "totals": {
+              "amount": 695,
+              "remaining": -62
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "revenue report PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue/pdf?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/revenue-report-<day-1>-<day+1>-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: revenue report PDF",
+      "request": {
+        "method": "GET",
+        "path": "/files/revenue-report-<day-1>-<day+1>-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "revenue report PDF by procedure",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue/pdf?from=<day-1>&to=<day+1>&level=procedure"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/revenue-report-<day-1>-<day+1>-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: revenue report PDF by procedure",
+      "request": {
+        "method": "GET",
+        "path": "/files/revenue-report-<day-1>-<day+1>-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "expenses report PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/expenses/pdf?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/expenses-report-<day-1>-<day+1>-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: expenses report PDF",
+      "request": {
+        "method": "GET",
+        "path": "/files/expenses-report-<day-1>-<day+1>-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    }
+  ]
+}

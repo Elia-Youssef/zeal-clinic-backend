@@ -10,7 +10,10 @@ import (
 // TestRenderPDFs is a layout smoke test: it renders each document with
 // representative data and asserts generation succeeds. maroto can panic or
 // error on bad column geometry at Generate() time, which build/vet won't catch.
+// The PDFs land under the working directory, so the test runs in a temp dir.
 func TestRenderPDFs(t *testing.T) {
+	t.Chdir(t.TempDir())
+
 	inv := &store.Invoice{
 		ID: "inv1", InvoiceNumber: 42, ToEntityName: "Test Patient",
 		Amount: 300, DiscountValue: 50, FinalAmount: 250, CreatedAt: store.Date("2026-05-20"),

@@ -11,18 +11,7 @@ import (
 // result is a standalone, encrypted copy: readable with the correct key (data
 // intact, no WAL sidecar) and unreadable with a wrong key.
 func TestSnapshot_RoundTrip(t *testing.T) {
-	tmp, err := os.CreateTemp("", "clinic-bk-*.db")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmp.Close()
-	defer os.Remove(tmp.Name())
-
-	db, err := Open(tmp.Name())
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer db.Close()
+	db := openTestDB(t)
 
 	if _, err := db.Exec(`INSERT INTO rooms (id, name, type) VALUES ('bk-1', 'Backed', 'General')`); err != nil {
 		t.Fatalf("insert: %v", err)
@@ -41,7 +30,7 @@ func TestSnapshot_RoundTrip(t *testing.T) {
 	}
 
 	// Reopen with the correct key — the row must be there.
-	good, err := sql.Open("sqlite3", buildDSN(path, encryptionKey))
+	good, err := sql.Open("sqlite3", buildDSN(path, testDBKey))
 	if err != nil {
 		t.Fatalf("open snapshot: %v", err)
 	}

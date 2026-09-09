@@ -250,12 +250,16 @@ func TestEmployeeScheduleVersion_DefaultsStartDateToToday(t *testing.T) {
 	setupTestDB(t)
 	emp := makeEmployee(t, "Uma", "Rizk")
 
+	// Today is read on both sides of the save, so a run that crosses the
+	// clinic's midnight still has a fixed expectation.
+	before := ClinicToday()
 	rows := setSchedule(t, emp.ID, 3, "", shift("09:00", "17:00"))
+	after := ClinicToday()
 	if len(rows) != 1 {
 		t.Fatalf("expected 1 row written, got %d", len(rows))
 	}
-	if rows[0].StartDate != ClinicToday() {
-		t.Fatalf("expected start date to default to today (%s), got %q", ClinicToday(), rows[0].StartDate)
+	if got := rows[0].StartDate; got != before && got != after {
+		t.Fatalf("expected start date to default to today (%s), got %q", after, got)
 	}
 	if !rows[0].EndDate.IsZero() {
 		t.Fatalf("a version with no successor should be left open, got end date %q", rows[0].EndDate)

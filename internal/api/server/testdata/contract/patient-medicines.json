@@ -1,0 +1,223 @@
+{
+  "resource": "patient-medicines",
+  "cases": [
+    {
+      "name": "add patient medicine",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/<id:1>/medicines",
+        "body": {
+          "isActive": true,
+          "medicineId": "<id:2>",
+          "notes": "Twice daily"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:3>",
+            "isActive": true,
+            "medicineId": "<id:2>",
+            "notes": "Twice daily",
+            "patientId": "<id:1>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update patient medicine",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patient-medicines/<id:3>",
+        "body": {
+          "notes": "Twice daily, with food"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "",
+            "id": "<id:3>",
+            "isActive": false,
+            "medicineId": "",
+            "notes": "Twice daily, with food",
+            "patientId": ""
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "add patient medicine to remove",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/<id:4>/medicines",
+        "body": {
+          "isActive": true,
+          "medicineId": "<id:5>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:6>",
+            "isActive": true,
+            "medicineId": "<id:5>",
+            "notes": "",
+            "patientId": "<id:4>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "remove patient medicine",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/patient-medicines/<id:6>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:1>/medicines",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:1>/medicines"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:3>",
+                "isActive": true,
+                "medicineId": "<id:2>",
+                "medicineName": "Amoxitest 500",
+                "notes": "Twice daily, with food",
+                "patientId": "<id:1>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "add an unknown medicine to a patient",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/<id:4>/medicines",
+        "body": {
+          "medicineId": "00000000-0000-7000-8000-000000000000"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't add patient medicine",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/patient-medicines/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/patient-medicines/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Patient medicine not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/patients/:patientId/medicines with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000/medicines",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/patients/:patientId/medicines with unknown ids",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000/medicines",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/patient-medicines/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patient-medicines/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/patient-medicines/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patient-medicines/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Patient medicine not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

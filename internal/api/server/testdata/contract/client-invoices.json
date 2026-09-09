@@ -1,0 +1,873 @@
+{
+  "resource": "client-invoices",
+  "cases": [
+    {
+      "name": "invoice Ada",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "discountId": "<id:1>",
+          "items": [
+            {
+              "amount": 160,
+              "itemId": "<id:2>",
+              "itemType": "procedure",
+              "quantity": 1
+            },
+            {
+              "amount": 55,
+              "itemId": "<id:3>",
+              "itemType": "product",
+              "quantity": 2
+            },
+            {
+              "amount": 30,
+              "itemType": "other",
+              "notes": "Consultation fee",
+              "quantity": 1
+            },
+            {
+              "amount": 100,
+              "giftCode": "TESTGIFT-1",
+              "giftName": "Test Gift Card",
+              "itemType": "gift",
+              "quantity": 1
+            }
+          ],
+          "notes": "Visit",
+          "patientId": "<id:4>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 345,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountId": "<id:1>",
+            "discountValue": 34.5,
+            "finalAmount": 310.5,
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityId": "self",
+            "fromEntityName": "Clinic",
+            "id": "<id:5>",
+            "invoiceNumber": 1,
+            "items": [
+              {
+                "amount": 100,
+                "createdAt": "<ts>",
+                "finalAmount": 100,
+                "giftCode": "TESTGIFT-1",
+                "giftName": "Test Gift Card",
+                "id": "<id:6>",
+                "invoiceId": "<id:5>",
+                "itemId": "<id:7>",
+                "itemName": "",
+                "itemType": "gift",
+                "notes": "",
+                "quantity": 1
+              },
+              {
+                "amount": 160,
+                "createdAt": "<ts>",
+                "finalAmount": 160,
+                "id": "<id:8>",
+                "invoiceId": "<id:5>",
+                "itemId": "<id:2>",
+                "itemName": "",
+                "itemType": "procedure",
+                "notes": "",
+                "quantity": 1
+              },
+              {
+                "amount": 30,
+                "createdAt": "<ts>",
+                "finalAmount": 30,
+                "id": "<id:9>",
+                "invoiceId": "<id:5>",
+                "itemId": "",
+                "itemName": "",
+                "itemType": "other",
+                "notes": "Consultation fee",
+                "quantity": 1
+              },
+              {
+                "amount": 55,
+                "createdAt": "<ts>",
+                "finalAmount": 55,
+                "id": "<id:10>",
+                "invoiceId": "<id:5>",
+                "itemId": "<id:3>",
+                "itemName": "",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 2
+              }
+            ],
+            "notes": "Visit",
+            "toBalanceId": "<id:11>",
+            "toEntityId": "<id:4>",
+            "toEntityName": "Ada Example",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "invoice Ben with a gift for Cleo",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": 300,
+              "itemId": "<id:12>",
+              "itemType": "procedure",
+              "quantity": 1
+            },
+            {
+              "amount": 50,
+              "giftName": "Cleo Gift",
+              "giftPatientId": "<id:13>",
+              "itemType": "gift",
+              "quantity": 1
+            }
+          ],
+          "patientId": "<id:14>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 350,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountValue": 0,
+            "finalAmount": 350,
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityId": "self",
+            "fromEntityName": "Clinic",
+            "id": "<id:15>",
+            "invoiceNumber": 2,
+            "items": [
+              {
+                "amount": 300,
+                "createdAt": "<ts>",
+                "finalAmount": 300,
+                "id": "<id:16>",
+                "invoiceId": "<id:15>",
+                "itemId": "<id:12>",
+                "itemName": "",
+                "itemType": "procedure",
+                "notes": "",
+                "quantity": 1
+              },
+              {
+                "amount": 50,
+                "createdAt": "<ts>",
+                "finalAmount": 50,
+                "giftName": "Cleo Gift",
+                "giftPatientId": "<id:13>",
+                "id": "<id:17>",
+                "invoiceId": "<id:15>",
+                "itemId": "<id:18>",
+                "itemName": "",
+                "itemType": "gift",
+                "notes": "",
+                "quantity": 1
+              }
+            ],
+            "notes": "",
+            "toBalanceId": "<id:19>",
+            "toEntityId": "<id:14>",
+            "toEntityName": "Ben Sample",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "invoice Cleo",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "discountId": "<id:20>",
+          "items": [
+            {
+              "amount": 27.5,
+              "itemId": "<id:3>",
+              "itemType": "product",
+              "quantity": 1
+            }
+          ],
+          "patientId": "<id:13>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 27.5,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountId": "<id:20>",
+            "discountValue": 20,
+            "finalAmount": 7.5,
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityId": "self",
+            "fromEntityName": "Clinic",
+            "id": "<id:21>",
+            "invoiceNumber": 3,
+            "items": [
+              {
+                "amount": 27.5,
+                "createdAt": "<ts>",
+                "finalAmount": 27.5,
+                "id": "<id:22>",
+                "invoiceId": "<id:21>",
+                "itemId": "<id:3>",
+                "itemName": "",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 1
+              }
+            ],
+            "notes": "",
+            "toBalanceId": "<id:23>",
+            "toEntityId": "<id:13>",
+            "toEntityName": "Cleo Placeholder",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update client invoice",
+      "request": {
+        "method": "PUT",
+        "path": "/api/client-invoices/<id:5>",
+        "body": {
+          "notes": "Visit, paid in two parts"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "amount": 345,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountId": "<id:1>",
+            "discountValue": 34.5,
+            "finalAmount": 310.5,
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityId": "self",
+            "fromEntityName": "Clinic",
+            "id": "<id:5>",
+            "invoiceNumber": 1,
+            "items": [
+              {
+                "amount": 100,
+                "createdAt": "<ts>",
+                "finalAmount": 100,
+                "id": "<id:6>",
+                "invoiceId": "<id:5>",
+                "itemId": "<id:7>",
+                "itemName": "Test Gift Card",
+                "itemType": "gift",
+                "notes": "",
+                "quantity": 1
+              },
+              {
+                "amount": 160,
+                "categoryName": "Test Peels",
+                "createdAt": "<ts>",
+                "finalAmount": 160,
+                "id": "<id:8>",
+                "invoiceId": "<id:5>",
+                "itemId": "<id:2>",
+                "itemName": "Test Glow Peel",
+                "itemType": "procedure",
+                "notes": "",
+                "quantity": 1
+              },
+              {
+                "amount": 30,
+                "createdAt": "<ts>",
+                "finalAmount": 30,
+                "id": "<id:9>",
+                "invoiceId": "<id:5>",
+                "itemId": "",
+                "itemName": "Other",
+                "itemType": "other",
+                "notes": "Consultation fee",
+                "quantity": 1
+              },
+              {
+                "amount": 55,
+                "createdAt": "<ts>",
+                "finalAmount": 55,
+                "id": "<id:10>",
+                "invoiceId": "<id:5>",
+                "itemId": "<id:3>",
+                "itemName": "Test Cream",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 2
+              }
+            ],
+            "notes": "Visit, paid in two parts",
+            "toBalanceId": "<id:11>",
+            "toEntityId": "<id:4>",
+            "toEntityName": "Ada Example",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete client invoice",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/client-invoices/<id:21>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "staff invoices Ben for serum",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "as": "staff",
+        "body": {
+          "items": [
+            {
+              "amount": 320,
+              "itemId": "<id:24>",
+              "itemType": "product",
+              "quantity": 8
+            }
+          ],
+          "patientId": "<id:14>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 320,
+            "createdAt": "<ts>",
+            "createdBy": "Sam Sample",
+            "currencyId": "USD",
+            "discountValue": 0,
+            "finalAmount": 320,
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityId": "self",
+            "fromEntityName": "Clinic",
+            "id": "<id:25>",
+            "invoiceNumber": 4,
+            "items": [
+              {
+                "amount": 320,
+                "createdAt": "<ts>",
+                "finalAmount": 320,
+                "id": "<id:26>",
+                "invoiceId": "<id:25>",
+                "itemId": "<id:24>",
+                "itemName": "",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 8
+              }
+            ],
+            "notes": "",
+            "toBalanceId": "<id:19>",
+            "toEntityId": "<id:14>",
+            "toEntityName": "Ben Sample",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:4>/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:4>/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:1>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:5>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:6>",
+                    "invoiceId": "<id:5>",
+                    "itemId": "<id:7>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:8>",
+                    "invoiceId": "<id:5>",
+                    "itemId": "<id:2>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:9>",
+                    "invoiceId": "<id:5>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:10>",
+                    "invoiceId": "<id:5>",
+                    "itemId": "<id:3>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:11>",
+                "toEntityId": "<id:4>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:14>/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:14>/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 320,
+                "createdAt": "<ts>",
+                "createdBy": "Sam Sample",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 320,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:25>",
+                "invoiceNumber": 4,
+                "items": [
+                  {
+                    "amount": 320,
+                    "createdAt": "<ts>",
+                    "finalAmount": 320,
+                    "id": "<id:26>",
+                    "invoiceId": "<id:25>",
+                    "itemId": "<id:24>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 8
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:19>",
+                "toEntityId": "<id:14>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 350,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 350,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:15>",
+                "invoiceNumber": 2,
+                "items": [
+                  {
+                    "amount": 300,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 300,
+                    "id": "<id:16>",
+                    "invoiceId": "<id:15>",
+                    "itemId": "<id:12>",
+                    "itemName": "Test Laser Session",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 50,
+                    "createdAt": "<ts>",
+                    "finalAmount": 50,
+                    "id": "<id:17>",
+                    "invoiceId": "<id:15>",
+                    "itemId": "<id:18>",
+                    "itemName": "Cleo Gift",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:19>",
+                "toEntityId": "<id:14>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "invoice with a taken number",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "invoiceNumber": 1,
+          "items": [
+            {
+              "amount": 1,
+              "itemType": "other",
+              "notes": "Dup",
+              "quantity": 1
+            }
+          ],
+          "patientId": "<id:14>"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Invoice number 1 already exists",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "invoice more stock than there is",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": 1,
+              "itemId": "<id:3>",
+              "itemType": "product",
+              "quantity": 500
+            }
+          ],
+          "patientId": "<id:14>"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Not enough stock for \"Test Cream\" (have 18, need 500)",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "invoice with an inactive offer",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "discountId": "<id:20>",
+          "items": [
+            {
+              "amount": 10,
+              "itemType": "other",
+              "quantity": 1
+            }
+          ],
+          "patientId": "<id:14>"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Discount is inactive",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "invoice an unknown patient",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": 10,
+              "itemType": "other",
+              "quantity": 1
+            }
+          ],
+          "patientId": "00000000-0000-7000-8000-000000000000"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Patient not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "invoice a negative amount",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": -10,
+              "itemType": "other",
+              "quantity": 1
+            }
+          ],
+          "patientId": "<id:14>"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "invoice without items",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "items": [],
+          "patientId": "<id:14>"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "invoice a gift with both a patient and a code",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": 10,
+              "giftCode": "BOTH-1",
+              "giftPatientId": "<id:13>",
+              "itemType": "gift",
+              "quantity": 1
+            }
+          ],
+          "patientId": "<id:14>"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create invoice",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete an invoice whose gift card was redeemed",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/client-invoices/<id:5>"
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't delete invoice",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/client-invoices/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/client-invoices/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Invoice not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-invoices with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-invoices with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-invoices",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/client-invoices/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/client-invoices/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/client-invoices/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/client-invoices/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Invoice not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

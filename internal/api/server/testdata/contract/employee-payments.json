@@ -1,0 +1,404 @@
+{
+  "resource": "employee-payments",
+  "cases": [
+    {
+      "name": "pay Nora",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-payments",
+        "body": {
+          "amount": 600,
+          "description": "March advance",
+          "employeeId": "<id:1>",
+          "transactionMethod": "transfer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 600,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "March advance",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:2>",
+            "toBalanceId": "<id:3>",
+            "toEntityName": "Nora Example",
+            "transactionMethod": "transfer",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "adjust Nora's balance",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-adjustments",
+        "body": {
+          "amount": 25,
+          "description": "Bonus",
+          "direction": "outgoing",
+          "employeeId": "<id:1>",
+          "transactionMethod": "other"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 25,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Bonus",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:4>",
+            "toBalanceId": "<id:3>",
+            "toEntityName": "Nora Example",
+            "transactionMethod": "other",
+            "transactionType": "adjustment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "write off Sam's balance",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-write-offs",
+        "body": {
+          "amount": 10,
+          "description": "Uniform",
+          "direction": "incoming",
+          "employeeId": "<id:5>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 10,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Uniform",
+            "fromBalanceId": "<id:7>",
+            "fromEntityName": "Sam Sample",
+            "id": "<id:6>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "other",
+            "transactionType": "write-off"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "pay Sam",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-payments",
+        "body": {
+          "amount": 100,
+          "employeeId": "<id:5>",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 100,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:8>",
+            "toBalanceId": "<id:7>",
+            "toEntityName": "Sam Sample",
+            "transactionMethod": "cash",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete employee payment",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-payments/<id:8>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:1>/payments",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>/payments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 25,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Bonus",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:4>",
+                "toBalanceId": "<id:3>",
+                "toEntityName": "Nora Example",
+                "transactionMethod": "other",
+                "transactionType": "adjustment"
+              },
+              {
+                "amount": 600,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "March advance",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:2>",
+                "toBalanceId": "<id:3>",
+                "toEntityName": "Nora Example",
+                "transactionMethod": "transfer",
+                "transactionType": "payment"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "nurse reads her own payments",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>/payments",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 25,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Bonus",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:4>",
+                "toBalanceId": "<id:3>",
+                "toEntityName": "Nora Example",
+                "transactionMethod": "other",
+                "transactionType": "adjustment"
+              },
+              {
+                "amount": 600,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "March advance",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:2>",
+                "toBalanceId": "<id:3>",
+                "toEntityName": "Nora Example",
+                "transactionMethod": "transfer",
+                "transactionType": "payment"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "pay an unknown employee",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-payments",
+        "body": {
+          "amount": 5,
+          "employeeId": "00000000-0000-7000-8000-000000000000",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Employee not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "adjust an unknown employee",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-adjustments",
+        "body": {
+          "amount": 5,
+          "description": "X",
+          "direction": "incoming",
+          "employeeId": "00000000-0000-7000-8000-000000000000",
+          "transactionMethod": "other"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create adjustment",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/employee-payments/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-payments/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Transaction not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-adjustments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-adjustments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-adjustments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-adjustments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-payments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-payments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-payments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-payments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-write-offs with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-write-offs",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-write-offs with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-write-offs",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

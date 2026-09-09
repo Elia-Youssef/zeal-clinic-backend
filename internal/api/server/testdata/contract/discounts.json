@@ -1,0 +1,901 @@
+{
+  "resource": "discounts",
+  "cases": [
+    {
+      "name": "create percentage offer",
+      "request": {
+        "method": "POST",
+        "path": "/api/discounts",
+        "body": {
+          "discountType": "offer",
+          "name": "Test Spring Offer",
+          "value": 10,
+          "valueType": "percentage"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "",
+            "discountType": "offer",
+            "endDate": null,
+            "id": "<id:1>",
+            "isActive": 1,
+            "name": "Test Spring Offer",
+            "startDate": null,
+            "updatedAt": "<ts>",
+            "value": 10,
+            "valueType": "percentage"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create fixed offer",
+      "request": {
+        "method": "POST",
+        "path": "/api/discounts",
+        "body": {
+          "description": "Flat",
+          "discountType": "offer",
+          "name": "Test Fixed Offer",
+          "value": 20,
+          "valueType": "fixed"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Flat",
+            "discountType": "offer",
+            "endDate": null,
+            "id": "<id:2>",
+            "isActive": 1,
+            "name": "Test Fixed Offer",
+            "startDate": null,
+            "updatedAt": "<ts>",
+            "value": 20,
+            "valueType": "fixed"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update percentage offer",
+      "request": {
+        "method": "PUT",
+        "path": "/api/discounts/<id:1>",
+        "body": {
+          "description": "Ten percent off"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Ten percent off",
+            "discountType": "offer",
+            "endDate": null,
+            "id": "<id:1>",
+            "isActive": 1,
+            "name": "Test Spring Offer",
+            "startDate": null,
+            "updatedAt": "<ts>",
+            "value": 10,
+            "valueType": "percentage"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create offer to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/discounts",
+        "body": {
+          "discountType": "offer",
+          "name": "Test Temp Offer",
+          "value": 1,
+          "valueType": "fixed"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "",
+            "discountType": "offer",
+            "endDate": null,
+            "id": "<id:3>",
+            "isActive": 1,
+            "name": "Test Temp Offer",
+            "startDate": null,
+            "updatedAt": "<ts>",
+            "value": 1,
+            "valueType": "fixed"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused offer",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/discounts/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "redeem gift card",
+      "request": {
+        "method": "POST",
+        "path": "/api/gift-cards/redeem",
+        "body": {
+          "code": "TESTGIFT-1",
+          "patientId": "<id:4>"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "code": "TESTGIFT-1",
+            "createdAt": "<ts>",
+            "description": "",
+            "discountType": "gift",
+            "endDate": null,
+            "id": "<id:5>",
+            "isActive": 1,
+            "name": "Test Gift Card",
+            "patientId": "<id:4>",
+            "startDate": null,
+            "updatedAt": "<ts>",
+            "value": 100,
+            "valueType": "fixed"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "deactivate fixed offer",
+      "request": {
+        "method": "PUT",
+        "path": "/api/discounts/<id:2>",
+        "body": {
+          "isActive": 0
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Flat",
+            "discountType": "offer",
+            "endDate": null,
+            "id": "<id:2>",
+            "isActive": 0,
+            "name": "Test Fixed Offer",
+            "startDate": null,
+            "updatedAt": "<ts>",
+            "value": 20,
+            "valueType": "fixed"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/discounts",
+      "request": {
+        "method": "GET",
+        "path": "/api/discounts"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "code": "TESTGIFT-1",
+                "createdAt": "<ts>",
+                "description": "",
+                "discountType": "gift",
+                "endDate": null,
+                "id": "<id:5>",
+                "isActive": 1,
+                "name": "Test Gift Card",
+                "patientId": "<id:4>",
+                "redeemedAt": "<ts>",
+                "startDate": null,
+                "updatedAt": "<ts>",
+                "value": 100,
+                "valueType": "fixed"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "",
+                "discountType": "gift",
+                "endDate": null,
+                "id": "<id:6>",
+                "isActive": 1,
+                "name": "Cleo Gift",
+                "patientId": "<id:7>",
+                "redeemedAt": "<ts>",
+                "startDate": null,
+                "updatedAt": "<ts>",
+                "value": 50,
+                "valueType": "fixed"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "Flat",
+                "discountType": "offer",
+                "endDate": null,
+                "id": "<id:2>",
+                "isActive": 0,
+                "name": "Test Fixed Offer",
+                "startDate": null,
+                "updatedAt": "<ts>",
+                "value": 20,
+                "valueType": "fixed"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "Ten percent off",
+                "discountType": "offer",
+                "endDate": null,
+                "id": "<id:1>",
+                "isActive": 1,
+                "name": "Test Spring Offer",
+                "startDate": null,
+                "updatedAt": "<ts>",
+                "value": 10,
+                "valueType": "percentage"
+              }
+            ],
+            "total": 4
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/discounts?type=offer&sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/discounts?type=offer&sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "description": "Flat",
+                "discountType": "offer",
+                "endDate": null,
+                "id": "<id:2>",
+                "isActive": 0,
+                "name": "Test Fixed Offer",
+                "startDate": null,
+                "updatedAt": "<ts>",
+                "value": 20,
+                "valueType": "fixed"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "Ten percent off",
+                "discountType": "offer",
+                "endDate": null,
+                "id": "<id:1>",
+                "isActive": 1,
+                "name": "Test Spring Offer",
+                "startDate": null,
+                "updatedAt": "<ts>",
+                "value": 10,
+                "valueType": "percentage"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/discounts?type=gift",
+      "request": {
+        "method": "GET",
+        "path": "/api/discounts?type=gift"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "code": "TESTGIFT-1",
+                "createdAt": "<ts>",
+                "description": "",
+                "discountType": "gift",
+                "endDate": null,
+                "id": "<id:5>",
+                "isActive": 1,
+                "name": "Test Gift Card",
+                "patientId": "<id:4>",
+                "redeemedAt": "<ts>",
+                "startDate": null,
+                "updatedAt": "<ts>",
+                "value": 100,
+                "valueType": "fixed"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "",
+                "discountType": "gift",
+                "endDate": null,
+                "id": "<id:6>",
+                "isActive": 1,
+                "name": "Cleo Gift",
+                "patientId": "<id:7>",
+                "redeemedAt": "<ts>",
+                "startDate": null,
+                "updatedAt": "<ts>",
+                "value": 50,
+                "valueType": "fixed"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/discounts/<id:1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/discounts/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Ten percent off",
+            "discountType": "offer",
+            "endDate": null,
+            "id": "<id:1>",
+            "isActive": 1,
+            "name": "Test Spring Offer",
+            "startDate": null,
+            "updatedAt": "<ts>",
+            "value": 10,
+            "valueType": "percentage"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/discounts/<id:5>",
+      "request": {
+        "method": "GET",
+        "path": "/api/discounts/<id:5>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "code": "TESTGIFT-1",
+            "createdAt": "<ts>",
+            "description": "",
+            "discountType": "gift",
+            "endDate": null,
+            "id": "<id:5>",
+            "isActive": 1,
+            "name": "Test Gift Card",
+            "patientId": "<id:4>",
+            "redeemedAt": "<ts>",
+            "startDate": null,
+            "updatedAt": "<ts>",
+            "value": 100,
+            "valueType": "fixed"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/discounts/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/discounts/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Discount not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/discounts/<id:1>/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/discounts/<id:1>/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:1>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:8>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:9>",
+                    "invoiceId": "<id:8>",
+                    "itemId": "<id:5>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:10>",
+                    "invoiceId": "<id:8>",
+                    "itemId": "<id:11>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:12>",
+                    "invoiceId": "<id:8>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:13>",
+                    "invoiceId": "<id:8>",
+                    "itemId": "<id:14>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:15>",
+                "toEntityId": "<id:16>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/discounts/<id:5>/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/discounts/<id:5>/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:1>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:8>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:9>",
+                    "invoiceId": "<id:8>",
+                    "itemId": "<id:5>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:10>",
+                    "invoiceId": "<id:8>",
+                    "itemId": "<id:11>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:12>",
+                    "invoiceId": "<id:8>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:13>",
+                    "invoiceId": "<id:8>",
+                    "itemId": "<id:14>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:15>",
+                "toEntityId": "<id:16>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete an offer used by an invoice",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/discounts/<id:1>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "This discount is used by invoices and can't be deleted",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a gift card directly",
+      "request": {
+        "method": "POST",
+        "path": "/api/discounts",
+        "body": {
+          "code": "X",
+          "discountType": "gift",
+          "name": "Test Gift",
+          "value": 5,
+          "valueType": "fixed"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Gift cards can only be created through an invoice",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create an offer over 100 percent",
+      "request": {
+        "method": "POST",
+        "path": "/api/discounts",
+        "body": {
+          "discountType": "offer",
+          "name": "Test Too Much",
+          "value": 150,
+          "valueType": "percentage"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create an offer ending before it starts",
+      "request": {
+        "method": "POST",
+        "path": "/api/discounts",
+        "body": {
+          "discountType": "offer",
+          "endDate": "2025-05-01",
+          "name": "Test Backwards",
+          "startDate": "2025-05-02",
+          "value": 5,
+          "valueType": "fixed"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "rename a gift card and change its value",
+      "request": {
+        "method": "PUT",
+        "path": "/api/discounts/<id:5>",
+        "body": {
+          "name": "Renamed Gift",
+          "value": 999
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "redeem a used gift card",
+      "request": {
+        "method": "POST",
+        "path": "/api/gift-cards/redeem",
+        "body": {
+          "code": "TESTGIFT-1",
+          "patientId": "<id:7>"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "This gift card can't be redeemed",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "redeem an unknown gift card",
+      "request": {
+        "method": "POST",
+        "path": "/api/gift-cards/redeem",
+        "body": {
+          "code": "NO-SUCH-CARD",
+          "patientId": "<id:7>"
+        }
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Gift card not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "redeem a gift card for nobody",
+      "request": {
+        "method": "POST",
+        "path": "/api/gift-cards/redeem",
+        "body": {
+          "code": "TESTGIFT-1"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "This gift card can't be redeemed",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/discounts/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/discounts/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Discount not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/discounts with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/discounts",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/discounts with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/discounts",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/gift-cards/redeem with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/gift-cards/redeem",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/gift-cards/redeem with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/gift-cards/redeem",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "This gift card can't be redeemed",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/discounts/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/discounts/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/discounts/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/discounts/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Discount not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

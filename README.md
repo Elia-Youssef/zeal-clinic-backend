@@ -29,18 +29,29 @@ password and sets one on first sign-in.
 
 ## Configuration
 
-No runtime `.env`. Config is embedded per build tag from
-`internal/config/local.env.defaults` (local) or `cloud.env.defaults` (`-tags cloud`); real
-environment variables override the baked-in defaults.
+No runtime `.env`. Config is embedded at build time, per build tag, from
+`internal/config/`:
+
+- `local.env.defaults` (local) and `cloud.env.defaults` (`-tags cloud`):
+  committed dev defaults, so a fresh clone builds and runs as is. Their secrets
+  are public dev values.
+- `local.env` / `cloud.env`: optional overrides with the real values,
+  git-ignored. A non-empty value replaces the default of the same key; start
+  from `local.env.example` / `cloud.env.example`.
 
 | Variable | Notes |
 | --- | --- |
 | `PORT` | API + frontend port (`55555` local / `8080` cloud) |
-| `JWT_SECRET` / `JWT_LIFETIME` | JWT signing key / TTL (default `14h`) |
+| `JWT_SECRET` / `JWT_LIFETIME` | JWT signing key, 32+ characters / TTL (default `14h`) |
 | `PEER_URL` + `SYNC_SECRET` | clinic's cloud peer + shared secret (both set = sync on) |
 | `PUBLIC_URL` / `PUBLISH_SECRET` | cloud `/api/server-url` / enable `POST /api/versions` |
+| `DB_ENCRYPTION_KEY` | at-rest DB encryption key, 64 hex characters |
 
-The at-rest DB encryption key is a hardcoded constant (intentional). DB path:
+The local and cloud builds must share `SYNC_SECRET` and `DB_ENCRYPTION_KEY`.
+A stamped release build refuses to start with a dev default, a `JWT_SECRET`
+under 32 characters or a malformed `DB_ENCRYPTION_KEY`, and `make release` /
+`make release-cloud` run the same checks on the override files before building
+(`go run ./cmd/releasecheck clinic cloud` checks both). DB path:
 installed Windows → `%LOCALAPPDATA%\Zeal Clinic\Data\clinic.db`; cloud →
 `./data/clinic.db`; dev → `./tmp/clinic.db`.
 

@@ -1,0 +1,15 @@
+id,createdat,starttime,endtime,patientid,patientnam,status,room,notes,cancelnote,completion,procedure
+201,28-Mar-26,10:00,10:30,101,Alpha Tester,Confirmed,Room 1,Before the spring change,,,11
+202,30-Mar-26,10:00,10:30,101,Alpha Tester,Arrived,Room 2,After the spring change,,,
+203,29-Mar-26,00:30,02:00,102,Charlie Q Sample,Reserved,Laser Suite,Inside the skipped hour,,,12
+204,25-Oct-25,23:30,23:45,103,Delta Example,Scheduled,,Inside the repeated hour,,,
+205,24-Oct-25,10:00,11:00,103,Delta Example,Completed,Room 1,Before the autumn change,,Done,
+206,27-Oct-25,10:00,11:00,103,Delta Example,Cancelled,Room 1,After the autumn change,Called in sick,,
+207,10-Jan-2099,09:00,09:30,104,Echo Dummy,Started,Room 3,,,,
+208,10-Jan-2099,10:00,10:30,999,Hotel Missing,Reserved,Room 3,,,,11
+209,10-Jan-2099,11:00,11:30,105,Foxtrot Fixture,Cancelled,Room 3,,,,
+210,10-Jan-2099,12:00,12:30,105,Foxtrot Fixture,Mystery,Room 3,,,,99
+211,not-a-date,10:00,11:00,101,Alpha Tester,Confirmed,Room 1,,,,
+212,12-Feb-26,10:00,10:30,0,,Confirmed,Room 1,,,,
+213,12-Feb-26,11:00,11:30,106,Golf Backfill,Confirmed,Room 1,,,,
+201,28-Mar-26,11:00,11:30,101,Alpha Tester,Confirmed,Room 1,Duplicate id,,,

@@ -42,7 +42,7 @@ UPDATE_ZIP_CLOUD  := build/cloud/output/ZealClinicUpdate-$(VERSION)-linux-amd64.
 ISCC              ?= ISCC.exe
 FRONTEND          := ../zeal-clinic-frontend
 
-.PHONY: dev dev-seed dev-demo dev-cloud build build-cloud legacyimport frontend release release-cloud update-zip update-zip-cloud installer deploy clean help
+.PHONY: dev dev-seed dev-demo dev-cloud build build-cloud legacyimport frontend release-check release-check-cloud release release-cloud update-zip update-zip-cloud installer deploy clean help
 
 dev: build
 	$(DEV_BINARY) --dev
@@ -66,8 +66,10 @@ build-cloud:
 	go build -tags cloud -ldflags "$(DEV_LDFLAGS)" -o $(DEV_CLOUD_BINARY) $(PKG)
 
 # One-off importer for the old software's CSV exports (cmd/legacyimport).
-# Binary lands in tmp/ (gitignored). Run it against a fresh DB, then copy that
-# DB to the cloud, e.g.:
+# Binary lands in tmp/ (gitignored). It encrypts with DB_ENCRYPTION_KEY of
+# internal/config/local.env (the dev default without it), so build it with the
+# release overrides in place. Run it against a fresh DB, then copy that DB to
+# the cloud, e.g.:
 #   tmp/ZealLegacyImport --in old_data --db ./clinic.db
 legacyimport:
 	$(call MKDIR_P,tmp)
@@ -78,14 +80,24 @@ frontend:
 	$(call RMDIR_IF,client/dist)
 	$(COPY_DIST)
 
+# Pre-build check of a release: the node's git-ignored config override
+# (internal/config/local.env or cloud.env, see the .example files) must exist
+# and hold release values, and the clinic and cloud must share SYNC_SECRET
+# and DB_ENCRYPTION_KEY. Messages name keys, never values.
+release-check:
+	go run ./cmd/releasecheck clinic
+
+release-check-cloud:
+	go run ./cmd/releasecheck cloud
+
 # release / release-cloud reuse the existing client/dist — run `make frontend`
 # (or `make release-all`) first so one frontend build serves both platforms.
-release:
+release: release-check
 	$(call MKDIR_P,build/local/output)
 	go build -trimpath -ldflags "$(LDFLAGS)" -o $(LOCAL_BINARY) $(PKG)
 	go build -trimpath -ldflags "$(LDFLAGS)" -o $(UPDATER_BINARY) $(UPDATER_PKG)
 
-release-cloud:
+release-cloud: release-check-cloud
 	$(call MKDIR_P,build/cloud/output)
 	$(CLOUD_ENV) go build -tags cloud -trimpath -ldflags "$(CLOUD_LDFLAGS)" -o $(CLOUD_BINARY) $(PKG)
 
@@ -123,6 +135,8 @@ help:
 	@echo "build-cloud    - cloud debug build to $(DEV_CLOUD_BINARY)"
 	@echo "legacyimport   - build the old-data CSV importer to $(LEGACYIMPORT_BINARY)"
 	@echo "frontend       - npm build the frontend and copy dist into client/dist"
+	@echo "release-check  - pre-build check of internal/config/local.env (run by release)"
+	@echo "release-check-cloud - pre-build check of internal/config/cloud.env (run by release-cloud)"
 	@echo "release        - prod build (app + updater) to build/local/output (needs client/dist)"
 	@echo "release-cloud  - cloud prod build to $(CLOUD_BINARY) (needs client/dist)"
 	@echo "update-zip     - self-update zip (app + updater) + .sha256"

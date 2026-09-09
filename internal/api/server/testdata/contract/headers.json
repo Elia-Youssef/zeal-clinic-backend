@@ -1,0 +1,128 @@
+{
+  "resource": "headers",
+  "cases": [
+    {
+      "name": "a GET with an Origin",
+      "request": {
+        "method": "GET",
+        "path": "/api/rooms/dropdown",
+        "header": {
+          "Origin": "http://clinic.example"
+        }
+      },
+      "response": {
+        "status": 200,
+        "header": {
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "application/json",
+          "Vary": "Origin",
+          "X-Robots-Tag": "noindex, nofollow"
+        },
+        "body": {
+          "Data": [
+            {
+              "id": "e7bf71a3-5fed-4cfb-a206-8e3b9524eb83",
+              "name": "Hospital"
+            },
+            {
+              "id": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+              "name": "Room 1"
+            },
+            {
+              "id": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+              "name": "Room 2"
+            },
+            {
+              "id": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+              "name": "Room 3"
+            },
+            {
+              "id": "94214e6b-30c5-4173-b766-9765188d2102",
+              "name": "Room 4"
+            },
+            {
+              "id": "42c1c4e3-b14e-4aed-8742-43d1b0827fa4",
+              "name": "Room 5"
+            },
+            {
+              "id": "1f01c7de-f9f9-4f7b-bbf2-db051f2efda1",
+              "name": "Room 6"
+            },
+            {
+              "id": "cd52a2a6-3e99-4e69-a51f-2c8289e6033d",
+              "name": "Room 7"
+            },
+            {
+              "id": "<id:1>",
+              "name": "Test Room A"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "a CORS preflight",
+      "request": {
+        "method": "OPTIONS",
+        "path": "/api/patients",
+        "as": "anonymous",
+        "header": {
+          "Access-Control-Request-Headers": "authorization,content-type",
+          "Access-Control-Request-Method": "PUT",
+          "Origin": "http://clinic.example"
+        }
+      },
+      "response": {
+        "status": 204,
+        "header": {
+          "Access-Control-Allow-Headers": "authorization,content-type",
+          "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+          "Access-Control-Allow-Origin": "*",
+          "Vary": "Origin"
+        }
+      }
+    },
+    {
+      "name": "an unauthenticated API call",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "header": {
+          "Content-Type": "application/json",
+          "X-Robots-Tag": "noindex, nofollow"
+        },
+        "body": {
+          "Data": null,
+          "Error": "Please sign in again",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "a validation error",
+      "request": {
+        "method": "POST",
+        "path": "/api/rooms",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "header": {
+          "Content-Type": "application/json",
+          "X-Robots-Tag": "noindex, nofollow"
+        },
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

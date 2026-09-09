@@ -1,0 +1,188 @@
+{
+  "resource": "search",
+  "cases": [
+    {
+      "name": "GET /api/search?q=Example",
+      "request": {
+        "method": "GET",
+        "path": "/api/search?q=Example"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "employees": [
+              {
+                "contact": "70111222",
+                "email": "nora@example.test",
+                "first_name": "Nora",
+                "id": "<id:1>",
+                "last_name": "Example"
+              },
+              {
+                "contact": "70111444",
+                "email": "otto@example.test",
+                "first_name": "Otto",
+                "id": "<id:2>",
+                "last_name": "Placeholder"
+              }
+            ],
+            "patients": [
+              {
+                "contact": "70123456",
+                "email": "ada@example.test",
+                "first_name": "Ada",
+                "id": "<id:3>",
+                "last_name": "Example",
+                "middle_name": "Q"
+              },
+              {
+                "contact": "76123456",
+                "email": "",
+                "first_name": "Cleo",
+                "id": "<id:4>",
+                "last_name": "Example",
+                "middle_name": ""
+              }
+            ],
+            "procedures": [],
+            "products": [],
+            "suppliers": [
+              {
+                "contact": "+9611000111",
+                "email": "orders@acme.example",
+                "id": "<id:5>",
+                "name": "Acme Test Supplies"
+              }
+            ]
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/search?q=test+serum",
+      "request": {
+        "method": "GET",
+        "path": "/api/search?q=test+serum"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "employees": [],
+            "patients": [],
+            "procedures": [],
+            "products": [
+              {
+                "id": "<id:6>",
+                "name": "Test Serum"
+              }
+            ],
+            "suppliers": []
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/search?q=",
+      "request": {
+        "method": "GET",
+        "path": "/api/search?q="
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {},
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "nurse searches",
+      "request": {
+        "method": "GET",
+        "path": "/api/search?q=Example",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "patients": [
+              {
+                "contact": "70123456",
+                "email": "ada@example.test",
+                "first_name": "Ada",
+                "id": "<id:3>",
+                "last_name": "Example",
+                "middle_name": "Q"
+              },
+              {
+                "contact": "76123456",
+                "email": "",
+                "first_name": "Cleo",
+                "id": "<id:4>",
+                "last_name": "Example",
+                "middle_name": ""
+              }
+            ],
+            "procedures": [],
+            "products": []
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "staff searches",
+      "request": {
+        "method": "GET",
+        "path": "/api/search?q=Example",
+        "as": "staff"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "patients": [
+              {
+                "contact": "70123456",
+                "email": "ada@example.test",
+                "first_name": "Ada",
+                "id": "<id:3>",
+                "last_name": "Example",
+                "middle_name": "Q"
+              },
+              {
+                "contact": "76123456",
+                "email": "",
+                "first_name": "Cleo",
+                "id": "<id:4>",
+                "last_name": "Example",
+                "middle_name": ""
+              }
+            ],
+            "procedures": [],
+            "products": [],
+            "suppliers": [
+              {
+                "contact": "+9611000111",
+                "email": "orders@acme.example",
+                "id": "<id:5>",
+                "name": "Acme Test Supplies"
+              }
+            ]
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    }
+  ]
+}

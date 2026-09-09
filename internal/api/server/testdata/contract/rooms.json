@@ -1,0 +1,369 @@
+{
+  "resource": "rooms",
+  "cases": [
+    {
+      "name": "create room",
+      "request": {
+        "method": "POST",
+        "path": "/api/rooms",
+        "body": {
+          "isAvailable": true,
+          "name": "Test Room A",
+          "type": "Procedure"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:1>",
+            "isAvailable": true,
+            "name": "Test Room A",
+            "type": "Procedure"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update room",
+      "request": {
+        "method": "PUT",
+        "path": "/api/rooms/<id:1>",
+        "body": {
+          "type": "Consultation"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:1>",
+            "isAvailable": true,
+            "name": "Test Room A",
+            "type": "Consultation"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create room to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/rooms",
+        "body": {
+          "isAvailable": true,
+          "name": "Test Room Temp",
+          "type": "General"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:2>",
+            "isAvailable": true,
+            "name": "Test Room Temp",
+            "type": "General"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused room",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/rooms/<id:2>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/rooms?sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/rooms?sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "id": "e7bf71a3-5fed-4cfb-a206-8e3b9524eb83",
+                "isAvailable": true,
+                "name": "Hospital",
+                "type": "Hospital"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "isAvailable": true,
+                "name": "Room 1",
+                "type": "Consultation"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "isAvailable": true,
+                "name": "Room 2",
+                "type": "Procedure"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+                "isAvailable": true,
+                "name": "Room 3",
+                "type": "General"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "94214e6b-30c5-4173-b766-9765188d2102",
+                "isAvailable": true,
+                "name": "Room 4",
+                "type": "Consultation"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "42c1c4e3-b14e-4aed-8742-43d1b0827fa4",
+                "isAvailable": true,
+                "name": "Room 5",
+                "type": "Procedure"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "1f01c7de-f9f9-4f7b-bbf2-db051f2efda1",
+                "isAvailable": true,
+                "name": "Room 6",
+                "type": "General"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "cd52a2a6-3e99-4e69-a51f-2c8289e6033d",
+                "isAvailable": true,
+                "name": "Room 7",
+                "type": "Consultation"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "<id:1>",
+                "isAvailable": true,
+                "name": "Test Room A",
+                "type": "Consultation"
+              }
+            ],
+            "total": 9
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/rooms?filter=Test",
+      "request": {
+        "method": "GET",
+        "path": "/api/rooms?filter=Test"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:1>",
+                "isAvailable": true,
+                "name": "Test Room A",
+                "type": "Consultation"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/rooms/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/rooms/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "e7bf71a3-5fed-4cfb-a206-8e3b9524eb83",
+              "name": "Hospital"
+            },
+            {
+              "id": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+              "name": "Room 1"
+            },
+            {
+              "id": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+              "name": "Room 2"
+            },
+            {
+              "id": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+              "name": "Room 3"
+            },
+            {
+              "id": "94214e6b-30c5-4173-b766-9765188d2102",
+              "name": "Room 4"
+            },
+            {
+              "id": "42c1c4e3-b14e-4aed-8742-43d1b0827fa4",
+              "name": "Room 5"
+            },
+            {
+              "id": "1f01c7de-f9f9-4f7b-bbf2-db051f2efda1",
+              "name": "Room 6"
+            },
+            {
+              "id": "cd52a2a6-3e99-4e69-a51f-2c8289e6033d",
+              "name": "Room 7"
+            },
+            {
+              "id": "<id:1>",
+              "name": "Test Room A"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete a room in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/rooms/99ca4a8e-9d61-415a-9afb-4f563b11242d"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete room while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a room of an unknown type",
+      "request": {
+        "method": "POST",
+        "path": "/api/rooms",
+        "body": {
+          "name": "Test Garage",
+          "type": "Garage"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/rooms/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/rooms/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Room not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/rooms with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/rooms",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/rooms with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/rooms",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/rooms/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/rooms/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/rooms/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/rooms/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Room not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

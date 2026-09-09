@@ -1,0 +1,2097 @@
+{
+  "resource": "hr",
+  "cases": [
+    {
+      "name": "create holiday",
+      "request": {
+        "method": "POST",
+        "path": "/api/holidays",
+        "body": {
+          "endDate": "2025-10-27",
+          "name": "Test Holiday",
+          "notes": "Scenario",
+          "startDate": "2025-10-27"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "endDate": "2025-10-27",
+            "id": "<id:1>",
+            "name": "Test Holiday",
+            "notes": "Scenario",
+            "startDate": "2025-10-27",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update holiday",
+      "request": {
+        "method": "PUT",
+        "path": "/api/holidays/<id:1>",
+        "body": {
+          "notes": "Scenario, clinic closed"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "endDate": "2025-10-27",
+            "id": "<id:1>",
+            "name": "Test Holiday",
+            "notes": "Scenario, clinic closed",
+            "startDate": "2025-10-27",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create holiday to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/holidays",
+        "body": {
+          "endDate": "2025-11-11",
+          "name": "Test Temp Holiday",
+          "startDate": "2025-11-10"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "endDate": "2025-11-11",
+            "id": "<id:2>",
+            "name": "Test Temp Holiday",
+            "notes": "",
+            "startDate": "2025-11-10",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete holiday",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/holidays/<id:2>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "request time off",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "body": {
+          "employeeId": "<id:3>",
+          "endDate": "2025-03-31",
+          "endTime": "18:00",
+          "notes": "Dentist",
+          "startDate": "2025-03-31",
+          "startTime": "14:00",
+          "type": "timeoff"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "employeeId": "<id:3>",
+            "employeeName": "Nora Example",
+            "endDate": "2025-03-31",
+            "endTime": "18:00",
+            "id": "<id:4>",
+            "notes": "Dentist",
+            "startDate": "2025-03-31",
+            "startTime": "14:00",
+            "status": "pending",
+            "type": "timeoff",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update time off",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedule-changes/<id:4>",
+        "body": {
+          "notes": "Dentist appointment"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "employeeId": "<id:3>",
+            "employeeName": "Nora Example",
+            "endDate": "2025-03-31",
+            "endTime": "18:00",
+            "id": "<id:4>",
+            "notes": "Dentist appointment",
+            "startDate": "2025-03-31",
+            "startTime": "14:00",
+            "status": "pending",
+            "type": "timeoff",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "accept time off",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes/<id:4>/status",
+        "body": {
+          "status": "accepted"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "employeeId": "<id:3>",
+            "employeeName": "Nora Example",
+            "endDate": "2025-03-31",
+            "endTime": "18:00",
+            "id": "<id:4>",
+            "notes": "Dentist appointment",
+            "startDate": "2025-03-31",
+            "startTime": "14:00",
+            "status": "accepted",
+            "type": "timeoff",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "request overtime",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "body": {
+          "employeeId": "<id:3>",
+          "endDate": "2025-04-01",
+          "endTime": "20:00",
+          "startDate": "2025-04-01",
+          "startTime": "18:00",
+          "type": "overtime"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "employeeId": "<id:3>",
+            "employeeName": "Nora Example",
+            "endDate": "2025-04-01",
+            "endTime": "20:00",
+            "id": "<id:5>",
+            "notes": "",
+            "startDate": "2025-04-01",
+            "startTime": "18:00",
+            "status": "pending",
+            "type": "overtime",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "accept overtime",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes/<id:5>/status",
+        "body": {
+          "status": "accepted"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "employeeId": "<id:3>",
+            "employeeName": "Nora Example",
+            "endDate": "2025-04-01",
+            "endTime": "20:00",
+            "id": "<id:5>",
+            "notes": "",
+            "startDate": "2025-04-01",
+            "startTime": "18:00",
+            "status": "accepted",
+            "type": "overtime",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "staff requests time off for someone else",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "as": "staff",
+        "body": {
+          "employeeId": "<id:3>",
+          "endDate": "2025-10-28",
+          "startDate": "2025-10-27",
+          "type": "timeoff"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "employeeId": "<id:7>",
+            "employeeName": "Sam Sample",
+            "endDate": "2025-10-28",
+            "id": "<id:6>",
+            "notes": "",
+            "startDate": "2025-10-27",
+            "status": "pending",
+            "type": "timeoff",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "reject time off",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes/<id:6>/status",
+        "body": {
+          "status": "rejected"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "employeeId": "<id:7>",
+            "employeeName": "Sam Sample",
+            "endDate": "2025-10-28",
+            "id": "<id:6>",
+            "notes": "",
+            "startDate": "2025-10-27",
+            "status": "rejected",
+            "type": "timeoff",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "staff without an employee requests time off",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "as": "unlinked staff",
+        "body": {
+          "endDate": "2025-10-27",
+          "startDate": "2025-10-27",
+          "type": "timeoff"
+        }
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "Data": null,
+          "Error": "No employee linked to your account",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "request time off to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "body": {
+          "employeeId": "<id:7>",
+          "endDate": "2025-04-03",
+          "startDate": "2025-04-02",
+          "type": "timeoff"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "employeeId": "<id:7>",
+            "employeeName": "Sam Sample",
+            "endDate": "2025-04-03",
+            "id": "<id:8>",
+            "notes": "",
+            "startDate": "2025-04-02",
+            "status": "pending",
+            "type": "timeoff",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete schedule change",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-schedule-changes/<id:8>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:3>/schedule?date=2025-03-31",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:3>/schedule?date=2025-03-31"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "days": [
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-03-30"
+              },
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "13:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-03-31"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 2,
+                "isOff": false,
+                "overtimeHours": 2,
+                "shifts": [
+                  {
+                    "endTime": "20:00",
+                    "kind": "overtime",
+                    "startTime": "18:00"
+                  }
+                ],
+                "workDate": "2025-04-01"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-02"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-03"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-04"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 5,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "14:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-04-05"
+              }
+            ],
+            "holidays": [],
+            "monthEnd": "2025-03-31",
+            "monthHours": [
+              {
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 76,
+                "overtimeHours": 0
+              }
+            ],
+            "monthStart": "2025-03-01",
+            "scheduleChanges": [
+              {
+                "createdAt": "<ts>",
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-03-31",
+                "endTime": "18:00",
+                "id": "<id:4>",
+                "notes": "Dentist appointment",
+                "startDate": "2025-03-31",
+                "startTime": "14:00",
+                "status": "accepted",
+                "type": "timeoff",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-04-01",
+                "endTime": "20:00",
+                "id": "<id:5>",
+                "notes": "",
+                "startDate": "2025-04-01",
+                "startTime": "18:00",
+                "status": "accepted",
+                "type": "overtime",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "templates": [
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "12:00",
+                "id": "<id:9>",
+                "isActive": true,
+                "startDate": "2025-03-02",
+                "startTime": "08:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-04-07",
+                "endTime": "13:00",
+                "id": "<id:10>",
+                "isActive": false,
+                "startDate": "2025-03-03",
+                "startTime": "09:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-04-07",
+                "endTime": "18:00",
+                "id": "<id:11>",
+                "isActive": false,
+                "startDate": "2025-03-03",
+                "startTime": "14:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "14:00",
+                "id": "<id:12>",
+                "isActive": true,
+                "startDate": "2025-03-03",
+                "startTime": "09:00",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "weekEnd": "2025-04-05",
+            "weekStart": "2025-03-30"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:3>/schedule?date=2025-04-09",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:3>/schedule?date=2025-04-09"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "days": [
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-04-06"
+              },
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 6,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "16:00",
+                    "kind": "regular",
+                    "startTime": "10:00"
+                  }
+                ],
+                "workDate": "2025-04-07"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-08"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-09"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-10"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-11"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 5,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "14:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-04-12"
+              }
+            ],
+            "holidays": [],
+            "monthEnd": "2025-04-30",
+            "monthHours": [
+              {
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 62,
+                "overtimeHours": 2
+              }
+            ],
+            "monthStart": "2025-04-01",
+            "scheduleChanges": [],
+            "templates": [
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "12:00",
+                "id": "<id:9>",
+                "isActive": true,
+                "startDate": "2025-03-02",
+                "startTime": "08:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-04-07",
+                "endTime": "13:00",
+                "id": "<id:10>",
+                "isActive": false,
+                "startDate": "2025-03-03",
+                "startTime": "09:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-04-07",
+                "endTime": "18:00",
+                "id": "<id:11>",
+                "isActive": false,
+                "startDate": "2025-03-03",
+                "startTime": "14:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "16:00",
+                "id": "<id:13>",
+                "isActive": true,
+                "startDate": "2025-04-07",
+                "startTime": "10:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "14:00",
+                "id": "<id:12>",
+                "isActive": true,
+                "startDate": "2025-03-03",
+                "startTime": "09:00",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "weekEnd": "2025-04-12",
+            "weekStart": "2025-04-06"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:3>/schedule?date=2025-10-27",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:3>/schedule?date=2025-10-27"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "days": [
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-10-26"
+              },
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "holiday",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-27"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-28"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-29"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-30"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-31"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 5,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "14:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-11-01"
+              }
+            ],
+            "holidays": [
+              {
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "endDate": "2025-10-27",
+                "id": "<id:1>",
+                "name": "Test Holiday",
+                "notes": "Scenario, clinic closed",
+                "startDate": "2025-10-27",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "monthEnd": "2025-10-31",
+            "monthHours": [
+              {
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 54,
+                "overtimeHours": 0
+              }
+            ],
+            "monthStart": "2025-10-01",
+            "scheduleChanges": [],
+            "templates": [
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "12:00",
+                "id": "<id:9>",
+                "isActive": true,
+                "startDate": "2025-03-02",
+                "startTime": "08:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "16:00",
+                "id": "<id:13>",
+                "isActive": true,
+                "startDate": "2025-04-07",
+                "startTime": "10:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "14:00",
+                "id": "<id:12>",
+                "isActive": true,
+                "startDate": "2025-03-03",
+                "startTime": "09:00",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "weekEnd": "2025-11-01",
+            "weekStart": "2025-10-26"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:7>/schedule?date=2025-03-05",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:7>/schedule?date=2025-03-05"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "days": [
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-02"
+              },
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-03"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 8,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "20:00",
+                    "kind": "regular",
+                    "startTime": "12:00"
+                  }
+                ],
+                "workDate": "2025-03-04"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-05"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-06"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-07"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-08"
+              }
+            ],
+            "holidays": [],
+            "monthEnd": "2025-03-31",
+            "monthHours": [
+              {
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 32,
+                "overtimeHours": 0
+              }
+            ],
+            "monthStart": "2025-03-01",
+            "scheduleChanges": [],
+            "templates": [
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 2,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "endTime": "20:00",
+                "id": "<id:14>",
+                "isActive": true,
+                "startDate": "2025-03-04",
+                "startTime": "12:00",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "weekEnd": "2025-03-08",
+            "weekStart": "2025-03-02"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "nurse reads her own schedule",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:3>/schedule?date=2025-03-31",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "days": [
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-03-30"
+              },
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "13:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-03-31"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 2,
+                "isOff": false,
+                "overtimeHours": 2,
+                "shifts": [
+                  {
+                    "endTime": "20:00",
+                    "kind": "overtime",
+                    "startTime": "18:00"
+                  }
+                ],
+                "workDate": "2025-04-01"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-02"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-03"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-04"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 5,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "14:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-04-05"
+              }
+            ],
+            "holidays": [],
+            "monthEnd": "2025-03-31",
+            "monthHours": [
+              {
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 76,
+                "overtimeHours": 0
+              }
+            ],
+            "monthStart": "2025-03-01",
+            "scheduleChanges": [
+              {
+                "createdAt": "<ts>",
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-03-31",
+                "endTime": "18:00",
+                "id": "<id:4>",
+                "notes": "Dentist appointment",
+                "startDate": "2025-03-31",
+                "startTime": "14:00",
+                "status": "accepted",
+                "type": "timeoff",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-04-01",
+                "endTime": "20:00",
+                "id": "<id:5>",
+                "notes": "",
+                "startDate": "2025-04-01",
+                "startTime": "18:00",
+                "status": "accepted",
+                "type": "overtime",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "templates": [
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "12:00",
+                "id": "<id:9>",
+                "isActive": true,
+                "startDate": "2025-03-02",
+                "startTime": "08:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-04-07",
+                "endTime": "13:00",
+                "id": "<id:10>",
+                "isActive": false,
+                "startDate": "2025-03-03",
+                "startTime": "09:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endDate": "2025-04-07",
+                "endTime": "18:00",
+                "id": "<id:11>",
+                "isActive": false,
+                "startDate": "2025-03-03",
+                "startTime": "14:00",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "endTime": "14:00",
+                "id": "<id:12>",
+                "isActive": true,
+                "startDate": "2025-03-03",
+                "startTime": "09:00",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "weekEnd": "2025-04-05",
+            "weekStart": "2025-03-30"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:3>/working-hours?from=2025-03-24&to=2025-04-06",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:3>/working-hours?from=2025-03-24&to=2025-04-06"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "days": [
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 8,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "13:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  },
+                  {
+                    "endTime": "18:00",
+                    "kind": "regular",
+                    "startTime": "14:00"
+                  }
+                ],
+                "workDate": "2025-03-24"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-25"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-26"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-27"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-28"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 5,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "14:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-03-29"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-03-30"
+              },
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "13:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-03-31"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 2,
+                "isOff": false,
+                "overtimeHours": 2,
+                "shifts": [
+                  {
+                    "endTime": "20:00",
+                    "kind": "overtime",
+                    "startTime": "18:00"
+                  }
+                ],
+                "workDate": "2025-04-01"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-02"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-03"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-04-04"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 5,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "14:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-04-05"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-04-06"
+              }
+            ],
+            "employeeId": "<id:3>",
+            "from": "2025-03-24",
+            "overtimeHours": 2,
+            "regularHours": 30,
+            "to": "2025-04-06",
+            "totalHours": 32
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:3>/working-hours?from=2025-10-20&to=2025-11-02",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:3>/working-hours?from=2025-10-20&to=2025-11-02"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "days": [
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 6,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "16:00",
+                    "kind": "regular",
+                    "startTime": "10:00"
+                  }
+                ],
+                "workDate": "2025-10-20"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-21"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-22"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-23"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-24"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 5,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "14:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-10-25"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-10-26"
+              },
+              {
+                "dayOfWeek": 1,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "holiday",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-27"
+              },
+              {
+                "dayOfWeek": 2,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-28"
+              },
+              {
+                "dayOfWeek": 3,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-29"
+              },
+              {
+                "dayOfWeek": 4,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-30"
+              },
+              {
+                "dayOfWeek": 5,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-10-31"
+              },
+              {
+                "dayOfWeek": 6,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 5,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "14:00",
+                    "kind": "regular",
+                    "startTime": "09:00"
+                  }
+                ],
+                "workDate": "2025-11-01"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-11-02"
+              }
+            ],
+            "employeeId": "<id:3>",
+            "from": "2025-10-20",
+            "overtimeHours": 0,
+            "regularHours": 24,
+            "to": "2025-11-02",
+            "totalHours": 24
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:3>/working-hours?from=2025-03-24",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:3>/working-hours?from=2025-03-24"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Start and end dates are required",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/holidays?sort=startDate&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/holidays?sort=startDate&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "endDate": "2025-10-27",
+                "id": "<id:1>",
+                "name": "Test Holiday",
+                "notes": "Scenario, clinic closed",
+                "startDate": "2025-10-27",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "request time off ending before it starts",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "body": {
+          "employeeId": "<id:7>",
+          "endDate": "2025-05-01",
+          "startDate": "2025-05-02",
+          "type": "timeoff"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "request overtime without times",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "body": {
+          "employeeId": "<id:7>",
+          "endDate": "2025-05-02",
+          "startDate": "2025-05-02",
+          "type": "overtime"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "set an unknown schedule change status",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes/<id:4>/status",
+        "body": {
+          "status": "maybe"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "update time off to end before it starts",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedule-changes/<id:4>",
+        "body": {
+          "endDate": "2025-03-01"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a holiday ending before it starts",
+      "request": {
+        "method": "POST",
+        "path": "/api/holidays",
+        "body": {
+          "endDate": "2025-05-01",
+          "name": "Test Backwards",
+          "startDate": "2025-05-02"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create holiday",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a holiday without a name",
+      "request": {
+        "method": "POST",
+        "path": "/api/holidays",
+        "body": {
+          "endDate": "2025-05-02",
+          "startDate": "2025-05-02"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create holiday",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "move a holiday to end before it starts",
+      "request": {
+        "method": "PUT",
+        "path": "/api/holidays/<id:1>",
+        "body": {
+          "endDate": "2025-01-01"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't update holiday",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/employee-schedule-changes/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-schedule-changes/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Schedule change not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/holidays/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/holidays/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Holiday not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-schedule-changes with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-schedule-changes with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-schedule-changes/:id/status with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes/00000000-0000-7000-8000-000000000000/status",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-schedule-changes/:id/status with unknown ids",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-schedule-changes/00000000-0000-7000-8000-000000000000/status",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Schedule change not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/holidays with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/holidays",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/holidays with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/holidays",
+        "body": {}
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create holiday",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/employee-schedule-changes/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedule-changes/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/employee-schedule-changes/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedule-changes/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Schedule change not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/holidays/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/holidays/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/holidays/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/holidays/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Holiday not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

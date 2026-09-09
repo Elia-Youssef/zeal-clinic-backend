@@ -1,0 +1,723 @@
+{
+  "resource": "users",
+  "cases": [
+    {
+      "name": "create admin user",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": {
+          "displayName": "Admin Example",
+          "password": "admin-example-pw",
+          "role": "admin",
+          "username": "admin.example"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "Admin Example",
+            "id": "<id:1>",
+            "isActive": true,
+            "role": "admin",
+            "updatedAt": "<ts>",
+            "username": "admin.example"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create staff user without an employee",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": {
+          "displayName": "Unlinked Staff",
+          "password": "unlinked-pw",
+          "role": "staff",
+          "username": "unlinked.staff"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "Unlinked Staff",
+            "id": "<id:2>",
+            "isActive": true,
+            "role": "staff",
+            "updatedAt": "<ts>",
+            "username": "unlinked.staff"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create user without a password",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": {
+          "displayName": "No Password",
+          "role": "nurse",
+          "username": "no.password"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "No Password",
+            "id": "<id:3>",
+            "isActive": true,
+            "role": "nurse",
+            "updatedAt": "<ts>",
+            "username": "no.password"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create user to deactivate",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": {
+          "displayName": "Retired Example",
+          "password": "retired-pw",
+          "role": "staff",
+          "username": "retired.example"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "Retired Example",
+            "id": "<id:4>",
+            "isActive": true,
+            "role": "staff",
+            "updatedAt": "<ts>",
+            "username": "retired.example"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "rename user",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/<id:4>",
+        "body": {
+          "displayName": "Retired Example Person"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "Retired Example Person",
+            "id": "<id:4>",
+            "isActive": true,
+            "role": "staff",
+            "updatedAt": "<ts>",
+            "username": "retired.example"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "deactivate user",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/<id:4>",
+        "body": {
+          "isActive": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "Retired Example Person",
+            "id": "<id:4>",
+            "isActive": false,
+            "role": "staff",
+            "updatedAt": "<ts>",
+            "username": "retired.example"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "change a user's role",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/<id:3>",
+        "body": {
+          "role": "staff"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "No Password",
+            "id": "<id:3>",
+            "isActive": true,
+            "role": "staff",
+            "updatedAt": "<ts>",
+            "username": "no.password"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/users?sort=username&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/users?sort=username&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "displayName": "Admin Example",
+                "id": "<id:1>",
+                "isActive": true,
+                "role": "admin",
+                "updatedAt": "<ts>",
+                "username": "admin.example"
+              },
+              {
+                "createdAt": "<ts>",
+                "displayName": "No Password",
+                "id": "<id:3>",
+                "isActive": true,
+                "role": "staff",
+                "updatedAt": "<ts>",
+                "username": "no.password"
+              },
+              {
+                "createdAt": "<ts>",
+                "displayName": "Nora Example",
+                "id": "<id:5>",
+                "isActive": true,
+                "role": "nurse",
+                "updatedAt": "<ts>",
+                "username": "nora.example"
+              },
+              {
+                "createdAt": "<ts>",
+                "displayName": "Retired Example Person",
+                "id": "<id:4>",
+                "isActive": false,
+                "role": "staff",
+                "updatedAt": "<ts>",
+                "username": "retired.example"
+              },
+              {
+                "createdAt": "<ts>",
+                "displayName": "Sam Sample",
+                "id": "<id:6>",
+                "isActive": true,
+                "role": "staff",
+                "updatedAt": "<ts>",
+                "username": "sam.sample"
+              },
+              {
+                "createdAt": "<ts>",
+                "displayName": "Unlinked Staff",
+                "id": "<id:2>",
+                "isActive": true,
+                "role": "staff",
+                "updatedAt": "<ts>",
+                "username": "unlinked.staff"
+              }
+            ],
+            "total": 6
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/users?filter=example",
+      "request": {
+        "method": "GET",
+        "path": "/api/users?filter=example"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "displayName": "Admin Example",
+                "id": "<id:1>",
+                "isActive": true,
+                "role": "admin",
+                "updatedAt": "<ts>",
+                "username": "admin.example"
+              },
+              {
+                "createdAt": "<ts>",
+                "displayName": "Nora Example",
+                "id": "<id:5>",
+                "isActive": true,
+                "role": "nurse",
+                "updatedAt": "<ts>",
+                "username": "nora.example"
+              },
+              {
+                "createdAt": "<ts>",
+                "displayName": "Retired Example Person",
+                "id": "<id:4>",
+                "isActive": false,
+                "role": "staff",
+                "updatedAt": "<ts>",
+                "username": "retired.example"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/users/<id:1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/users/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "Admin Example",
+            "id": "<id:1>",
+            "isActive": true,
+            "role": "admin",
+            "updatedAt": "<ts>",
+            "username": "admin.example"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/users/b10829b3-19a0-4813-8e1c-df6f5990737b",
+      "request": {
+        "method": "GET",
+        "path": "/api/users/b10829b3-19a0-4813-8e1c-df6f5990737b"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "User not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/users/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/users/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "User not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "nurse reads her own user",
+      "request": {
+        "method": "GET",
+        "path": "/api/users/<id:5>",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "displayName": "Nora Example",
+            "id": "<id:5>",
+            "isActive": true,
+            "role": "nurse",
+            "updatedAt": "<ts>",
+            "username": "nora.example"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/users/<id:1>/actions",
+      "request": {
+        "method": "GET",
+        "path": "/api/users/<id:1>/actions"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"items\":[{\"amount\":90,\"itemId\":\"<id:8>\",\"itemType\":\"product\",\"quantity\":5}],\"supplierId\":\"<id:9>\"}",
+                "entityId": "",
+                "entityType": "supplier-invoices",
+                "id": "<id:7>",
+                "ipAddress": "<ip>",
+                "userId": "<id:1>",
+                "userRole": "admin",
+                "username": "admin.example"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/users/<id:6>/actions",
+      "request": {
+        "method": "GET",
+        "path": "/api/users/<id:6>/actions"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"amount\":15,\"patientId\":\"<id:11>\",\"transactionMethod\":\"transfer\"}",
+                "entityId": "",
+                "entityType": "client-payments",
+                "id": "<id:10>",
+                "ipAddress": "<ip>",
+                "userId": "<id:6>",
+                "userRole": "staff",
+                "username": "sam.sample"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"appointmentProcedures\":[{\"assignedToId\":\"<id:13>\",\"procedureId\":\"<id:14>\"}],\"endTime\":\"<day+2>T07:30:00.000Z\",\"patientId\":\"<id:11>\",\"roomId\":\"25e6a41c-c76b-4b39-b959-07cf51f4305e\",\"startTime\":\"<day+2>T07:00:00.000Z\"}",
+                "entityId": "",
+                "entityType": "appointments",
+                "id": "<id:12>",
+                "ipAddress": "<ip>",
+                "userId": "<id:6>",
+                "userRole": "staff",
+                "username": "sam.sample"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"employeeId\":\"<id:13>\",\"endDate\":\"2025-10-28\",\"startDate\":\"2025-10-27\",\"type\":\"timeoff\"}",
+                "entityId": "",
+                "entityType": "employee-schedule-changes",
+                "id": "<id:15>",
+                "ipAddress": "<ip>",
+                "userId": "<id:6>",
+                "userRole": "staff",
+                "username": "sam.sample"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"items\":[{\"amount\":320,\"itemId\":\"<id:17>\",\"itemType\":\"product\",\"quantity\":8}],\"patientId\":\"<id:11>\"}",
+                "entityId": "",
+                "entityType": "client-invoices",
+                "id": "<id:16>",
+                "ipAddress": "<ip>",
+                "userId": "<id:6>",
+                "userRole": "staff",
+                "username": "sam.sample"
+              }
+            ],
+            "total": 4
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/users/b10829b3-19a0-4813-8e1c-df6f5990737b/actions",
+      "request": {
+        "method": "GET",
+        "path": "/api/users/b10829b3-19a0-4813-8e1c-df6f5990737b/actions"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "User not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a user with the super-admin role",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": {
+          "displayName": "Second",
+          "role": "super-admin",
+          "username": "second.super"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid role",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a user with a short username",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": {
+          "displayName": "Short",
+          "role": "staff",
+          "username": "ab"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a user with a taken username",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": {
+          "displayName": "Again",
+          "role": "staff",
+          "username": "admin.example"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create user",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "update the super-admin user",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/b10829b3-19a0-4813-8e1c-df6f5990737b",
+        "body": {
+          "displayName": "Renamed"
+        }
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "User not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "give a user the super-admin role",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/<id:2>",
+        "body": {
+          "role": "super-admin"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid role",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "demote the last admin",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/<id:1>",
+        "body": {
+          "role": "staff"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Can't remove the last active admin",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "admin changes their own role",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/<id:1>",
+        "as": "admin",
+        "body": {
+          "role": "nurse"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "You can't change your own role",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "admin deactivates their own account",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/<id:1>",
+        "as": "admin",
+        "body": {
+          "isActive": false
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "You can't deactivate your own account",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/users with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/users with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/users",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid role",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/users/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/users/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/users/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "User not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

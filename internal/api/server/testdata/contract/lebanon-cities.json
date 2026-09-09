@@ -1,0 +1,379 @@
+{
+  "resource": "lebanon-cities",
+  "cases": [
+    {
+      "name": "GET /api/lebanon-cities?limit=3",
+      "request": {
+        "method": "GET",
+        "path": "/api/lebanon-cities?limit=3"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "district": "Akkar",
+                "governorate": "Akkar",
+                "id": "f9f49dba-caba-406b-8cb8-3d43e1442e43",
+                "name": "Aadouiye"
+              },
+              {
+                "district": "Akkar",
+                "governorate": "Akkar",
+                "id": "495a1b9f-f718-4da7-a91b-2be1342d3837",
+                "name": "Aaidamoun"
+              },
+              {
+                "district": "Akkar",
+                "governorate": "Akkar",
+                "id": "28592b42-2710-443d-baa1-dcabc282720e",
+                "name": "Aaiyat"
+              }
+            ],
+            "total": 2712
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/lebanon-cities?filter=jounieh",
+      "request": {
+        "method": "GET",
+        "path": "/api/lebanon-cities?filter=jounieh"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "district": "Kesrwane",
+                "governorate": "Mount Lebanon",
+                "id": "5390fb25-9407-45fb-805b-71eff5d4fa16",
+                "name": "Jounieh"
+              },
+              {
+                "district": "Kesrwane",
+                "governorate": "Mount Lebanon",
+                "id": "be399481-eba7-44e1-9807-330ece0ad61e",
+                "name": "Ghadir jounieh"
+              },
+              {
+                "district": "Kesrwane",
+                "governorate": "Mount Lebanon",
+                "id": "f99a1265-a14d-455e-a724-f0dab450499f",
+                "name": "Jounieh Kaslik"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/lebanon-cities/dropdown?filter=beirut",
+      "request": {
+        "method": "GET",
+        "path": "/api/lebanon-cities/dropdown?filter=beirut"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "a2d1387d-960c-4dd9-ab3f-63936a47a00c",
+              "name": "Aadlyeh, Beirut, Beirut"
+            },
+            {
+              "id": "19787145-6dcc-4f23-b171-8e346e4bfec8",
+              "name": "Achrafiye, Beirut, Beirut"
+            },
+            {
+              "id": "80d37ead-d346-4929-b7f0-3b9eccd9758c",
+              "name": "Ain El Tine, Beirut, Beirut"
+            },
+            {
+              "id": "c4c15502-4ccf-4de3-8efb-c353423aa7d2",
+              "name": "Ain Mreisse, Beirut, Beirut"
+            },
+            {
+              "id": "65935f2d-8286-4065-9b2a-82d915372994",
+              "name": "Al Hikmat, Beirut, Beirut"
+            },
+            {
+              "id": "1bb91a82-1b73-40aa-9af2-6e7299fa6180",
+              "name": "Bab Idriss, Beirut, Beirut"
+            },
+            {
+              "id": "89123b64-0dc1-4550-adc1-daea01e6a034",
+              "name": "Bachoura, Beirut, Beirut"
+            },
+            {
+              "id": "889798c6-1764-4ed6-b120-d4f29f8ac617",
+              "name": "Basta Faouka, Beirut, Beirut"
+            },
+            {
+              "id": "839d3820-63e1-4edf-bd56-95647ed11541",
+              "name": "Basta Tahta, Beirut, Beirut"
+            },
+            {
+              "id": "6809a457-195a-4735-9283-e91e21be7883",
+              "name": "Beirut, Beirut, Beirut"
+            },
+            {
+              "id": "6f7f586e-b922-4e1d-b97f-6afe471a91f4",
+              "name": "Beirut Central District, Beirut, Beirut"
+            },
+            {
+              "id": "7bc219a5-ac20-48c7-974f-cd5bfacc2fd5",
+              "name": "Bourj Abi Haidar, Beirut, Beirut"
+            },
+            {
+              "id": "900541a8-274e-4535-a789-8d3b50d64de2",
+              "name": "Champ de courses, Beirut, Beirut"
+            },
+            {
+              "id": "61d23aa3-af93-48f8-bef4-7466f5f3453f",
+              "name": "Corniche El Naher, Beirut, Beirut"
+            },
+            {
+              "id": "c32f1e27-d8eb-41f2-be9a-defb223b9e16",
+              "name": "Dar Al Fatwa, Beirut, Beirut"
+            },
+            {
+              "id": "d70b8c80-3661-4246-81e8-2df8a9be0dd3",
+              "name": "Ej Jeitaoui, Beirut, Beirut"
+            },
+            {
+              "id": "bdbe200a-4314-4694-8a96-10ab0f97cbcd",
+              "name": "El Aamliye, Beirut, Beirut"
+            },
+            {
+              "id": "b66b4619-d9bd-422c-8177-a42b3e02464b",
+              "name": "El Ghabe, Beirut, Beirut"
+            },
+            {
+              "id": "4266aafa-1ea1-49d3-8f8e-17f4dcf23510",
+              "name": "El Hamra, Beirut, Beirut"
+            },
+            {
+              "id": "015f3382-5529-4648-94df-f1c7158237ba",
+              "name": "El Horge, Beirut, Beirut"
+            },
+            {
+              "id": "dcc44998-867e-4c06-8d43-c1ba907dcc04",
+              "name": "El Majidiye Beirut, Beirut, Beirut"
+            },
+            {
+              "id": "98f3ec68-e76a-4e50-86bc-558dce2d816d",
+              "name": "El Manara, Beirut, Beirut"
+            },
+            {
+              "id": "c2f4b4da-8ece-4b4f-b8c6-a68027d984a2",
+              "name": "El Wata, Beirut, Beirut"
+            },
+            {
+              "id": "6af0e3a9-7072-48d4-99b2-6d0351eed3a5",
+              "name": "El Zarif, Beirut, Beirut"
+            },
+            {
+              "id": "100c9bde-e473-4b38-a954-f0a7628256d4",
+              "name": "Fourn el Hayek, Beirut, Beirut"
+            },
+            {
+              "id": "5c4e7870-2a5f-4b9d-a679-d08ae7cccea5",
+              "name": "Gemmayze, Beirut, Beirut"
+            },
+            {
+              "id": "a2177c8f-5e03-450d-9dc2-ca5872db29c5",
+              "name": "Grand Serail, Beirut, Beirut"
+            },
+            {
+              "id": "593fee7f-a020-400e-ac13-408a7254b751",
+              "name": "Hotel Dieu, Beirut, Beirut"
+            },
+            {
+              "id": "b85d1ff7-e27f-4b05-a4dc-729315890a34",
+              "name": "Jamia, Beirut, Beirut"
+            },
+            {
+              "id": "7812e8d2-bb2c-4a37-998f-e67359cc5f9e",
+              "name": "Jisr, Beirut, Beirut"
+            },
+            {
+              "id": "71f02f0b-16b1-479a-9c1d-38f10b7806b2",
+              "name": "Jounblat, Beirut, Beirut"
+            },
+            {
+              "id": "43d4b60f-40f1-4b4e-96ac-8837f2bf14e8",
+              "name": "Khodr, Beirut, Beirut"
+            },
+            {
+              "id": "8b3b84ea-fba9-4782-be30-91a5cf592929",
+              "name": "La Sagesse, Beirut, Beirut"
+            },
+            {
+              "id": "d2ff5f41-4455-4e38-ae69-8f4d03860a8d",
+              "name": "Malaab, Beirut, Beirut"
+            },
+            {
+              "id": "86be3f30-a72b-4d3b-a699-db2da15afe7e",
+              "name": "Manara, Beirut, Beirut"
+            },
+            {
+              "id": "03ba625d-b3ec-4260-8cc0-a1665e2b220b",
+              "name": "Mar Elias, Beirut, Beirut"
+            },
+            {
+              "id": "265c3716-4bef-438c-b698-1f6dabcaf4cc",
+              "name": "Mar Maroun, Beirut, Beirut"
+            },
+            {
+              "id": "84730789-97c1-4d02-9164-efc30e651de4",
+              "name": "Mar Mitr, Beirut, Beirut"
+            },
+            {
+              "id": "0cee774c-da08-407a-a5bf-7f4dbbd57b64",
+              "name": "Mar Mkhayel, Beirut, Beirut"
+            },
+            {
+              "id": "288f9d22-0ba8-4e70-ac36-ab4c653ddf99",
+              "name": "Mar Nqoula, Beirut, Beirut"
+            },
+            {
+              "id": "14107d75-e540-4aad-a496-4fbeec51a732",
+              "name": "Marfaa, Beirut, Beirut"
+            },
+            {
+              "id": "74d51cb3-6041-47b8-9de7-af3fbbf0db56",
+              "name": "Mazraa, Beirut, Beirut"
+            },
+            {
+              "id": "1a86a5f9-6486-426a-8f08-36e6004146d4",
+              "name": "Medouar, Beirut, Beirut"
+            },
+            {
+              "id": "58ef1bff-3fa8-4e39-b039-505fbc85f8c6",
+              "name": "Minet el Hosn, Beirut, Beirut"
+            },
+            {
+              "id": "1f9627ad-ac9b-4855-b1f3-5d75f29ff9b1",
+              "name": "Moussaitbe, Beirut, Beirut"
+            },
+            {
+              "id": "a137db2f-920b-4ce0-95f4-f73937f978b3",
+              "name": "Moustachfa er Roum, Beirut, Beirut"
+            },
+            {
+              "id": "238744a9-2705-4f91-b251-cfa14f2eded5",
+              "name": "Najmeh, Beirut, Beirut"
+            },
+            {
+              "id": "4f377832-ea1c-490e-958f-bc410eee460e",
+              "name": "Nasra, Beirut, Beirut"
+            },
+            {
+              "id": "cd3dab80-20ab-4c85-ad63-15f5e93918f2",
+              "name": "Palais De Justice, Beirut, Beirut"
+            },
+            {
+              "id": "f082b571-059d-43a4-8318-5e61a2fb9b25",
+              "name": "Parc, Beirut, Beirut"
+            },
+            {
+              "id": "9e14a900-a8f4-4a27-92d3-a7899cc1576c",
+              "name": "Patriarcat, Beirut, Beirut"
+            },
+            {
+              "id": "99057e7a-a6b3-4824-914f-ac1ed06de515",
+              "name": "Place de l'Etoile, Beirut, Beirut"
+            },
+            {
+              "id": "e2ae53b2-14a5-4df4-9152-5ce92191d94f",
+              "name": "Qantari, Beirut, Beirut"
+            },
+            {
+              "id": "69a441a7-b7f4-43a9-b0c1-00b34f89af44",
+              "name": "Qobaiyat, Beirut, Beirut"
+            },
+            {
+              "id": "68788748-aa82-46d0-9357-fa3747113faa",
+              "name": "Qoraitem, Beirut, Beirut"
+            },
+            {
+              "id": "1da945da-51b0-4677-b922-ccc1d74f902d",
+              "name": "Ramlet el Bayda, Beirut, Beirut"
+            },
+            {
+              "id": "31e6075d-5d12-4df9-8828-59f5327ad1b8",
+              "name": "Raoucheh, Beirut, Beirut"
+            },
+            {
+              "id": "e524a3b9-449f-4e2e-b5ae-d1963be2bcf1",
+              "name": "Ras Beirut, Beirut, Beirut"
+            },
+            {
+              "id": "d76574c3-bfe7-4428-83a2-571668905c3e",
+              "name": "Ras El Nabaa, Beirut, Beirut"
+            },
+            {
+              "id": "4f7345df-52cb-455e-ad28-0928b11702e0",
+              "name": "Remeil, Beirut, Beirut"
+            },
+            {
+              "id": "59121b2d-a6b4-40a0-9dca-0015d388ab25",
+              "name": "Saife, Beirut, Beirut"
+            },
+            {
+              "id": "cdd381ba-2b5b-427e-a05d-e55d15188648",
+              "name": "Sanayeh, Beirut, Beirut"
+            },
+            {
+              "id": "602c0d9c-0f42-4c5d-81b0-ef1abbf9d39e",
+              "name": "Sioufi, Beirut, Beirut"
+            },
+            {
+              "id": "fa75a662-4563-4a66-8931-a5a38b65b838",
+              "name": "Snoubra, Beirut, Beirut"
+            },
+            {
+              "id": "689cb69d-3d0f-4a9f-adae-191ef10c0da3",
+              "name": "Tallet Druze, Beirut, Beirut"
+            },
+            {
+              "id": "99aa212a-36a6-431e-bb39-6f519081f7e9",
+              "name": "Tallet el Khayat, Beirut, Beirut"
+            },
+            {
+              "id": "28399784-31f1-4619-ae73-8839a4dfa751",
+              "name": "Tariq El Jdide, Beirut, Beirut"
+            },
+            {
+              "id": "68c821e2-4ab9-4069-ad3c-97926db744f4",
+              "name": "Unesco, Beirut, Beirut"
+            },
+            {
+              "id": "e1fb6bdf-0295-4ae1-a9b4-850228a3751d",
+              "name": "Universite Americaine, Beirut, Beirut"
+            },
+            {
+              "id": "028c0259-dfff-4010-8b05-8c331e9005a5",
+              "name": "Universite St Joseph, Beirut, Beirut"
+            },
+            {
+              "id": "b2378ea8-b248-4fd6-8001-903218199287",
+              "name": "Zoqaq el Blat, Beirut, Beirut"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    }
+  ]
+}

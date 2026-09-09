@@ -1,0 +1,32 @@
+# Secret scanning: the default gitleaks rules, plus two exceptions for values
+# that are not secrets: the fixed keys of the throwaway test databases, and the
+# public dev defaults of the committed config. Each exception needs both the
+# value and one of the files that hold it.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fixed encryption keys of the throwaway test databases"
+condition = "AND"
+paths = [
+    '''(?:^|/)internal/api/server/integration_helper_test\.go$''',
+    '''(?:^|/)internal/auth/token_test\.go$''',
+    '''(?:^|/)internal/database/backup_test\.go$''',
+    '''(?:^|/)internal/database/store/testdb_test\.go$''',
+]
+regexes = [
+    '''^0{62}ff$''',
+    '''^0{64}$''',
+]
+
+[[allowlists]]
+description = "Public dev defaults of the committed config (a release build refuses them)"
+condition = "AND"
+paths = [
+    '''(?:^|/)internal/config/(?:local|cloud)\.env\.defaults$''',
+]
+regexes = [
+    '''^dev-only-''',
+    '''^(?:deadbeef){8}$''',
+]

@@ -1,0 +1,926 @@
+{
+  "resource": "procedures",
+  "cases": [
+    {
+      "name": "create procedure Glow Peel",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures",
+        "body": {
+          "categoryId": "<id:1>",
+          "includes": "Mask",
+          "isActive": true,
+          "name": "Test Glow Peel",
+          "price": 150,
+          "priceNote": "per session",
+          "remarks": "Scenario",
+          "typeId": "<id:2>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "categoryId": "<id:1>",
+            "createdAt": "<ts>",
+            "id": "<id:3>",
+            "includes": "Mask",
+            "isActive": true,
+            "name": "Test Glow Peel",
+            "price": 150,
+            "priceNote": "per session",
+            "remarks": "Scenario",
+            "typeId": "<id:2>",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create procedure Laser Session",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures",
+        "body": {
+          "categoryId": "<id:1>",
+          "isActive": true,
+          "name": "Test Laser Session",
+          "price": 300,
+          "typeId": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "categoryId": "<id:1>",
+            "createdAt": "<ts>",
+            "id": "<id:4>",
+            "includes": "",
+            "isActive": true,
+            "name": "Test Laser Session",
+            "price": 300,
+            "priceNote": "",
+            "remarks": "",
+            "typeId": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "change the Glow Peel price",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedures/<id:3>",
+        "body": {
+          "price": 160,
+          "remarks": "Scenario, repriced"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "category": {
+              "createdAt": "<ts>",
+              "description": "Chemical peels",
+              "id": "<id:1>",
+              "name": "Test Peels",
+              "parent": {
+                "createdAt": "<ts>",
+                "description": "Parent",
+                "id": "<id:5>",
+                "name": "Test Skin Care",
+                "parentId": ""
+              },
+              "parentId": "<id:5>"
+            },
+            "categoryId": "<id:1>",
+            "createdAt": "<ts>",
+            "id": "<id:3>",
+            "includes": "Mask",
+            "isActive": true,
+            "name": "Test Glow Peel",
+            "price": 160,
+            "priceNote": "per session",
+            "remarks": "Scenario, repriced",
+            "type": {
+              "createdAt": "<ts>",
+              "description": "Scenario type, updated",
+              "id": "<id:2>",
+              "name": "Test Aesthetic"
+            },
+            "typeId": "<id:2>",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create procedure to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures",
+        "body": {
+          "categoryId": "<id:1>",
+          "isActive": true,
+          "name": "Test Temp Procedure",
+          "price": 10,
+          "typeId": "<id:2>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "categoryId": "<id:1>",
+            "createdAt": "<ts>",
+            "id": "<id:6>",
+            "includes": "",
+            "isActive": true,
+            "name": "Test Temp Procedure",
+            "price": 10,
+            "priceNote": "",
+            "remarks": "",
+            "typeId": "<id:2>",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused procedure",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedures/<id:6>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures?filter=Test&sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures?filter=Test&sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "category": {
+                  "createdAt": "<ts>",
+                  "description": "Chemical peels",
+                  "id": "<id:1>",
+                  "name": "Test Peels",
+                  "parent": {
+                    "createdAt": "<ts>",
+                    "description": "Parent",
+                    "id": "<id:5>",
+                    "name": "Test Skin Care",
+                    "parentId": ""
+                  },
+                  "parentId": "<id:5>"
+                },
+                "categoryId": "<id:1>",
+                "createdAt": "<ts>",
+                "id": "<id:3>",
+                "includes": "Mask",
+                "isActive": true,
+                "name": "Test Glow Peel",
+                "price": 160,
+                "priceNote": "per session",
+                "remarks": "Scenario, repriced",
+                "type": {
+                  "createdAt": "<ts>",
+                  "description": "Scenario type, updated",
+                  "id": "<id:2>",
+                  "name": "Test Aesthetic"
+                },
+                "typeId": "<id:2>",
+                "updatedAt": "<ts>"
+              },
+              {
+                "category": {
+                  "createdAt": "<ts>",
+                  "description": "Chemical peels",
+                  "id": "<id:1>",
+                  "name": "Test Peels",
+                  "parent": {
+                    "createdAt": "<ts>",
+                    "description": "Parent",
+                    "id": "<id:5>",
+                    "name": "Test Skin Care",
+                    "parentId": ""
+                  },
+                  "parentId": "<id:5>"
+                },
+                "categoryId": "<id:1>",
+                "createdAt": "<ts>",
+                "id": "<id:4>",
+                "includes": "",
+                "isActive": true,
+                "name": "Test Laser Session",
+                "price": 300,
+                "priceNote": "",
+                "remarks": "",
+                "type": {
+                  "createdAt": "<ts>",
+                  "description": "",
+                  "id": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                  "name": "Clinic Procedure"
+                },
+                "typeId": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures?filter=Botox+Full&sort=price&order=desc&limit=2",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures?filter=Botox+Full&sort=price&order=desc&limit=2"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "category": {
+                  "createdAt": "<ts>",
+                  "description": "",
+                  "id": "2cd72216-9d45-48f0-990b-e65d4b91be57",
+                  "name": "Men",
+                  "parent": {
+                    "createdAt": "<ts>",
+                    "description": "",
+                    "id": "0c97a5da-b5a9-422c-afad-9b746f1758c3",
+                    "name": "Botox",
+                    "parentId": ""
+                  },
+                  "parentId": "0c97a5da-b5a9-422c-afad-9b746f1758c3"
+                },
+                "categoryId": "2cd72216-9d45-48f0-990b-e65d4b91be57",
+                "createdAt": "<ts>",
+                "id": "fe5bb87f-43db-4636-9392-ed2567ce0f8b",
+                "includes": "",
+                "isActive": true,
+                "name": "Botox Full (Dysport)",
+                "price": 280,
+                "priceNote": "",
+                "remarks": "",
+                "type": {
+                  "createdAt": "<ts>",
+                  "description": "",
+                  "id": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                  "name": "Clinic Procedure"
+                },
+                "typeId": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                "updatedAt": "<ts>"
+              },
+              {
+                "category": {
+                  "createdAt": "<ts>",
+                  "description": "",
+                  "id": "2cd72216-9d45-48f0-990b-e65d4b91be57",
+                  "name": "Men",
+                  "parent": {
+                    "createdAt": "<ts>",
+                    "description": "",
+                    "id": "0c97a5da-b5a9-422c-afad-9b746f1758c3",
+                    "name": "Botox",
+                    "parentId": ""
+                  },
+                  "parentId": "0c97a5da-b5a9-422c-afad-9b746f1758c3"
+                },
+                "categoryId": "2cd72216-9d45-48f0-990b-e65d4b91be57",
+                "createdAt": "<ts>",
+                "id": "4df85e17-de2c-41ac-843c-ed79bc2b9a90",
+                "includes": "",
+                "isActive": true,
+                "name": "Botox Full + Bunny Lines",
+                "price": 280,
+                "priceNote": "",
+                "remarks": "",
+                "type": {
+                  "createdAt": "<ts>",
+                  "description": "",
+                  "id": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                  "name": "Clinic Procedure"
+                },
+                "typeId": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 6
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures/dropdown?filter=Test",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures/dropdown?filter=Test"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:3>",
+              "name": "Test Skin Care, Test Peels, Test Glow Peel"
+            },
+            {
+              "id": "<id:4>",
+              "name": "Test Skin Care, Test Peels, Test Laser Session"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures/<id:3>",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "category": {
+              "createdAt": "<ts>",
+              "description": "Chemical peels",
+              "id": "<id:1>",
+              "name": "Test Peels",
+              "parent": {
+                "createdAt": "<ts>",
+                "description": "Parent",
+                "id": "<id:5>",
+                "name": "Test Skin Care",
+                "parentId": ""
+              },
+              "parentId": "<id:5>"
+            },
+            "categoryId": "<id:1>",
+            "createdAt": "<ts>",
+            "id": "<id:3>",
+            "includes": "Mask",
+            "isActive": true,
+            "name": "Test Glow Peel",
+            "price": 160,
+            "priceNote": "per session",
+            "remarks": "Scenario, repriced",
+            "type": {
+              "createdAt": "<ts>",
+              "description": "Scenario type, updated",
+              "id": "<id:2>",
+              "name": "Test Aesthetic"
+            },
+            "typeId": "<id:2>",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures/b76c82c3-e031-45e3-b6c3-e51e7560a997",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures/b76c82c3-e031-45e3-b6c3-e51e7560a997"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "category": {
+              "createdAt": "<ts>",
+              "description": "",
+              "id": "3e131b15-f735-47cb-a03f-bb12a6ef0f27",
+              "name": "Women",
+              "parent": {
+                "createdAt": "<ts>",
+                "description": "",
+                "id": "0c97a5da-b5a9-422c-afad-9b746f1758c3",
+                "name": "Botox",
+                "parentId": ""
+              },
+              "parentId": "0c97a5da-b5a9-422c-afad-9b746f1758c3"
+            },
+            "categoryId": "3e131b15-f735-47cb-a03f-bb12a6ef0f27",
+            "createdAt": "<ts>",
+            "id": "b76c82c3-e031-45e3-b6c3-e51e7560a997",
+            "includes": "",
+            "isActive": true,
+            "name": "Botox Full",
+            "price": 220,
+            "priceNote": "",
+            "remarks": "",
+            "type": {
+              "createdAt": "<ts>",
+              "description": "",
+              "id": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+              "name": "Clinic Procedure"
+            },
+            "typeId": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Procedure not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures/<id:3>/prices",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures/<id:3>/prices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:7>",
+                "isActive": false,
+                "price": 150,
+                "procedureId": "<id:3>"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "<id:8>",
+                "isActive": true,
+                "price": 160,
+                "procedureId": "<id:3>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures/<id:3>/appointments",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures/<id:3>/appointments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:9>",
+                    "assignedToId": "",
+                    "createdAt": "<ts>",
+                    "id": "<id:10>",
+                    "notes": "",
+                    "patientId": "<id:11>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-31T09:30:00.000Z",
+                "id": "<id:9>",
+                "notes": "After DST",
+                "patientId": "<id:11>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "<id:12>",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-31T09:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:12>",
+                    "assignedToId": "",
+                    "createdAt": "<ts>",
+                    "id": "<id:13>",
+                    "notes": "",
+                    "patientId": "<id:11>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "Patient asked",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-31T07:30:00.000Z",
+                "id": "<id:12>",
+                "notes": "After DST",
+                "patientId": "<id:11>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "2025-03-31T07:00:00.000Z",
+                "status": "Rescheduled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:14>",
+                    "assignedToId": "",
+                    "createdAt": "<ts>",
+                    "id": "<id:15>",
+                    "notes": "",
+                    "patientId": "<id:16>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "Patient ill",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-10-25T08:00:00.000Z",
+                "id": "<id:14>",
+                "notes": "",
+                "patientId": "<id:16>",
+                "patientName": "Ada Example",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "2025-10-25T07:00:00.000Z",
+                "status": "Cancelled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:17>",
+                    "assignedToId": "<id:19>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:18>",
+                    "notes": "",
+                    "patientId": "<id:16>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "<day-3>T08:00:00.000Z",
+                "id": "<id:17>",
+                "notes": "",
+                "patientId": "<id:16>",
+                "patientName": "Ada Example",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "<day-3>T07:00:00.000Z",
+                "status": "Completed",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:20>",
+                    "assignedToId": "<id:19>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:21>",
+                    "notes": "",
+                    "patientId": "<id:16>",
+                    "procedureId": "<id:4>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  },
+                  {
+                    "appointmentId": "<id:20>",
+                    "assignedToId": "<id:19>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:22>",
+                    "notes": "First session",
+                    "patientId": "<id:16>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-29T09:00:00.000Z",
+                "id": "<id:20>",
+                "notes": "Before DST",
+                "patientId": "<id:16>",
+                "patientName": "Ada Example",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "2025-03-29T08:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:23>",
+                    "assignedToId": "<id:19>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:24>",
+                    "notes": "Swapped",
+                    "patientId": "<id:11>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-10-27T09:00:00.000Z",
+                "id": "<id:23>",
+                "notes": "On a holiday",
+                "patientId": "<id:11>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "<id:25>",
+                "startTime": "2025-10-27T08:00:00.000Z",
+                "status": "In-Progress",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 6
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures/<id:4>/appointments?sort=startTime&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures/<id:4>/appointments?sort=startTime&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:20>",
+                    "assignedToId": "<id:19>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:21>",
+                    "notes": "",
+                    "patientId": "<id:16>",
+                    "procedureId": "<id:4>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  },
+                  {
+                    "appointmentId": "<id:20>",
+                    "assignedToId": "<id:19>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:22>",
+                    "notes": "First session",
+                    "patientId": "<id:16>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-29T09:00:00.000Z",
+                "id": "<id:20>",
+                "notes": "Before DST",
+                "patientId": "<id:16>",
+                "patientName": "Ada Example",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "2025-03-29T08:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:26>",
+                    "assignedToId": "<id:19>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:27>",
+                    "notes": "",
+                    "patientId": "<id:28>",
+                    "procedureId": "<id:4>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "Went well",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-30T22:00:00.000Z",
+                "id": "<id:26>",
+                "notes": "Late slot",
+                "patientId": "<id:28>",
+                "patientName": "Cleo Example",
+                "rescheduledFrom": "",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-30T21:30:00.000Z",
+                "status": "Completed",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:29>",
+                    "assignedToId": "<id:19>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:30>",
+                    "notes": "",
+                    "patientId": "<id:11>",
+                    "procedureId": "<id:4>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "<day+2>T07:30:00.000Z",
+                "id": "<id:29>",
+                "notes": "",
+                "patientId": "<id:11>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "<day+2>T07:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete a procedure in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedures/<id:3>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete procedure while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/procedures/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedures/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Procedure not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/procedures with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/procedures with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/procedures/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedures/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/procedures/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedures/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Procedure not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

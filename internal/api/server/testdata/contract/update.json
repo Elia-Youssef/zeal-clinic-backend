@@ -1,0 +1,147 @@
+{
+  "resource": "update",
+  "cases": [
+    {
+      "name": "GET /api/update/status",
+      "request": {
+        "method": "GET",
+        "path": "/api/update/status"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "available": false,
+            "current": "<version>",
+            "installing": false,
+            "latest": "<version>",
+            "releasedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "POST /api/update/start with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/update/start",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "No update available",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/update/start with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/update/start",
+        "body": {}
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "No update available",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "publish an incomplete version",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/versions",
+        "as": "anonymous",
+        "header": {
+          "X-Publish-Secret": "<publish secret>"
+        },
+        "body": {
+          "platform": "plan9",
+          "version": "9.9.9"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "publish with a wrong secret",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/versions",
+        "as": "anonymous",
+        "header": {
+          "X-Publish-Secret": "<wrong secret>"
+        },
+        "body": {}
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "Data": null,
+          "Error": "Not authorized",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "peer update from another version",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/update/peer",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "0.0.0-old"
+        }
+      },
+      "response": {
+        "status": 202,
+        "body": {
+          "Data": {
+            "status": "no update needed"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "peer update from this version",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/update/peer",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "No update available",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "resource": "server",
+  "cases": [
+    {
+      "name": "health",
+      "request": {
+        "method": "GET",
+        "path": "/health",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 200,
+        "header": {
+          "Content-Type": "application/json",
+          "X-Robots-Tag": "noindex, nofollow"
+        },
+        "body": {
+          "status": "ok",
+          "version": "<version>"
+        }
+      }
+    },
+    {
+      "name": "robots.txt",
+      "request": {
+        "method": "GET",
+        "path": "/robots.txt",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 200,
+        "header": {
+          "Content-Type": "text/plain; charset=UTF-8",
+          "X-Robots-Tag": "noindex, nofollow"
+        },
+        "text": "User-agent: *\nDisallow: /\n"
+      }
+    },
+    {
+      "name": "the app root",
+      "request": {
+        "method": "GET",
+        "path": "/",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 200,
+        "header": {
+          "X-Robots-Tag": "noindex, nofollow"
+        },
+        "page": {
+          "contentType": "text/html; charset=UTF-8",
+          "indexHtml": true
+        }
+      }
+    },
+    {
+      "name": "a deep link into the app",
+      "request": {
+        "method": "GET",
+        "path": "/patients/<id:1>/details",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 200,
+        "page": {
+          "contentType": "text/html; charset=UTF-8",
+          "indexHtml": true
+        }
+      }
+    },
+    {
+      "name": "an unknown API path without a token",
+      "request": {
+        "method": "GET",
+        "path": "/api/no-such-route",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "Data": null,
+          "Error": "Please sign in again",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "an unknown API path with a token",
+      "request": {
+        "method": "GET",
+        "path": "/api/no-such-route"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "message": "Not Found"
+        }
+      }
+    },
+    {
+      "name": "the bare API prefix",
+      "request": {
+        "method": "GET",
+        "path": "/api"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "message": "Not Found"
+        }
+      }
+    },
+    {
+      "name": "an unknown method on a known route",
+      "request": {
+        "method": "PATCH",
+        "path": "/api/patients",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "message": "Not Found"
+        }
+      }
+    },
+    {
+      "name": "a missing file",
+      "request": {
+        "method": "GET",
+        "path": "/files/missing.pdf"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "message": "Not Found"
+        }
+      }
+    },
+    {
+      "name": "a file without a token",
+      "request": {
+        "method": "GET",
+        "path": "/files/missing.pdf",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "Data": null,
+          "Error": "Please sign in again",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

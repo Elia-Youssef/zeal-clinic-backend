@@ -1,0 +1,1285 @@
+{
+  "resource": "analytics",
+  "cases": [
+    {
+      "name": "GET /api/analytics/money?from=<day-1>&to=<day+1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/money?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "avgInvoice": {
+              "change": 0,
+              "previous": 0,
+              "value": 326.8333333333333
+            },
+            "discounts": {
+              "change": 0,
+              "previous": 0,
+              "value": 34.5
+            },
+            "expenses": {
+              "change": 0,
+              "previous": 0,
+              "value": 1250
+            },
+            "giftCardLiability": 0,
+            "netProfit": {
+              "change": 0,
+              "previous": 0,
+              "value": -1000
+            },
+            "payables": 42,
+            "paymentMix": [
+              {
+                "amount": 200,
+                "method": "cash"
+              },
+              {
+                "amount": 50,
+                "method": "card"
+              }
+            ],
+            "receivables": 635.5,
+            "refunds": {
+              "change": 0,
+              "previous": 0,
+              "value": 20
+            },
+            "revenue": {
+              "change": 0,
+              "previous": 0,
+              "value": 250
+            },
+            "revenueMix": {
+              "gifts": 150,
+              "other": 30,
+              "procedures": 460,
+              "products": 375
+            },
+            "writeOffs": {
+              "change": 0,
+              "previous": 0,
+              "value": 27
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/money between clinic midnights",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/money?from=<day-1> 00:00 clinic&to=<day+2> 00:00 clinic"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "avgInvoice": {
+              "change": 0,
+              "previous": 0,
+              "value": 326.8333333333333
+            },
+            "discounts": {
+              "change": 0,
+              "previous": 0,
+              "value": 34.5
+            },
+            "expenses": {
+              "change": 0,
+              "previous": 0,
+              "value": 1250
+            },
+            "giftCardLiability": 0,
+            "netProfit": {
+              "change": 0,
+              "previous": 0,
+              "value": -1000
+            },
+            "payables": 42,
+            "paymentMix": [
+              {
+                "amount": 200,
+                "method": "cash"
+              },
+              {
+                "amount": 50,
+                "method": "card"
+              }
+            ],
+            "receivables": 635.5,
+            "refunds": {
+              "change": 0,
+              "previous": 0,
+              "value": 20
+            },
+            "revenue": {
+              "change": 0,
+              "previous": 0,
+              "value": 250
+            },
+            "revenueMix": {
+              "gifts": 150,
+              "other": 30,
+              "procedures": 460,
+              "products": 375
+            },
+            "writeOffs": {
+              "change": 0,
+              "previous": 0,
+              "value": 27
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/money for the last 30 days",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/money"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "avgInvoice": {
+              "change": 0,
+              "previous": 0,
+              "value": 326.8333333333333
+            },
+            "discounts": {
+              "change": 0,
+              "previous": 0,
+              "value": 34.5
+            },
+            "expenses": {
+              "change": 0,
+              "previous": 0,
+              "value": 1250
+            },
+            "giftCardLiability": 0,
+            "netProfit": {
+              "change": 0,
+              "previous": 0,
+              "value": -1000
+            },
+            "payables": 42,
+            "paymentMix": [
+              {
+                "amount": 200,
+                "method": "cash"
+              },
+              {
+                "amount": 50,
+                "method": "card"
+              }
+            ],
+            "receivables": 635.5,
+            "refunds": {
+              "change": 0,
+              "previous": 0,
+              "value": 20
+            },
+            "revenue": {
+              "change": 0,
+              "previous": 0,
+              "value": 250
+            },
+            "revenueMix": {
+              "gifts": 150,
+              "other": 30,
+              "procedures": 460,
+              "products": 375
+            },
+            "writeOffs": {
+              "change": 0,
+              "previous": 0,
+              "value": 27
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/patients?from=<day-1>&to=<day+1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/patients?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "activePatients": 2,
+            "newPatients": {
+              "change": 0,
+              "previous": 0,
+              "value": 3
+            },
+            "repeatRate": {
+              "change": 0,
+              "previous": 0,
+              "value": 0
+            },
+            "returningPatients": {
+              "change": 0,
+              "previous": 0,
+              "value": 0
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/patients for the last 30 days",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/patients"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "activePatients": 2,
+            "newPatients": {
+              "change": 0,
+              "previous": 0,
+              "value": 3
+            },
+            "repeatRate": {
+              "change": 0,
+              "previous": 0,
+              "value": 0
+            },
+            "returningPatients": {
+              "change": 0,
+              "previous": 0,
+              "value": 0
+            }
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/operations?from=2025-03-24&to=2025-11-02",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/operations?from=2025-03-24&to=2025-11-02"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "appointments": {
+              "change": 0,
+              "previous": 0,
+              "value": 4
+            },
+            "cancellationRate": {
+              "change": 0,
+              "previous": 0,
+              "value": 0.16666666666666666
+            },
+            "proceduresPerformed": {
+              "change": 0,
+              "previous": 0,
+              "value": 1
+            },
+            "rescheduleRate": {
+              "change": 0,
+              "previous": 0,
+              "value": 0.16666666666666666
+            },
+            "statusBreakdown": {
+              "cancelled": 1,
+              "completed": 1,
+              "inProgress": 1,
+              "rescheduled": 1,
+              "scheduled": 2,
+              "total": 6
+            },
+            "upcoming7Days": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/operations?from=<day-7>&to=<day+7>",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/operations?from=<day-7>&to=<day+7>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "appointments": {
+              "change": 0,
+              "previous": 0,
+              "value": 2
+            },
+            "cancellationRate": {
+              "change": 0,
+              "previous": 0,
+              "value": 0
+            },
+            "proceduresPerformed": {
+              "change": 0,
+              "previous": 0,
+              "value": 1
+            },
+            "rescheduleRate": {
+              "change": 0,
+              "previous": 0,
+              "value": 0
+            },
+            "statusBreakdown": {
+              "cancelled": 0,
+              "completed": 1,
+              "inProgress": 0,
+              "rescheduled": 0,
+              "scheduled": 1,
+              "total": 2
+            },
+            "upcoming7Days": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/inventory",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/inventory"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "lowStock": 1,
+            "totalStockValue": 575
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/demographics",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/demographics"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "ageBands": [
+              {
+                "count": 0,
+                "label": "0-17"
+              },
+              {
+                "count": 1,
+                "label": "18-29"
+              },
+              {
+                "count": 1,
+                "label": "30-44"
+              },
+              {
+                "count": 0,
+                "label": "45-59"
+              },
+              {
+                "count": 1,
+                "label": "60+"
+              }
+            ],
+            "gender": [
+              {
+                "count": 2,
+                "label": "Female"
+              },
+              {
+                "count": 1,
+                "label": "Male"
+              }
+            ],
+            "topCities": [
+              {
+                "count": 2,
+                "label": "Beirut"
+              },
+              {
+                "count": 1,
+                "label": "Jounieh"
+              }
+            ]
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/demographics?cityLimit=1",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/demographics?cityLimit=1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "ageBands": [
+              {
+                "count": 0,
+                "label": "0-17"
+              },
+              {
+                "count": 1,
+                "label": "18-29"
+              },
+              {
+                "count": 1,
+                "label": "30-44"
+              },
+              {
+                "count": 0,
+                "label": "45-59"
+              },
+              {
+                "count": 1,
+                "label": "60+"
+              }
+            ],
+            "gender": [
+              {
+                "count": 2,
+                "label": "Female"
+              },
+              {
+                "count": 1,
+                "label": "Male"
+              }
+            ],
+            "topCities": [
+              {
+                "count": 2,
+                "label": "Beirut"
+              }
+            ]
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/referral-sources?from=<day-1>&to=<day+1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/referral-sources?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "count": 1,
+              "source": "Friend"
+            },
+            {
+              "count": 1,
+              "source": "Instagram"
+            },
+            {
+              "count": 1,
+              "source": "Referral"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/staff-performance?from=2025-03-24&to=2025-11-02",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/staff-performance?from=2025-03-24&to=2025-11-02"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "employeeId": "<id:1>",
+              "name": "Nora Example",
+              "procedures": 1
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/staff-performance?from=<day-7>&to=<day+7>",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/staff-performance?from=<day-7>&to=<day+7>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "employeeId": "<id:1>",
+              "name": "Nora Example",
+              "procedures": 1
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/procedures/top?from=<day-1>&to=<day+1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/procedures/top?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "amount": 160,
+              "count": 1,
+              "name": "Test Glow Peel",
+              "procedureId": "<id:2>"
+            },
+            {
+              "amount": 300,
+              "count": 1,
+              "name": "Test Laser Session",
+              "procedureId": "<id:3>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/procedures/top?from=<day-1>&to=<day+1>&by=revenue&limit=1",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/procedures/top?from=<day-1>&to=<day+1>&by=revenue&limit=1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "amount": 300,
+              "count": 1,
+              "name": "Test Laser Session",
+              "procedureId": "<id:3>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/products/top?from=<day-1>&to=<day+1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/products/top?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "name": "Test Cream",
+              "productId": "<id:4>",
+              "quantity": 2
+            },
+            {
+              "name": "Test Serum",
+              "productId": "<id:5>",
+              "quantity": 8
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/appointments/distribution?from=2025-03-24&to=2025-11-02",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/appointments/distribution?from=2025-03-24&to=2025-11-02"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "byHour": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0
+            ],
+            "byWeekday": [
+              1,
+              2,
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/rooms/utilization?from=2025-03-24&to=2025-11-02",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/rooms/utilization?from=2025-03-24&to=2025-11-02"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "appointments": 1,
+              "hours": 0.9999999962747097,
+              "name": "Room 1",
+              "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d"
+            },
+            {
+              "appointments": 1,
+              "hours": 0.9999999962747097,
+              "name": "Test Room A",
+              "roomId": "<id:6>"
+            },
+            {
+              "appointments": 2,
+              "hours": 0.9999999962747097,
+              "name": "Room 2",
+              "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/transactions/recent?limit=100",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/transactions/recent?limit=100"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "amount": 10,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Small balance",
+              "fromBalanceId": "<id:8>",
+              "fromEntityName": "Ben Sample",
+              "id": "<id:7>",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "other",
+              "transactionType": "write-off"
+            },
+            {
+              "amount": 10,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Uniform",
+              "fromBalanceId": "<id:10>",
+              "fromEntityName": "Sam Sample",
+              "id": "<id:9>",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "other",
+              "transactionType": "write-off"
+            },
+            {
+              "amount": 100,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Redeemed gift card \"Test Gift Card\"",
+              "fromBalanceId": "<id:8>",
+              "fromEntityName": "Ben Sample",
+              "id": "<id:11>",
+              "sourceId": "<id:12>",
+              "sourceType": "discount",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "discount",
+              "transactionType": "adjustment"
+            },
+            {
+              "amount": 1250,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Salary preparation 2025-04-01 to 2025-04-30",
+              "fromBalanceId": "<id:14>",
+              "fromEntityName": "Nora Example",
+              "id": "<id:13>",
+              "sourceId": "<id:15>",
+              "sourceType": "employee_salary_preparation",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "other",
+              "transactionType": "charge"
+            },
+            {
+              "amount": 1300,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Salary preparation 2025-03-01 to 2025-03-31",
+              "fromBalanceId": "<id:14>",
+              "fromEntityName": "Nora Example",
+              "id": "<id:16>",
+              "sourceId": "<id:17>",
+              "sourceType": "employee_salary_preparation",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "other",
+              "transactionType": "charge"
+            },
+            {
+              "amount": 195,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Invoice #1",
+              "fromBalanceId": "<id:19>",
+              "fromEntityName": "Acme Test Supplies",
+              "id": "<id:18>",
+              "sourceId": "<id:20>",
+              "sourceType": "invoice",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "cash",
+              "transactionType": "charge"
+            },
+            {
+              "amount": 2,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Rounding",
+              "fromBalanceId": "<id:19>",
+              "fromEntityName": "Acme Test Supplies",
+              "id": "<id:21>",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "other",
+              "transactionType": "write-off"
+            },
+            {
+              "amount": 20,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Late fee",
+              "fromBalanceId": "<id:23>",
+              "fromEntityName": "Test Rent",
+              "id": "<id:22>",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "other",
+              "transactionType": "adjustment"
+            },
+            {
+              "amount": 200,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Deposit",
+              "fromBalanceId": "<id:25>",
+              "fromEntityName": "Ada Example",
+              "id": "<id:24>",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "cash",
+              "transactionType": "payment"
+            },
+            {
+              "amount": 5,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Rounding",
+              "fromBalanceId": "<id:25>",
+              "fromEntityName": "Ada Example",
+              "id": "<id:26>",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "other",
+              "transactionType": "adjustment"
+            },
+            {
+              "amount": 50,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "",
+              "fromBalanceId": "<id:25>",
+              "fromEntityName": "Ada Example",
+              "id": "<id:27>",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "card",
+              "transactionType": "payment"
+            },
+            {
+              "amount": 50,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Gift card credit (Invoice #2)",
+              "fromBalanceId": "<id:29>",
+              "fromEntityName": "Cleo Placeholder",
+              "id": "<id:28>",
+              "sourceId": "<id:30>",
+              "sourceType": "invoice",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "discount",
+              "transactionType": "adjustment"
+            },
+            {
+              "amount": 500,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "March rent",
+              "fromBalanceId": "<id:23>",
+              "fromEntityName": "Test Rent",
+              "id": "<id:31>",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "transfer",
+              "transactionType": "charge"
+            },
+            {
+              "amount": 900,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "description": "Salary preparation 2025-03-01 to 2025-03-31",
+              "fromBalanceId": "<id:10>",
+              "fromEntityName": "Sam Sample",
+              "id": "<id:32>",
+              "sourceId": "<id:33>",
+              "sourceType": "employee_salary_preparation",
+              "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+              "toEntityName": "Clinic",
+              "transactionMethod": "other",
+              "transactionType": "charge"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=<day-1>&to=<day+1>&metric=revenue",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=<day-1>&to=<day+1>&metric=revenue"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "bucket": "<day+0>",
+              "value": 250
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=<day-1>&to=<day+1>&metric=expenses&groupBy=day",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=<day-1>&to=<day+1>&metric=expenses&groupBy=day"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "bucket": "<day+0>",
+              "value": 1250
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=<day-1>&to=<day+1>&metric=new-patients",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=<day-1>&to=<day+1>&metric=new-patients"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "bucket": "<day+0>",
+              "value": 3
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=<day-1>&to=<day+1>&metric=procedures-completed",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=<day-1>&to=<day+1>&metric=procedures-completed"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "bucket": "<day+0>",
+              "value": 2
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=2025-03-24&to=2025-11-02&metric=appointments&groupBy=month",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=2025-03-24&to=2025-11-02&metric=appointments&groupBy=month"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "bucket": "2025-03",
+              "value": 3
+            },
+            {
+              "bucket": "2025-10",
+              "value": 1
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=2025-03-24&to=2025-11-02&metric=appointments&groupBy=week",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=2025-03-24&to=2025-11-02&metric=appointments&groupBy=week"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "bucket": "2025-W12",
+              "value": 2
+            },
+            {
+              "bucket": "2025-W13",
+              "value": 1
+            },
+            {
+              "bucket": "2025-W43",
+              "value": 1
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=2025-03-24&to=2025-11-02&metric=appointments",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=2025-03-24&to=2025-11-02&metric=appointments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "bucket": "2025-03-29",
+              "value": 1
+            },
+            {
+              "bucket": "2025-03-30",
+              "value": 1
+            },
+            {
+              "bucket": "2025-03-31",
+              "value": 1
+            },
+            {
+              "bucket": "2025-10-27",
+              "value": 1
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=<day-1>&to=<day+1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Metric is required",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=<day-1>&to=<day+1>&metric=profit",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=<day-1>&to=<day+1>&metric=profit"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't load analytics",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?from=<day-1>&to=<day+1>&metric=revenue&groupBy=year",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?from=<day-1>&to=<day+1>&metric=revenue&groupBy=year"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't load analytics",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/appointments/recent-today",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/appointments/recent-today"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "appointmentProcedures": [
+                {
+                  "appointmentId": "<id:34>",
+                  "assignedToId": "<id:1>",
+                  "assignedToName": "Nora Example",
+                  "createdAt": "<ts>",
+                  "id": "<id:35>",
+                  "notes": "",
+                  "patientId": "<id:36>",
+                  "procedureId": "<id:2>",
+                  "procedureName": "Test Peels, Test Glow Peel",
+                  "updatedAt": "<ts>"
+                }
+              ],
+              "cancelNotes": "",
+              "completionNotes": "",
+              "createdAt": "<ts>",
+              "endTime": "<day+0>T07:45:00.000Z",
+              "id": "<id:34>",
+              "notes": "",
+              "patientId": "<id:36>",
+              "patientName": "Cleo Example",
+              "rescheduledFrom": "",
+              "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+              "startTime": "<day+0>T07:00:00.000Z",
+              "status": "Scheduled",
+              "updatedAt": "<ts>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/appointments/recent-today?limit=1",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/appointments/recent-today?limit=1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "appointmentProcedures": [
+                {
+                  "appointmentId": "<id:34>",
+                  "assignedToId": "<id:1>",
+                  "assignedToName": "Nora Example",
+                  "createdAt": "<ts>",
+                  "id": "<id:35>",
+                  "notes": "",
+                  "patientId": "<id:36>",
+                  "procedureId": "<id:2>",
+                  "procedureName": "Test Peels, Test Glow Peel",
+                  "updatedAt": "<ts>"
+                }
+              ],
+              "cancelNotes": "",
+              "completionNotes": "",
+              "createdAt": "<ts>",
+              "endTime": "<day+0>T07:45:00.000Z",
+              "id": "<id:34>",
+              "notes": "",
+              "patientId": "<id:36>",
+              "patientName": "Cleo Example",
+              "rescheduledFrom": "",
+              "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+              "startTime": "<day+0>T07:00:00.000Z",
+              "status": "Scheduled",
+              "updatedAt": "<ts>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "analytics report PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/report/pdf?from=<day-1>&to=<day+1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/analytics-report-<day-1>-<day+1>-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: analytics report PDF",
+      "request": {
+        "method": "GET",
+        "path": "/files/analytics-report-<day-1>-<day+1>-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    }
+  ]
+}

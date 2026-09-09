@@ -1,0 +1,218 @@
+{
+  "resource": "procedure-allergy-conflicts",
+  "cases": [
+    {
+      "name": "add procedure allergy conflict",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures/<id:1>/allergy-conflicts",
+        "body": {
+          "allergyId": "<id:2>",
+          "notes": "Latex gloves"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "allergyId": "<id:2>",
+            "createdAt": "<ts>",
+            "id": "<id:3>",
+            "notes": "Latex gloves",
+            "procedureId": "<id:1>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update procedure allergy conflict",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-allergy-conflicts/<id:3>",
+        "body": {
+          "notes": "Use nitrile gloves"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "allergyId": "",
+            "createdAt": "",
+            "id": "<id:3>",
+            "notes": "Use nitrile gloves",
+            "procedureId": ""
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "add procedure allergy conflict to remove",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures/<id:4>/allergy-conflicts",
+        "body": {
+          "allergyId": "<id:5>",
+          "notes": ""
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "allergyId": "<id:5>",
+            "createdAt": "<ts>",
+            "id": "<id:6>",
+            "notes": "",
+            "procedureId": "<id:4>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "remove procedure allergy conflict",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-allergy-conflicts/<id:6>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedures/<id:1>/allergy-conflicts",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedures/<id:1>/allergy-conflicts"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "allergyId": "<id:2>",
+                "allergyName": "Test Latex",
+                "createdAt": "<ts>",
+                "id": "<id:3>",
+                "notes": "Use nitrile gloves",
+                "procedureId": "<id:1>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "add a procedure allergy conflict twice",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures/<id:1>/allergy-conflicts",
+        "body": {
+          "allergyId": "<id:2>"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't add procedure allergy conflict",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/procedure-allergy-conflicts/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-allergy-conflicts/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Conflict not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/procedures/:procedureId/allergy-conflicts with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures/00000000-0000-7000-8000-000000000000/allergy-conflicts",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/procedures/:procedureId/allergy-conflicts with unknown ids",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedures/00000000-0000-7000-8000-000000000000/allergy-conflicts",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/procedure-allergy-conflicts/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-allergy-conflicts/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/procedure-allergy-conflicts/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-allergy-conflicts/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Conflict not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

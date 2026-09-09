@@ -1,0 +1,8 @@
+id,name,sheet,procedure,stand_pr
+301,Fixture Peel,Clinic Procedure,Skin,120
+302,Fixture Surgery,Hospital Surgery,Surgery,2500
+303,Fixture Minor,Minor Surgery,,abc
+304,Fixture Peel,Clinic Procedure,Skin,130
+305,Stock Serum,STOCK,,10
+306,Fixture Other,Unknown Sheet,,50
+0,Zero,Clinic Procedure,,1

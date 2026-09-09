@@ -1,0 +1,628 @@
+{
+  "resource": "employees",
+  "cases": [
+    {
+      "name": "create employee Nora with a nurse account",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": {
+          "contact": "70111222",
+          "dateOfBirth": "1992-09-09",
+          "email": "nora@example.test",
+          "employmentType": "Full-time",
+          "firstName": "Nora",
+          "lastName": "Example",
+          "password": "nora-pw",
+          "role": "Nurse",
+          "userRole": "nurse",
+          "username": "nora.example"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "contact": "70111222",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1992-09-09",
+            "email": "nora@example.test",
+            "employmentType": "Full-time",
+            "firstName": "Nora",
+            "id": "<id:1>",
+            "lastName": "Example",
+            "role": "Nurse",
+            "updatedAt": "<ts>",
+            "userId": "<id:2>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create employee Sam with a staff account",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": {
+          "contact": "70111333",
+          "employmentType": "Part-time",
+          "firstName": "Sam",
+          "lastName": "Sample",
+          "password": "sam-pw",
+          "role": "Receptionist",
+          "userRole": "staff",
+          "username": "sam.sample"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "contact": "70111333",
+            "createdAt": "<ts>",
+            "dateOfBirth": "",
+            "email": "",
+            "employmentType": "Part-time",
+            "firstName": "Sam",
+            "id": "<id:3>",
+            "lastName": "Sample",
+            "role": "Receptionist",
+            "updatedAt": "<ts>",
+            "userId": "<id:4>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create employee Otto without an account",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": {
+          "contact": "70111444",
+          "employmentType": "Full-time",
+          "firstName": "Otto",
+          "lastName": "Placeholder",
+          "role": "Doctor"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "contact": "70111444",
+            "createdAt": "<ts>",
+            "dateOfBirth": "",
+            "email": "",
+            "employmentType": "Full-time",
+            "firstName": "Otto",
+            "id": "<id:5>",
+            "lastName": "Placeholder",
+            "role": "Doctor",
+            "updatedAt": "<ts>",
+            "userId": null
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update employee Otto",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employees/<id:5>",
+        "body": {
+          "email": "otto@example.test"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "contact": "70111444",
+            "createdAt": "<ts>",
+            "dateOfBirth": "",
+            "email": "otto@example.test",
+            "employmentType": "Full-time",
+            "firstName": "Otto",
+            "id": "<id:5>",
+            "lastName": "Placeholder",
+            "role": "Doctor",
+            "updatedAt": "<ts>",
+            "userId": null
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create employee to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": {
+          "contact": "70111555",
+          "employmentType": "Part-time",
+          "firstName": "Temp",
+          "lastName": "Worker",
+          "role": "Cleaner"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "contact": "70111555",
+            "createdAt": "<ts>",
+            "dateOfBirth": "",
+            "email": "",
+            "employmentType": "Part-time",
+            "firstName": "Temp",
+            "id": "<id:6>",
+            "lastName": "Worker",
+            "role": "Cleaner",
+            "updatedAt": "<ts>",
+            "userId": null
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete employee without records",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employees/<id:6>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "staff creates an employee with an account",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "as": "staff",
+        "body": {
+          "contact": "70111666",
+          "employmentType": "Full-time",
+          "firstName": "Blocked",
+          "lastName": "Account",
+          "password": "x-pw",
+          "role": "Nurse",
+          "username": "blocked.account"
+        }
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "Data": null,
+          "Error": "You don't have permission",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees?sort=firstName&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees?sort=firstName&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "contact": "70111222",
+                "createdAt": "<ts>",
+                "dateOfBirth": "1992-09-09",
+                "email": "nora@example.test",
+                "employmentType": "Full-time",
+                "firstName": "Nora",
+                "id": "<id:1>",
+                "lastName": "Example",
+                "role": "Nurse",
+                "salaries": [
+                  {
+                    "amount": 1250,
+                    "createdAt": "<ts>",
+                    "currencyId": "USD",
+                    "effectiveDate": "2025-01-01",
+                    "employeeId": "<id:1>",
+                    "id": "<id:7>",
+                    "isActive": true,
+                    "notes": "Base",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "updatedAt": "<ts>",
+                "userId": "<id:2>"
+              },
+              {
+                "contact": "70111444",
+                "createdAt": "<ts>",
+                "dateOfBirth": "",
+                "email": "otto@example.test",
+                "employmentType": "Full-time",
+                "firstName": "Otto",
+                "id": "<id:5>",
+                "lastName": "Placeholder",
+                "role": "Doctor",
+                "updatedAt": "<ts>",
+                "userId": null
+              },
+              {
+                "contact": "70111333",
+                "createdAt": "<ts>",
+                "dateOfBirth": "",
+                "email": "",
+                "employmentType": "Part-time",
+                "firstName": "Sam",
+                "id": "<id:3>",
+                "lastName": "Sample",
+                "role": "Receptionist",
+                "salaries": [
+                  {
+                    "amount": 900,
+                    "createdAt": "<ts>",
+                    "currencyId": "USD",
+                    "effectiveDate": "2025-02-01",
+                    "employeeId": "<id:3>",
+                    "id": "<id:8>",
+                    "isActive": true,
+                    "notes": "",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "updatedAt": "<ts>",
+                "userId": "<id:4>"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees?filter=Sample",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees?filter=Sample"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "contact": "70111333",
+                "createdAt": "<ts>",
+                "dateOfBirth": "",
+                "email": "",
+                "employmentType": "Part-time",
+                "firstName": "Sam",
+                "id": "<id:3>",
+                "lastName": "Sample",
+                "role": "Receptionist",
+                "salaries": [
+                  {
+                    "amount": 900,
+                    "createdAt": "<ts>",
+                    "currencyId": "USD",
+                    "effectiveDate": "2025-02-01",
+                    "employeeId": "<id:3>",
+                    "id": "<id:8>",
+                    "isActive": true,
+                    "notes": "",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "updatedAt": "<ts>",
+                "userId": "<id:4>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:1>",
+              "name": "Nora Example"
+            },
+            {
+              "id": "<id:5>",
+              "name": "Otto Placeholder"
+            },
+            {
+              "id": "<id:3>",
+              "name": "Sam Sample"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "contact": "70111222",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1992-09-09",
+            "email": "nora@example.test",
+            "employmentType": "Full-time",
+            "firstName": "Nora",
+            "id": "<id:1>",
+            "lastName": "Example",
+            "role": "Nurse",
+            "updatedAt": "<ts>",
+            "user": {
+              "createdAt": "<ts>",
+              "displayName": "Nora Example",
+              "id": "<id:2>",
+              "isActive": true,
+              "role": "nurse",
+              "updatedAt": "<ts>",
+              "username": "nora.example"
+            },
+            "userId": "<id:2>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Employee not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "nurse reads her own employee record",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "contact": "70111222",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1992-09-09",
+            "email": "nora@example.test",
+            "employmentType": "Full-time",
+            "firstName": "Nora",
+            "id": "<id:1>",
+            "lastName": "Example",
+            "role": "Nurse",
+            "updatedAt": "<ts>",
+            "user": {
+              "createdAt": "<ts>",
+              "displayName": "Nora Example",
+              "id": "<id:2>",
+              "isActive": true,
+              "role": "nurse",
+              "updatedAt": "<ts>",
+              "username": "nora.example"
+            },
+            "userId": "<id:2>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete an employee with records",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employees/<id:1>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete employee while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create an employee with an unknown employment type",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": {
+          "contact": "70999002",
+          "employmentType": "Contract",
+          "firstName": "Test",
+          "lastName": "Contract",
+          "role": "Nurse"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create an employee with a taken username",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": {
+          "contact": "70999003",
+          "employmentType": "Full-time",
+          "firstName": "Test",
+          "lastName": "Taken",
+          "role": "Nurse",
+          "userRole": "nurse",
+          "username": "nora.example"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create user account",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create an employee account with the super-admin role",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": {
+          "contact": "70999004",
+          "employmentType": "Full-time",
+          "firstName": "Test",
+          "lastName": "Super",
+          "role": "Nurse",
+          "userRole": "super-admin",
+          "username": "test.super"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid role",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/employees/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employees/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Employee not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employees with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employees with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/employees/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employees/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/employees/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employees/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Employee not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

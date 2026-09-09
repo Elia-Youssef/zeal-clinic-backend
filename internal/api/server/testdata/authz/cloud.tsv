@@ -1,0 +1,253 @@
+route	guard	anonymous	super-admin	admin	staff	nurse	staff-self	nurse-self	no-secret	wrong-secret	wrong-version	sync-secret	query-secret	publish-secret
+GET /*	public	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass
+GET /api/allergies	jwt scope(allergies:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/allergies	jwt scope(allergies:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/allergies/:id	jwt scope(allergies:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/allergies/:id	jwt scope(allergies:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/allergies/dropdown	jwt scope(allergies:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/appointments/distribution	jwt all(analytics:read,appointments:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/appointments/recent-today	jwt all(analytics:read,appointments:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/demographics	jwt all(analytics:read,patients:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/inventory	jwt all(analytics:read,products:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/money	jwt all(analytics:read,balances:read,reports:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/analytics/operations	jwt all(analytics:read,appointments:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/patients	jwt all(analytics:read,patients:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/procedures/top	jwt all(analytics:read,procedures:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/products/top	jwt all(analytics:read,products:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/referral-sources	jwt all(analytics:read,patients:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/report/pdf	jwt all(analytics:read,balances:read,reports:read,patients:read,appointments:read,products:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/analytics/rooms/utilization	jwt all(analytics:read,rooms:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/analytics/series	jwt all(analytics:read,reports:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/analytics/staff-performance	jwt all(analytics:read,employees:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/analytics/transactions/recent	jwt all(analytics:read,balances:read,reports:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/appointments	jwt scope(appointments:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/appointments	jwt scope(appointments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/appointments/:id	jwt scope(appointments:delete)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+PUT /api/appointments/:id	jwt scope(appointments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/appointments/:id/reschedule	jwt scope(appointments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/appointments/count-per-room	jwt scope(appointments:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/appointments/pdf	jwt scope(appointments:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/audit-log	jwt scope(audit:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/auth/login	public	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass
+POST /api/auth/logout	public	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass
+GET /api/auth/me	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/auth/verify	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/balances/:type	jwt scope(balances:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/balances/:type/:id	jwt scope(balances:read)|self(employee)	401	pass	pass	pass	403-scope	pass	pass	401	401	401	401	401	401
+POST /api/client-adjustments	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/client-adjustments (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/client-invoices	jwt critical scope(invoices:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/client-invoices (gate open)	jwt critical scope(invoices:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/client-invoices/:id	jwt critical scope(invoices:delete)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+DELETE /api/client-invoices/:id (gate open)	jwt critical scope(invoices:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/client-invoices/:id	jwt critical scope(invoices:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+PUT /api/client-invoices/:id (gate open)	jwt critical scope(invoices:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/client-payments	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/client-payments (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/client-payments/:id	jwt critical scope(payments:delete)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+DELETE /api/client-payments/:id (gate open)	jwt critical scope(payments:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/client-refunds	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/client-refunds (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/client-write-offs	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/client-write-offs (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/cloud-restore	sync-header version	401	401	401	401	401	401	401	401	401	409-version	pass	401	401
+GET /api/countries	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/countries/dropdown	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/currencies	jwt scope(currencies:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/currencies	jwt scope(currencies:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/currencies/:id	jwt scope(currencies:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/currencies/:id	jwt scope(currencies:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/currencies/dropdown	jwt scope(currencies:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/discounts	jwt scope(discounts:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/discounts	jwt scope(discounts:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/discounts/:id	jwt scope(discounts:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/discounts/:id	jwt scope(discounts:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+PUT /api/discounts/:id	jwt scope(discounts:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/discounts/:id/invoices	jwt all(discounts:read,invoices:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/employee-adjustments	jwt critical scope(employee-payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/employee-adjustments (gate open)	jwt critical scope(employee-payments:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/employee-payments	jwt critical scope(employee-payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/employee-payments (gate open)	jwt critical scope(employee-payments:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/employee-payments/:id	jwt critical scope(employee-payments:delete)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+DELETE /api/employee-payments/:id (gate open)	jwt critical scope(employee-payments:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/employee-salaries/:id	jwt scope(employee-salaries:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/employee-salaries/:id	jwt scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/employee-salaries/prepare	jwt scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/employee-salary-preparations/:id	jwt scope(employee-salaries:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PATCH /api/employee-salary-preparations/:id	jwt scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/employee-schedule-changes	jwt scope(hr:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/employee-schedule-changes/:id	jwt scope(hr:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/employee-schedule-changes/:id	jwt scope(hr:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/employee-schedule-changes/:id/status	jwt scope(hr:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/employee-schedules/:id	jwt scope(employee-schedules:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/employee-schedules/day	jwt scope(employee-schedules:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/employee-write-offs	jwt critical scope(employee-payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/employee-write-offs (gate open)	jwt critical scope(employee-payments:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/employees	jwt scope(employees:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/employees	jwt scope(employees:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/employees/:id	jwt scope(employees:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/employees/:id	jwt scope(employees:read)|self(employee)	401	pass	pass	403-scope	403-scope	pass	pass	401	401	401	401	401	401
+PUT /api/employees/:id	jwt scope(employees:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/employees/:id/appointments	jwt scope(appointments:read)|self(employee)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/employees/:id/payments	jwt scope(employee-payments:read)|self(employee)	401	pass	pass	403-scope	403-scope	pass	pass	401	401	401	401	401	401
+GET /api/employees/:id/prepared-salaries	jwt scope(employee-salaries:read)|self(employee)	401	pass	pass	403-scope	403-scope	pass	pass	401	401	401	401	401	401
+GET /api/employees/:id/salaries	jwt scope(employee-salaries:read)|self(employee)	401	pass	pass	403-scope	403-scope	pass	pass	401	401	401	401	401	401
+POST /api/employees/:id/salaries	jwt scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/employees/:id/schedule	jwt scope(hr:read)|self(employee)	401	pass	pass	pass	403-scope	pass	pass	401	401	401	401	401	401
+GET /api/employees/:id/working-hours	jwt scope(hr:read)|self(employee)	401	pass	pass	pass	403-scope	pass	pass	401	401	401	401	401	401
+GET /api/employees/dropdown	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/events	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/expense-adjustments	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/expense-adjustments (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/expense-payments	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/expense-payments (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/expense-payments/:id	jwt critical scope(payments:delete)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+DELETE /api/expense-payments/:id (gate open)	jwt critical scope(payments:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/expense-write-offs	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/expense-write-offs (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/expenses	jwt scope(expenses:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/expenses	jwt scope(expenses:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/expenses/:id	jwt scope(expenses:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/expenses/:id	jwt scope(expenses:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+PUT /api/expenses/:id	jwt scope(expenses:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/expenses/:id/payments	jwt scope(payments:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/expenses/dropdown	jwt scope(expenses:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/gift-cards/redeem	jwt critical scope(discounts:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/gift-cards/redeem (gate open)	jwt critical scope(discounts:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/holidays	jwt scope(hr:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/holidays	jwt scope(hr:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/holidays/:id	jwt scope(hr:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/holidays/:id	jwt scope(hr:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/invoices	jwt scope(invoices:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/invoices/:id	jwt scope(invoices:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/invoices/:id/pdf	jwt scope(invoices:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/lebanon-cities	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/lebanon-cities/dropdown	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/medicines	jwt scope(medicines:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/medicines	jwt scope(medicines:write)	401	pass	pass	403-scope	pass	403-scope	pass	401	401	401	401	401	401
+DELETE /api/medicines/:id	jwt scope(medicines:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/medicines/:id	jwt scope(medicines:write)	401	pass	pass	403-scope	pass	403-scope	pass	401	401	401	401	401	401
+GET /api/medicines/dropdown	jwt scope(medicines:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/notifications	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+DELETE /api/notifications/:id	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+PUT /api/notifications/:id/read	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+PUT /api/notifications/read-all	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/notifications/test	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/notifications/unread-count	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+DELETE /api/patient-allergies/:id	jwt scope(patient-allergies:write)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+PUT /api/patient-allergies/:id	jwt scope(patient-allergies:write)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+DELETE /api/patient-medicines/:id	jwt scope(patient-medicines:write)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+PUT /api/patient-medicines/:id	jwt scope(patient-medicines:write)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/patients	jwt scope(patients:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/patients	jwt scope(patients:write)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+DELETE /api/patients/:id	jwt scope(patients:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/patients/:id	jwt scope(patients:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+PUT /api/patients/:id	jwt scope(patients:write)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/patients/:id/invoices	jwt scope(invoices:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/patients/:id/payments	jwt scope(payments:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/patients/:patientId/allergies	jwt scope(patient-allergies:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/patients/:patientId/allergies	jwt scope(patient-allergies:write)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/patients/:patientId/appointments	jwt scope(appointments:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/patients/:patientId/medicines	jwt scope(patient-medicines:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/patients/:patientId/medicines	jwt scope(patient-medicines:write)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/patients/:patientId/prescriptions	jwt scope(prescriptions:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/patients/dropdown	jwt scope(patients:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/prescriptions	jwt scope(prescriptions:write)	401	pass	pass	403-scope	pass	403-scope	pass	401	401	401	401	401	401
+DELETE /api/prescriptions/:id	jwt scope(prescriptions:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/prescriptions/:id	jwt scope(prescriptions:write)	401	pass	pass	403-scope	pass	403-scope	pass	401	401	401	401	401	401
+DELETE /api/procedure-allergy-conflicts/:id	jwt scope(procedure-allergy-conflicts:write)	401	pass	pass	403-scope	pass	403-scope	pass	401	401	401	401	401	401
+PUT /api/procedure-allergy-conflicts/:id	jwt scope(procedure-allergy-conflicts:write)	401	pass	pass	403-scope	pass	403-scope	pass	401	401	401	401	401	401
+GET /api/procedure-categories	jwt scope(procedure-categories:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/procedure-categories	jwt scope(procedure-categories:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/procedure-categories/:id	jwt scope(procedure-categories:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/procedure-categories/:id	jwt scope(procedure-categories:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/procedure-categories/dropdown	jwt scope(procedure-categories:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/procedure-types	jwt scope(procedure-types:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/procedure-types	jwt scope(procedure-types:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/procedure-types/:id	jwt scope(procedure-types:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/procedure-types/:id	jwt scope(procedure-types:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/procedure-types/dropdown	jwt scope(procedure-types:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/procedures	jwt scope(procedures:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/procedures	jwt scope(procedures:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/procedures/:id	jwt scope(procedures:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/procedures/:id	jwt scope(procedures:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+PUT /api/procedures/:id	jwt scope(procedures:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/procedures/:id/appointments	jwt scope(appointments:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/procedures/:id/prices	jwt scope(procedures:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/procedures/:procedureId/allergy-conflicts	jwt scope(procedure-allergy-conflicts:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/procedures/:procedureId/allergy-conflicts	jwt scope(procedure-allergy-conflicts:write)	401	pass	pass	403-scope	pass	403-scope	pass	401	401	401	401	401	401
+GET /api/procedures/dropdown	jwt scope(procedures:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+DELETE /api/product-allergy-conflicts/:id	jwt scope(product-allergy-conflicts:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/product-allergy-conflicts/:id	jwt scope(product-allergy-conflicts:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/product-categories	jwt scope(product-categories:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/product-categories	jwt scope(product-categories:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/product-categories/:id	jwt scope(product-categories:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/product-categories/:id	jwt scope(product-categories:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/product-categories/dropdown	jwt scope(product-categories:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/products	jwt scope(products:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/products	jwt scope(products:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/products/:id	jwt scope(products:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/products/:id	jwt scope(products:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+PUT /api/products/:id	jwt scope(products:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/products/:id/allergy-conflicts	jwt scope(product-allergy-conflicts:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/products/:id/allergy-conflicts	jwt scope(product-allergy-conflicts:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/products/:id/invoices	jwt scope(products:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/products/:id/prices	jwt scope(products:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/products/dropdown	jwt scope(products:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/reports/expenses	jwt scope(reports:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/reports/expenses/pdf	jwt scope(reports:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/reports/revenue	jwt scope(reports:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/reports/revenue/pdf	jwt scope(reports:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/roles	jwt scope(roles:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/roles/:name	jwt scope(roles:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/roles/:name	jwt scope(roles:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/roles/dropdown	jwt scope(roles:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/rooms	jwt scope(rooms:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/rooms	jwt scope(rooms:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+DELETE /api/rooms/:id	jwt scope(rooms:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/rooms/:id	jwt scope(rooms:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/rooms/dropdown	jwt scope(rooms:read)	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/search	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /api/server-info	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+POST /api/supplier-adjustments	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/supplier-adjustments (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/supplier-invoices	jwt critical scope(invoices:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/supplier-invoices (gate open)	jwt critical scope(invoices:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/supplier-invoices/:id	jwt critical scope(invoices:delete)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+DELETE /api/supplier-invoices/:id (gate open)	jwt critical scope(invoices:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+PUT /api/supplier-invoices/:id	jwt critical scope(invoices:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+PUT /api/supplier-invoices/:id (gate open)	jwt critical scope(invoices:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+PUT /api/supplier-invoices/:id/items/:itemId	jwt critical scope(invoices:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+PUT /api/supplier-invoices/:id/items/:itemId (gate open)	jwt critical scope(invoices:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/supplier-payments	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/supplier-payments (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/supplier-payments/:id	jwt critical scope(payments:delete)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+DELETE /api/supplier-payments/:id (gate open)	jwt critical scope(payments:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/supplier-write-offs	jwt critical scope(payments:write)	401	503-gate	503-gate	503-gate	503-gate	503-gate	503-gate	401	401	401	401	401	401
+POST /api/supplier-write-offs (gate open)	jwt critical scope(payments:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/suppliers	jwt scope(suppliers:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+POST /api/suppliers	jwt scope(suppliers:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+DELETE /api/suppliers/:id	jwt scope(suppliers:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/suppliers/:id	jwt scope(suppliers:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+PUT /api/suppliers/:id	jwt scope(suppliers:write)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/suppliers/:id/invoices	jwt scope(invoices:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/suppliers/:id/payments	jwt scope(payments:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/suppliers/dropdown	jwt scope(suppliers:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/sync/events	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
+POST /api/sync/failed	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
+GET /api/sync/pull	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
+POST /api/sync/push	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
+POST /api/sync/ready	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
+GET /api/sync/status	sync-secret	401	401	401	401	401	401	401	401	401	pass	pass	pass	401
+POST /api/update/peer	sync-header	401	401	401	401	401	401	401	401	401	pass	pass	401	401
+POST /api/update/start	jwt scope(update:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/update/status	jwt scope(update:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
+GET /api/users	jwt scope(users:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/users	jwt scope(users:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/users/:id	jwt scope(users:read)|self(user)	401	pass	pass	403-scope	403-scope	pass	pass	401	401	401	401	401	401
+PUT /api/users/:id	jwt scope(users:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+GET /api/users/:id/actions	jwt scope(users:read)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
+POST /api/versions	publish-header	401	401	401	401	401	401	401	401	401	401	401	401	pass
+GET /files/*	jwt	401	pass	pass	pass	pass	pass	pass	401	401	401	401	401	401
+GET /health	public	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass
+GET /robots.txt	public	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass

@@ -1,0 +1,235 @@
+{
+  "resource": "patient-allergies",
+  "cases": [
+    {
+      "name": "add patient allergy",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/<id:1>/allergies",
+        "body": {
+          "allergyId": "<id:2>",
+          "notes": "Rash"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "allergyId": "<id:2>",
+            "createdAt": "<ts>",
+            "id": "<id:3>",
+            "notes": "Rash",
+            "patientId": "<id:1>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update patient allergy",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patient-allergies/<id:3>",
+        "body": {
+          "notes": "Severe rash"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "allergyId": "",
+            "createdAt": "",
+            "id": "<id:3>",
+            "notes": "Severe rash",
+            "patientId": ""
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "add patient allergy to remove",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/<id:4>/allergies",
+        "body": {
+          "allergyId": "<id:5>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "allergyId": "<id:5>",
+            "createdAt": "<ts>",
+            "id": "<id:6>",
+            "notes": "",
+            "patientId": "<id:4>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "remove patient allergy",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/patient-allergies/<id:6>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:1>/allergies",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:1>/allergies"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "allergyId": "<id:2>",
+                "allergyName": "Test Latex",
+                "createdAt": "<ts>",
+                "id": "<id:3>",
+                "notes": "Severe rash",
+                "patientId": "<id:1>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:4>/allergies",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:4>/allergies"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [],
+            "total": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "add a patient allergy twice",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/<id:1>/allergies",
+        "body": {
+          "allergyId": "<id:2>"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't add patient allergy",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/patient-allergies/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/patient-allergies/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Patient allergy not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/patients/:patientId/allergies with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000/allergies",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/patients/:patientId/allergies with unknown ids",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000/allergies",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/patient-allergies/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patient-allergies/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/patient-allergies/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patient-allergies/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Patient allergy not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

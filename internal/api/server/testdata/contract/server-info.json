@@ -1,0 +1,47 @@
+{
+  "resource": "server-info",
+  "cases": [
+    {
+      "name": "server info on the clinic",
+      "build": "clinic",
+      "request": {
+        "method": "GET",
+        "path": "/api/server-info"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "host": "<host>",
+            "isCloud": false,
+            "port": "55555",
+            "url": "http://<host>:55555"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "server info on the cloud",
+      "build": "cloud",
+      "request": {
+        "method": "GET",
+        "path": "/api/server-info"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "host": "127.0.0.1",
+            "isCloud": true,
+            "port": "8080",
+            "url": "http://127.0.0.1:8080"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    }
+  ]
+}

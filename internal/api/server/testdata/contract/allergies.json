@@ -1,0 +1,322 @@
+{
+  "resource": "allergies",
+  "cases": [
+    {
+      "name": "create allergy Latex",
+      "request": {
+        "method": "POST",
+        "path": "/api/allergies",
+        "body": {
+          "description": "Natural rubber",
+          "name": "Test Latex"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Natural rubber",
+            "id": "<id:1>",
+            "name": "Test Latex"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create allergy Penicillin",
+      "request": {
+        "method": "POST",
+        "path": "/api/allergies",
+        "body": {
+          "description": "",
+          "name": "Test Penicillin"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "",
+            "id": "<id:2>",
+            "name": "Test Penicillin"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create allergy Pollen",
+      "request": {
+        "method": "POST",
+        "path": "/api/allergies",
+        "body": {
+          "description": "Seasonal",
+          "name": "Test Pollen"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Seasonal",
+            "id": "<id:3>",
+            "name": "Test Pollen"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create allergy to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/allergies",
+        "body": {
+          "name": "Test Dust"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "",
+            "id": "<id:4>",
+            "name": "Test Dust"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update allergy Latex",
+      "request": {
+        "method": "PUT",
+        "path": "/api/allergies/<id:1>",
+        "body": {
+          "description": "Natural rubber, gloves"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Natural rubber, gloves",
+            "id": "<id:1>",
+            "name": "Test Latex"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused allergy",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/allergies/<id:4>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/allergies?sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/allergies?sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "description": "Natural rubber, gloves",
+                "id": "<id:1>",
+                "name": "Test Latex"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "",
+                "id": "<id:2>",
+                "name": "Test Penicillin"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "Seasonal",
+                "id": "<id:3>",
+                "name": "Test Pollen"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/allergies?filter=latex",
+      "request": {
+        "method": "GET",
+        "path": "/api/allergies?filter=latex"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "description": "Natural rubber, gloves",
+                "id": "<id:1>",
+                "name": "Test Latex"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/allergies/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/allergies/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:1>",
+              "name": "Test Latex"
+            },
+            {
+              "id": "<id:2>",
+              "name": "Test Penicillin"
+            },
+            {
+              "id": "<id:3>",
+              "name": "Test Pollen"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete an allergy in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/allergies/<id:1>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete allergy while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/allergies/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/allergies/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Allergy not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/allergies with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/allergies",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/allergies with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/allergies",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/allergies/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/allergies/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/allergies/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/allergies/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Allergy not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

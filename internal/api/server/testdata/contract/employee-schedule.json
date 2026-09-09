@@ -1,0 +1,418 @@
+{
+  "resource": "employee-schedule",
+  "cases": [
+    {
+      "name": "save Nora's Monday schedule",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 1,
+          "employeeId": "<id:1>",
+          "shifts": [
+            {
+              "endTime": "13:00",
+              "startTime": "09:00"
+            },
+            {
+              "endTime": "18:00",
+              "startTime": "14:00"
+            }
+          ],
+          "startDate": "2025-03-03"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "createdAt": "<ts>",
+              "dayOfWeek": 1,
+              "employeeId": "<id:1>",
+              "endTime": "13:00",
+              "id": "<id:2>",
+              "isActive": true,
+              "startDate": "2025-03-03",
+              "startTime": "09:00",
+              "updatedAt": "<ts>"
+            },
+            {
+              "createdAt": "<ts>",
+              "dayOfWeek": 1,
+              "employeeId": "<id:1>",
+              "endTime": "18:00",
+              "id": "<id:3>",
+              "isActive": true,
+              "startDate": "2025-03-03",
+              "startTime": "14:00",
+              "updatedAt": "<ts>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "save Nora's Saturday schedule",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 6,
+          "employeeId": "<id:1>",
+          "shifts": [
+            {
+              "endTime": "14:00",
+              "startTime": "09:00"
+            }
+          ],
+          "startDate": "2025-03-03"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "createdAt": "<ts>",
+              "dayOfWeek": 6,
+              "employeeId": "<id:1>",
+              "endTime": "14:00",
+              "id": "<id:4>",
+              "isActive": true,
+              "startDate": "2025-03-03",
+              "startTime": "09:00",
+              "updatedAt": "<ts>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "save Nora's Sunday schedule",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 0,
+          "employeeId": "<id:1>",
+          "shifts": [
+            {
+              "endTime": "12:00",
+              "startTime": "08:00"
+            }
+          ],
+          "startDate": "2025-03-02"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "createdAt": "<ts>",
+              "dayOfWeek": 0,
+              "employeeId": "<id:1>",
+              "endTime": "12:00",
+              "id": "<id:5>",
+              "isActive": true,
+              "startDate": "2025-03-02",
+              "startTime": "08:00",
+              "updatedAt": "<ts>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "start a new version of Nora's Monday",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 1,
+          "employeeId": "<id:1>",
+          "shifts": [
+            {
+              "endTime": "16:00",
+              "startTime": "10:00"
+            }
+          ],
+          "startDate": "2025-04-07"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "createdAt": "<ts>",
+              "dayOfWeek": 1,
+              "employeeId": "<id:1>",
+              "endTime": "16:00",
+              "id": "<id:6>",
+              "isActive": true,
+              "startDate": "2025-04-07",
+              "startTime": "10:00",
+              "updatedAt": "<ts>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "save Sam's Tuesday schedule",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 2,
+          "employeeId": "<id:7>",
+          "shifts": [
+            {
+              "endTime": "20:00",
+              "startTime": "12:00"
+            }
+          ],
+          "startDate": "2025-03-04"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "createdAt": "<ts>",
+              "dayOfWeek": 2,
+              "employeeId": "<id:7>",
+              "endTime": "20:00",
+              "id": "<id:8>",
+              "isActive": true,
+              "startDate": "2025-03-04",
+              "startTime": "12:00",
+              "updatedAt": "<ts>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "save Sam's Wednesday schedule",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 3,
+          "employeeId": "<id:7>",
+          "shifts": [
+            {
+              "endTime": "16:00",
+              "startTime": "12:00"
+            }
+          ],
+          "startDate": "2025-03-05"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "createdAt": "<ts>",
+              "dayOfWeek": 3,
+              "employeeId": "<id:7>",
+              "endTime": "16:00",
+              "id": "<id:9>",
+              "isActive": true,
+              "startDate": "2025-03-05",
+              "startTime": "12:00",
+              "updatedAt": "<ts>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete a schedule version",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-schedules/<id:9>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "save overlapping shifts",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 2,
+          "employeeId": "<id:1>",
+          "shifts": [
+            {
+              "endTime": "13:00",
+              "startTime": "09:00"
+            },
+            {
+              "endTime": "15:00",
+              "startTime": "12:00"
+            }
+          ],
+          "startDate": "2025-03-04"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "save a shift ending before it starts",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 2,
+          "employeeId": "<id:1>",
+          "shifts": [
+            {
+              "endTime": "09:00",
+              "startTime": "18:00"
+            }
+          ],
+          "startDate": "2025-03-04"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "save a shift with a bad time",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 2,
+          "employeeId": "<id:1>",
+          "shifts": [
+            {
+              "endTime": "5pm",
+              "startTime": "9am"
+            }
+          ],
+          "startDate": "2025-03-04"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "save a schedule for an unknown employee",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {
+          "dayOfWeek": 2,
+          "employeeId": "00000000-0000-7000-8000-000000000000",
+          "shifts": [
+            {
+              "endTime": "13:00",
+              "startTime": "09:00"
+            }
+          ],
+          "startDate": "2025-03-04"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't save employee schedule",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/employee-schedules/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-schedules/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Schedule entry not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/employee-schedules/day with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/employee-schedules/day with an empty body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-schedules/day",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

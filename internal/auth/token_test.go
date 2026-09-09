@@ -3,7 +3,6 @@ package auth
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -40,17 +39,21 @@ func setupAuthTestEnv(t *testing.T) {
 		}
 	})
 	tokenCfgOnce.Do(func() {
-		if os.Getenv("DB_ENCRYPTION_KEY") == "" {
-			os.Setenv("DB_ENCRYPTION_KEY", testHexKey)
-		}
-		_ = config.Load()
+		// Test values instead of the embedded secrets and peer settings.
+		cfg := config.Load()
+		cfg.PeerURL = ""
+		cfg.SyncSecret = "test-sync-secret"
+		cfg.PublishSecret = "test-publish-secret"
+		cfg.PublicURL = "http://127.0.0.1:8080"
+		cfg.JWTSecret = "test-jwt-secret"
 	})
 
 	id := tokenDBCounter.Add(1)
 	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("auth-test-%d.db", id))
 	dsn := "file:" + filepath.ToSlash(dbPath) +
 		"?vfs=adiantum&hexkey=" + testHexKey +
-		"&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
+		"&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)" +
+		"&_pragma=recursive_triggers(1)"
 
 	w, err := sql.Open("sqlite3", dsn)
 	if err != nil {

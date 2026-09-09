@@ -1,0 +1,685 @@
+{
+  "resource": "employee-salaries",
+  "cases": [
+    {
+      "name": "set Nora's salary",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees/<id:1>/salaries",
+        "body": {
+          "amount": 1200,
+          "currencyId": "USD",
+          "effectiveDate": "2025-01-01",
+          "notes": "Base"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 1200,
+            "createdAt": "<ts>",
+            "currencyId": "USD",
+            "effectiveDate": "2025-01-01",
+            "employeeId": "<id:1>",
+            "id": "<id:2>",
+            "isActive": true,
+            "notes": "Base",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "set Sam's salary",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees/<id:3>/salaries",
+        "body": {
+          "amount": 900,
+          "effectiveDate": "2025-02-01"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 900,
+            "createdAt": "<ts>",
+            "currencyId": "USD",
+            "effectiveDate": "2025-02-01",
+            "employeeId": "<id:3>",
+            "id": "<id:4>",
+            "isActive": true,
+            "notes": "",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "raise Nora's salary",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-salaries/<id:2>",
+        "body": {
+          "amount": 1250
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "amount": 1250,
+            "createdAt": "<ts>",
+            "currencyId": "USD",
+            "effectiveDate": "2025-01-01",
+            "employeeId": "<id:1>",
+            "id": "<id:2>",
+            "isActive": true,
+            "notes": "Base",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "set a salary to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees/<id:5>/salaries",
+        "body": {
+          "amount": 2000,
+          "effectiveDate": "2025-01-01"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 2000,
+            "createdAt": "<ts>",
+            "currencyId": "USD",
+            "effectiveDate": "2025-01-01",
+            "employeeId": "<id:5>",
+            "id": "<id:6>",
+            "isActive": true,
+            "notes": "",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete salary",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-salaries/<id:6>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "prepare March salaries",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-salaries/prepare",
+        "body": {
+          "notes": "March",
+          "periodEnd": "2025-03-31",
+          "periodStart": "2025-03-01"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": [
+            {
+              "adjustment": 0,
+              "baseSalary": 1250,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "employeeId": "<id:1>",
+              "employeeName": "Nora Example",
+              "id": "<id:7>",
+              "notes": "March",
+              "periodEnd": "2025-03-31",
+              "periodStart": "2025-03-01",
+              "preparedAmount": 1250,
+              "salaryId": "<id:2>",
+              "transactionId": "<id:8>"
+            },
+            {
+              "adjustment": 0,
+              "baseSalary": 900,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "employeeId": "<id:3>",
+              "employeeName": "Sam Sample",
+              "id": "<id:9>",
+              "notes": "March",
+              "periodEnd": "2025-03-31",
+              "periodStart": "2025-03-01",
+              "preparedAmount": 900,
+              "salaryId": "<id:4>",
+              "transactionId": "<id:10>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "adjust Nora's March salary",
+      "request": {
+        "method": "PATCH",
+        "path": "/api/employee-salary-preparations/<id:7>",
+        "body": {
+          "adjustment": 50
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "adjustment": 50,
+            "baseSalary": 1250,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "employeeId": "<id:1>",
+            "id": "<id:7>",
+            "notes": "March",
+            "periodEnd": "2025-03-31",
+            "periodStart": "2025-03-01",
+            "preparedAmount": 1300,
+            "salaryId": "<id:2>",
+            "transactionId": "<id:8>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "prepare April salaries",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-salaries/prepare",
+        "body": {
+          "periodEnd": "2025-04-30",
+          "periodStart": "2025-04-01"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": [
+            {
+              "adjustment": 0,
+              "baseSalary": 1250,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "employeeId": "<id:1>",
+              "employeeName": "Nora Example",
+              "id": "<id:11>",
+              "notes": "",
+              "periodEnd": "2025-04-30",
+              "periodStart": "2025-04-01",
+              "preparedAmount": 1250,
+              "salaryId": "<id:2>",
+              "transactionId": "<id:12>"
+            },
+            {
+              "adjustment": 0,
+              "baseSalary": 900,
+              "createdAt": "<ts>",
+              "createdBy": "Super Admin",
+              "currencyId": "USD",
+              "employeeId": "<id:3>",
+              "employeeName": "Sam Sample",
+              "id": "<id:13>",
+              "notes": "",
+              "periodEnd": "2025-04-30",
+              "periodStart": "2025-04-01",
+              "preparedAmount": 900,
+              "salaryId": "<id:4>",
+              "transactionId": "<id:14>"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete Sam's April preparation",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-salary-preparations/<id:13>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:1>/salaries",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>/salaries"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 1250,
+                "createdAt": "<ts>",
+                "currencyId": "USD",
+                "effectiveDate": "2025-01-01",
+                "employeeId": "<id:1>",
+                "id": "<id:2>",
+                "isActive": true,
+                "notes": "Base",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:1>/prepared-salaries",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>/prepared-salaries"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "adjustment": 0,
+                "baseSalary": 1250,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "employeeId": "<id:1>",
+                "id": "<id:11>",
+                "notes": "",
+                "periodEnd": "2025-04-30",
+                "periodStart": "2025-04-01",
+                "preparedAmount": 1250,
+                "salaryId": "<id:2>",
+                "transactionId": "<id:12>"
+              },
+              {
+                "adjustment": 50,
+                "baseSalary": 1250,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "employeeId": "<id:1>",
+                "id": "<id:7>",
+                "notes": "March",
+                "periodEnd": "2025-03-31",
+                "periodStart": "2025-03-01",
+                "preparedAmount": 1300,
+                "salaryId": "<id:2>",
+                "transactionId": "<id:8>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:3>/prepared-salaries",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:3>/prepared-salaries"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "adjustment": 0,
+                "baseSalary": 900,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "employeeId": "<id:3>",
+                "id": "<id:9>",
+                "notes": "March",
+                "periodEnd": "2025-03-31",
+                "periodStart": "2025-03-01",
+                "preparedAmount": 900,
+                "salaryId": "<id:4>",
+                "transactionId": "<id:10>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "nurse reads her own salaries",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>/salaries",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 1250,
+                "createdAt": "<ts>",
+                "currencyId": "USD",
+                "effectiveDate": "2025-01-01",
+                "employeeId": "<id:1>",
+                "id": "<id:2>",
+                "isActive": true,
+                "notes": "Base",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "set a negative salary",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees/<id:5>/salaries",
+        "body": {
+          "amount": -1,
+          "effectiveDate": "2025-01-01"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "set a salary for an unknown employee",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees/00000000-0000-7000-8000-000000000000/salaries",
+        "body": {
+          "amount": 100,
+          "effectiveDate": "2025-01-01"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create salary",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "prepare salaries for a backwards period",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-salaries/prepare",
+        "body": {
+          "periodEnd": "2025-05-01",
+          "periodStart": "2025-05-31"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't prepare salaries for this period",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "prepare salaries for a prepared period",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-salaries/prepare",
+        "body": {
+          "periodEnd": "2025-03-31",
+          "periodStart": "2025-03-01"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": [],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "adjust a salary below zero",
+      "request": {
+        "method": "PATCH",
+        "path": "/api/employee-salary-preparations/<id:7>",
+        "body": {
+          "adjustment": -5000
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't apply this adjustment",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/employee-salaries/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-salaries/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Salary not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/employee-salary-preparations/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/employee-salary-preparations/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Salary preparation not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PATCH /api/employee-salary-preparations/:id with a malformed body",
+      "request": {
+        "method": "PATCH",
+        "path": "/api/employee-salary-preparations/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PATCH /api/employee-salary-preparations/:id with unknown ids",
+      "request": {
+        "method": "PATCH",
+        "path": "/api/employee-salary-preparations/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Salary preparation not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-salaries/prepare with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-salaries/prepare",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employee-salaries/prepare with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employee-salaries/prepare",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't prepare salaries for this period",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employees/:id/salaries with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees/00000000-0000-7000-8000-000000000000/salaries",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/employees/:id/salaries with unknown ids",
+      "request": {
+        "method": "POST",
+        "path": "/api/employees/00000000-0000-7000-8000-000000000000/salaries",
+        "body": {}
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create salary",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/employee-salaries/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-salaries/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/employee-salaries/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/employee-salaries/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Salary not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

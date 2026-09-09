@@ -1,0 +1,263 @@
+{
+  "resource": "medicines",
+  "cases": [
+    {
+      "name": "create medicine Amoxitest",
+      "request": {
+        "method": "POST",
+        "path": "/api/medicines",
+        "body": {
+          "description": "Capsule",
+          "name": "Amoxitest 500"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Capsule",
+            "id": "<id:1>",
+            "name": "Amoxitest 500"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create medicine Ibutest",
+      "request": {
+        "method": "POST",
+        "path": "/api/medicines",
+        "body": {
+          "description": "Tablet",
+          "name": "Ibutest 200"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Tablet",
+            "id": "<id:2>",
+            "name": "Ibutest 200"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create medicine to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/medicines",
+        "body": {
+          "name": "Oldtest 10"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "",
+            "id": "<id:3>",
+            "name": "Oldtest 10"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update medicine Amoxitest",
+      "request": {
+        "method": "PUT",
+        "path": "/api/medicines/<id:1>",
+        "body": {
+          "description": "Capsule, 500 mg"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Capsule, 500 mg",
+            "id": "<id:1>",
+            "name": "Amoxitest 500"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused medicine",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/medicines/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/medicines?sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/medicines?sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "description": "Capsule, 500 mg",
+                "id": "<id:1>",
+                "name": "Amoxitest 500"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "Tablet",
+                "id": "<id:2>",
+                "name": "Ibutest 200"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/medicines/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/medicines/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:1>",
+              "name": "Amoxitest 500"
+            },
+            {
+              "id": "<id:2>",
+              "name": "Ibutest 200"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete a medicine in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/medicines/<id:1>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete medicine while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/medicines/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/medicines/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Medicine not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/medicines with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/medicines",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/medicines with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/medicines",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/medicines/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/medicines/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/medicines/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/medicines/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Medicine not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

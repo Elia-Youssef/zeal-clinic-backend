@@ -1,0 +1,304 @@
+{
+  "resource": "expenses",
+  "cases": [
+    {
+      "name": "create expense Rent",
+      "request": {
+        "method": "POST",
+        "path": "/api/expenses",
+        "body": {
+          "name": "Test Rent",
+          "notes": "Monthly"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:1>",
+            "name": "Test Rent",
+            "notes": "Monthly",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create expense Utilities",
+      "request": {
+        "method": "POST",
+        "path": "/api/expenses",
+        "body": {
+          "name": "Test Utilities"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:2>",
+            "name": "Test Utilities",
+            "notes": "",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update expense Utilities",
+      "request": {
+        "method": "PUT",
+        "path": "/api/expenses/<id:2>",
+        "body": {
+          "notes": "Power and water"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:2>",
+            "name": "Test Utilities",
+            "notes": "Power and water",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create expense to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/expenses",
+        "body": {
+          "name": "Test Temp Expense"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:3>",
+            "name": "Test Temp Expense",
+            "notes": "",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused expense",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/expenses/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/expenses?sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/expenses?sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:1>",
+                "name": "Test Rent",
+                "notes": "Monthly",
+                "updatedAt": "<ts>"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "<id:2>",
+                "name": "Test Utilities",
+                "notes": "Power and water",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/expenses/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/expenses/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:1>",
+              "name": "Test Rent"
+            },
+            {
+              "id": "<id:2>",
+              "name": "Test Utilities"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/expenses/<id:1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/expenses/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "id": "<id:1>",
+            "name": "Test Rent",
+            "notes": "Monthly",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/expenses/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/expenses/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Expense not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete an expense with payments",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/expenses/<id:1>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete expense while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/expenses/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/expenses/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Expense not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/expenses with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/expenses",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/expenses with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/expenses",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/expenses/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/expenses/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/expenses/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/expenses/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Expense not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

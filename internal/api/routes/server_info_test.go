@@ -13,7 +13,14 @@ import (
 )
 
 func TestServerInfoRouteIncludesBuildMode(t *testing.T) {
-	config.Load()
+	// Test values instead of the embedded secrets and peer settings.
+	cfg := config.Load()
+	cfg.PeerURL = ""
+	cfg.SyncSecret = "test-sync-secret"
+	cfg.PublishSecret = "test-publish-secret"
+	cfg.PublicURL = "http://127.0.0.1:8080"
+	cfg.JWTSecret = "test-jwt-secret"
+
 	e := echo.New()
 	SetupServerInfoRoutes(e.Group("/api"))
 

@@ -1,0 +1,403 @@
+{
+  "resource": "expense-payments",
+  "cases": [
+    {
+      "name": "pay rent",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-payments",
+        "body": {
+          "amount": 500,
+          "description": "March rent",
+          "expenseId": "<id:1>",
+          "transactionMethod": "transfer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 500,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "March rent",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:2>",
+            "toBalanceId": "<id:3>",
+            "toEntityName": "Test Rent",
+            "transactionMethod": "transfer",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "adjust rent",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-adjustments",
+        "body": {
+          "amount": 20,
+          "description": "Late fee",
+          "direction": "incoming",
+          "expenseId": "<id:1>",
+          "transactionMethod": "other"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 20,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Late fee",
+            "fromBalanceId": "<id:3>",
+            "fromEntityName": "Test Rent",
+            "id": "<id:4>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "other",
+            "transactionType": "adjustment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "write off utilities",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-write-offs",
+        "body": {
+          "amount": 5,
+          "description": "Waived",
+          "direction": "outgoing",
+          "expenseId": "<id:5>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 5,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Waived",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:6>",
+            "toBalanceId": "<id:7>",
+            "toEntityName": "Test Utilities",
+            "transactionMethod": "other",
+            "transactionType": "write-off"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "pay utilities",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-payments",
+        "body": {
+          "amount": 80,
+          "expenseId": "<id:5>",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 80,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:8>",
+            "toBalanceId": "<id:7>",
+            "toEntityName": "Test Utilities",
+            "transactionMethod": "cash",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete expense payment",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/expense-payments/<id:8>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/expenses/<id:1>/payments",
+      "request": {
+        "method": "GET",
+        "path": "/api/expenses/<id:1>/payments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 20,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Late fee",
+                "fromBalanceId": "<id:3>",
+                "fromEntityName": "Test Rent",
+                "id": "<id:4>",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityName": "Clinic",
+                "transactionMethod": "other",
+                "transactionType": "adjustment"
+              },
+              {
+                "amount": 500,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "March rent",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:2>",
+                "toBalanceId": "<id:3>",
+                "toEntityName": "Test Rent",
+                "transactionMethod": "transfer",
+                "transactionType": "payment"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/expenses/<id:5>/payments",
+      "request": {
+        "method": "GET",
+        "path": "/api/expenses/<id:5>/payments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 5,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Waived",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:6>",
+                "toBalanceId": "<id:7>",
+                "toEntityName": "Test Utilities",
+                "transactionMethod": "other",
+                "transactionType": "write-off"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "pay an unknown expense",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-payments",
+        "body": {
+          "amount": 5,
+          "expenseId": "00000000-0000-7000-8000-000000000000",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Expense not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "write off an unknown expense",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-write-offs",
+        "body": {
+          "amount": 5,
+          "description": "X",
+          "direction": "incoming",
+          "expenseId": "00000000-0000-7000-8000-000000000000"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create write-off",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete a client payment as an expense payment",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/expense-payments/<id:9>"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Transaction not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/expense-payments/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/expense-payments/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Transaction not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/expense-adjustments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-adjustments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/expense-adjustments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-adjustments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/expense-payments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-payments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/expense-payments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-payments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/expense-write-offs with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-write-offs",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/expense-write-offs with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/expense-write-offs",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

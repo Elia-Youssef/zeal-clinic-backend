@@ -9,3 +9,8 @@ client/dist/
 *.pdf
 .vscode
 *.log
+# Local config overrides: real values, embedded at build time (see internal/config/*.env.example)
+internal/config/*.env
+internal/config/*.env.*
+!internal/config/*.env.defaults
+!internal/config/*.env.example

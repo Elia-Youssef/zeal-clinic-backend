@@ -1,0 +1,302 @@
+{
+  "resource": "product-categories",
+  "cases": [
+    {
+      "name": "create product category",
+      "request": {
+        "method": "POST",
+        "path": "/api/product-categories",
+        "body": {
+          "description": "Parent",
+          "name": "Test Skincare"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Parent",
+            "id": "<id:1>",
+            "name": "Test Skincare",
+            "parentId": ""
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create product subcategory",
+      "request": {
+        "method": "POST",
+        "path": "/api/product-categories",
+        "body": {
+          "description": "Child",
+          "name": "Test Serums",
+          "parentId": "<id:1>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Child",
+            "id": "<id:2>",
+            "name": "Test Serums",
+            "parentId": "<id:1>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update product subcategory",
+      "request": {
+        "method": "PUT",
+        "path": "/api/product-categories/<id:2>",
+        "body": {
+          "description": "Face serums"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Face serums",
+            "id": "<id:2>",
+            "name": "Test Serums",
+            "parent": {
+              "createdAt": "<ts>",
+              "description": "Parent",
+              "id": "<id:1>",
+              "name": "Test Skincare",
+              "parentId": ""
+            },
+            "parentId": "<id:1>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create product category to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/product-categories",
+        "body": {
+          "name": "Test Temp Products"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "",
+            "id": "<id:3>",
+            "name": "Test Temp Products",
+            "parentId": ""
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused product category",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/product-categories/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/product-categories?sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/product-categories?sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "description": "Face serums",
+                "id": "<id:2>",
+                "name": "Test Serums",
+                "parent": {
+                  "createdAt": "<ts>",
+                  "description": "Parent",
+                  "id": "<id:1>",
+                  "name": "Test Skincare",
+                  "parentId": ""
+                },
+                "parentId": "<id:1>"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "Parent",
+                "id": "<id:1>",
+                "name": "Test Skincare",
+                "parentId": ""
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/product-categories/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/product-categories/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:2>",
+              "name": "Test Serums"
+            },
+            {
+              "id": "<id:1>",
+              "name": "Test Skincare"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create a duplicate product category",
+      "request": {
+        "method": "POST",
+        "path": "/api/product-categories",
+        "body": {
+          "name": "Test Serums"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "A category with this name already exists",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete a product category in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/product-categories/<id:2>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete category while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/product-categories/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/product-categories/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Category not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/product-categories with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/product-categories",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/product-categories with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/product-categories",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/product-categories/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/product-categories/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/product-categories/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/product-categories/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Category not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,727 @@
+{
+  "resource": "products",
+  "cases": [
+    {
+      "name": "create product Serum",
+      "request": {
+        "method": "POST",
+        "path": "/api/products",
+        "body": {
+          "categoryId": "<id:1>",
+          "minThreshold": 3,
+          "name": "Test Serum",
+          "quantity": 0,
+          "unitPrice": 40
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "categoryId": "<id:1>",
+            "createdAt": "<ts>",
+            "id": "<id:2>",
+            "minThreshold": 3,
+            "name": "Test Serum",
+            "quantity": 0,
+            "unitPrice": 40
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create product Cream",
+      "request": {
+        "method": "POST",
+        "path": "/api/products",
+        "body": {
+          "categoryId": "<id:3>",
+          "minThreshold": 5,
+          "name": "Test Cream",
+          "quantity": 20,
+          "unitPrice": 25
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "categoryId": "<id:3>",
+            "createdAt": "<ts>",
+            "id": "<id:4>",
+            "minThreshold": 5,
+            "name": "Test Cream",
+            "quantity": 20,
+            "unitPrice": 25
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "reprice product Cream",
+      "request": {
+        "method": "PUT",
+        "path": "/api/products/<id:4>",
+        "body": {
+          "minThreshold": 4,
+          "unitPrice": 27.5
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "category": {
+              "createdAt": "<ts>",
+              "description": "Parent",
+              "id": "<id:3>",
+              "name": "Test Skincare",
+              "parentId": ""
+            },
+            "categoryId": "<id:3>",
+            "createdAt": "<ts>",
+            "id": "<id:4>",
+            "minThreshold": 4,
+            "name": "Test Cream",
+            "quantity": 20,
+            "unitPrice": 27.5
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create product to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/products",
+        "body": {
+          "categoryId": "<id:3>",
+          "name": "Test Temp Product",
+          "quantity": 1,
+          "unitPrice": 5
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "categoryId": "<id:3>",
+            "createdAt": "<ts>",
+            "id": "<id:5>",
+            "minThreshold": 0,
+            "name": "Test Temp Product",
+            "quantity": 1,
+            "unitPrice": 5
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused product",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/products/<id:5>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/products?sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/products?sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "category": {
+                  "createdAt": "<ts>",
+                  "description": "Parent",
+                  "id": "<id:3>",
+                  "name": "Test Skincare",
+                  "parentId": ""
+                },
+                "categoryId": "<id:3>",
+                "createdAt": "<ts>",
+                "id": "<id:4>",
+                "minThreshold": 4,
+                "name": "Test Cream",
+                "quantity": 18,
+                "unitPrice": 27.5
+              },
+              {
+                "category": {
+                  "createdAt": "<ts>",
+                  "description": "Face serums",
+                  "id": "<id:1>",
+                  "name": "Test Serums",
+                  "parent": {
+                    "createdAt": "<ts>",
+                    "description": "Parent",
+                    "id": "<id:3>",
+                    "name": "Test Skincare",
+                    "parentId": ""
+                  },
+                  "parentId": "<id:3>"
+                },
+                "categoryId": "<id:1>",
+                "createdAt": "<ts>",
+                "id": "<id:2>",
+                "minThreshold": 3,
+                "name": "Test Serum",
+                "quantity": 2,
+                "unitPrice": 40
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/products/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/products/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:4>",
+              "name": "Test Cream"
+            },
+            {
+              "id": "<id:2>",
+              "name": "Test Serum"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/products/<id:4>",
+      "request": {
+        "method": "GET",
+        "path": "/api/products/<id:4>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "category": {
+              "createdAt": "<ts>",
+              "description": "Parent",
+              "id": "<id:3>",
+              "name": "Test Skincare",
+              "parentId": ""
+            },
+            "categoryId": "<id:3>",
+            "createdAt": "<ts>",
+            "id": "<id:4>",
+            "minThreshold": 4,
+            "name": "Test Cream",
+            "quantity": 18,
+            "unitPrice": 27.5
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/products/<id:2>",
+      "request": {
+        "method": "GET",
+        "path": "/api/products/<id:2>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "category": {
+              "createdAt": "<ts>",
+              "description": "Face serums",
+              "id": "<id:1>",
+              "name": "Test Serums",
+              "parent": {
+                "createdAt": "<ts>",
+                "description": "Parent",
+                "id": "<id:3>",
+                "name": "Test Skincare",
+                "parentId": ""
+              },
+              "parentId": "<id:3>"
+            },
+            "categoryId": "<id:1>",
+            "createdAt": "<ts>",
+            "id": "<id:2>",
+            "minThreshold": 3,
+            "name": "Test Serum",
+            "quantity": 2,
+            "unitPrice": 40
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/products/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/products/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Product not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/products/<id:4>/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/products/<id:4>/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:7>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:6>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:8>",
+                    "invoiceId": "<id:6>",
+                    "itemId": "<id:9>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:10>",
+                    "invoiceId": "<id:6>",
+                    "itemId": "<id:11>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:12>",
+                    "invoiceId": "<id:6>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:13>",
+                    "invoiceId": "<id:6>",
+                    "itemId": "<id:4>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:14>",
+                "toEntityId": "<id:15>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/products/<id:2>/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/products/<id:2>/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 195,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 195,
+                "fromBalanceId": "<id:17>",
+                "fromEntityId": "<id:18>",
+                "fromEntityName": "Acme Test Supplies",
+                "id": "<id:16>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 15,
+                    "createdAt": "<ts>",
+                    "finalAmount": 15,
+                    "id": "<id:19>",
+                    "invoiceId": "<id:16>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Delivery fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 180,
+                    "createdAt": "<ts>",
+                    "finalAmount": 180,
+                    "id": "<id:20>",
+                    "invoiceId": "<id:16>",
+                    "itemId": "<id:2>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 10
+                  }
+                ],
+                "notes": "First delivery, checked",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityId": "self",
+                "toEntityName": "Clinic",
+                "updatedAt": "<ts>"
+              },
+              {
+                "amount": 320,
+                "createdAt": "<ts>",
+                "createdBy": "Sam Sample",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 320,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:21>",
+                "invoiceNumber": 4,
+                "items": [
+                  {
+                    "amount": 320,
+                    "createdAt": "<ts>",
+                    "finalAmount": 320,
+                    "id": "<id:22>",
+                    "invoiceId": "<id:21>",
+                    "itemId": "<id:2>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 8
+                  }
+                ],
+                "notes": "",
+                "toBalanceId": "<id:23>",
+                "toEntityId": "<id:24>",
+                "toEntityName": "Ben Sample",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/products/<id:4>/prices",
+      "request": {
+        "method": "GET",
+        "path": "/api/products/<id:4>/prices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:25>",
+                "isActive": false,
+                "price": 25,
+                "productId": "<id:4>"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "<id:26>",
+                "isActive": true,
+                "price": 27.5,
+                "productId": "<id:4>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "nurse reads a product's invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/products/<id:4>/invoices",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 345,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountId": "<id:7>",
+                "discountValue": 34.5,
+                "finalAmount": 310.5,
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityId": "self",
+                "fromEntityName": "Clinic",
+                "id": "<id:6>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 100,
+                    "createdAt": "<ts>",
+                    "finalAmount": 100,
+                    "id": "<id:8>",
+                    "invoiceId": "<id:6>",
+                    "itemId": "<id:9>",
+                    "itemName": "Test Gift Card",
+                    "itemType": "gift",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 160,
+                    "categoryName": "Test Peels",
+                    "createdAt": "<ts>",
+                    "finalAmount": 160,
+                    "id": "<id:10>",
+                    "invoiceId": "<id:6>",
+                    "itemId": "<id:11>",
+                    "itemName": "Test Glow Peel",
+                    "itemType": "procedure",
+                    "notes": "",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 30,
+                    "createdAt": "<ts>",
+                    "finalAmount": 30,
+                    "id": "<id:12>",
+                    "invoiceId": "<id:6>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Consultation fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 55,
+                    "createdAt": "<ts>",
+                    "finalAmount": 55,
+                    "id": "<id:13>",
+                    "invoiceId": "<id:6>",
+                    "itemId": "<id:4>",
+                    "itemName": "Test Cream",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 2
+                  }
+                ],
+                "notes": "Visit, paid in two parts",
+                "toBalanceId": "<id:14>",
+                "toEntityId": "<id:15>",
+                "toEntityName": "Ada Example",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete a product in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/products/<id:4>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete product while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a product with a negative price",
+      "request": {
+        "method": "POST",
+        "path": "/api/products",
+        "body": {
+          "name": "Test Bad Price",
+          "unitPrice": -1
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/products/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/products/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Product not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/products with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/products",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/products with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/products",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/products/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/products/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/products/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/products/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Product not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

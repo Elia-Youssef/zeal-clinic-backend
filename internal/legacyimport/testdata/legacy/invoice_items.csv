@@ -1,0 +1,8 @@
+invoice,quantity,amount,name,notes,sheet,procedure,createdat
+5001,1,150,Fixture Peel,,Clinic Procedure,,15-Mar-26
+5001,2,25,Fixture Serum,Take home,STOCK,,15-Mar-26
+5001,1,x,Fixture Consult,,,,15-Mar-26
+5002,1,-50,Refund line,,Clinic Procedure,Fixture Laser,16-Mar-26
+5003,1,40,Unmatched line,,Hospital Surgery,11,17-Mar-26
+9999,1,10,Orphan line,,,,17-Mar-26
+0,1,1,Zero,,,,

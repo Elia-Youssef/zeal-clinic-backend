@@ -1,31 +1,35 @@
 package database
 
 import (
-	"os"
+	"database/sql"
+	"path/filepath"
 	"testing"
 
 	syncpkg "clinic-api/internal/sync"
 )
+
+// openTestDB opens a migrated database in a temp dir through Open. Both
+// connection pools are closed when the test ends.
+func openTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := Open(filepath.Join(t.TempDir(), "clinic.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	})
+	return db
+}
 
 // TestMigrate_SyncTriggers brings up a temp database through the full
 // migration chain and checks that every synced table got its three
 // triggers, the apply-guard table is seeded, and the old peer_pull_cursor
 // column is gone.
 func TestMigrate_SyncTriggers(t *testing.T) {
-	tmp, err := os.CreateTemp("", "clinic-mig-*.db")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmp.Close()
-	defer os.Remove(tmp.Name())
-
-	t.Setenv("DB_ENCRYPTION_KEY", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
-
-	db, err := Open(tmp.Name())
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer db.Close()
+	db := openTestDB(t)
 
 	wantTriggers := len(syncpkg.SyncedTables) * 3
 	var gotTriggers int
@@ -69,20 +73,7 @@ func TestMigrate_SyncTriggers(t *testing.T) {
 // sync_log captures it: end-to-end sanity that the generated triggers and
 // the apply guard play together correctly.
 func TestMigrate_TriggersFire(t *testing.T) {
-	tmp, err := os.CreateTemp("", "clinic-mig-*.db")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmp.Close()
-	defer os.Remove(tmp.Name())
-
-	t.Setenv("DB_ENCRYPTION_KEY", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
-
-	db, err := Open(tmp.Name())
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer db.Close()
+	db := openTestDB(t)
 
 	var before int
 	db.QueryRow(`SELECT COUNT(*) FROM sync_log WHERE table_name='rooms'`).Scan(&before)
@@ -119,20 +110,7 @@ func TestMigrate_TriggersFire(t *testing.T) {
 // row collapse to a single sync_log entry, and the final op reflects the
 // last write (e.g. insert, update, delete leaves exactly one 'delete' row).
 func TestMigrate_TriggersCollapse(t *testing.T) {
-	tmp, err := os.CreateTemp("", "clinic-mig-*.db")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmp.Close()
-	defer os.Remove(tmp.Name())
-
-	t.Setenv("DB_ENCRYPTION_KEY", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
-
-	db, err := Open(tmp.Name())
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer db.Close()
+	db := openTestDB(t)
 
 	// Insert, then update 5 times. Should leave exactly one row, op=update.
 	if _, err := db.Exec(`INSERT INTO rooms (id, name, type) VALUES ('c-1', 'A', 'General')`); err != nil {
@@ -173,20 +151,7 @@ func TestMigrate_TriggersCollapse(t *testing.T) {
 // roles table, whose PK is `name` rather than `id`. The trigger should
 // record `name` in sync_log.row_id, and repeated updates should collapse.
 func TestMigrate_RolesSyncByName(t *testing.T) {
-	tmp, err := os.CreateTemp("", "clinic-mig-*.db")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmp.Close()
-	defer os.Remove(tmp.Name())
-
-	t.Setenv("DB_ENCRYPTION_KEY", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
-
-	db, err := Open(tmp.Name())
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer db.Close()
+	db := openTestDB(t)
 
 	// Seeds run before the trigger migration, so no sync_log spam from
 	// seeding; both nodes seed identically anyway.

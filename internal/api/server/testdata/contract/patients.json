@@ -1,0 +1,942 @@
+{
+  "resource": "patients",
+  "cases": [
+    {
+      "name": "create patient Ada",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": {
+          "address": "12 Sample Street",
+          "bloodType": "A+",
+          "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+          "contact": "70 123 456",
+          "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+          "dateOfBirth": "1989-04-12",
+          "email": "ada@example.test",
+          "emergencyContactName": "Ben Sample",
+          "emergencyContactPhone": "70123457",
+          "firstName": "Ada",
+          "gender": "Female",
+          "height": 168,
+          "lastName": "Example",
+          "notes": "Scenario patient",
+          "referralSource": "Instagram",
+          "weight": 61.5
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "address": "12 Sample Street",
+            "bloodType": "A+",
+            "city": {
+              "district": "",
+              "governorate": "",
+              "id": "",
+              "name": ""
+            },
+            "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+            "contact": "70123456",
+            "country": {
+              "id": "",
+              "name": ""
+            },
+            "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1989-04-12",
+            "email": "ada@example.test",
+            "emergencyContactName": "Ben Sample",
+            "emergencyContactPhone": "70123457",
+            "firstName": "Ada",
+            "gender": "Female",
+            "height": 168,
+            "id": "<id:1>",
+            "lastName": "Example",
+            "middleName": "",
+            "notes": "Scenario patient",
+            "referralId": null,
+            "referralSource": "Instagram",
+            "updatedAt": "<ts>",
+            "weight": 61.5
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create patient Ben",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": {
+          "cityId": "5390fb25-9407-45fb-805b-71eff5d4fa16",
+          "contact": "71123456",
+          "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+          "dateOfBirth": "2004-07-01",
+          "firstName": "Ben",
+          "gender": "Male",
+          "lastName": "Sample",
+          "referralSource": "Friend"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "address": "",
+            "bloodType": "",
+            "city": {
+              "district": "",
+              "governorate": "",
+              "id": "",
+              "name": ""
+            },
+            "cityId": "5390fb25-9407-45fb-805b-71eff5d4fa16",
+            "contact": "71123456",
+            "country": {
+              "id": "",
+              "name": ""
+            },
+            "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+            "createdAt": "<ts>",
+            "dateOfBirth": "2004-07-01",
+            "email": "",
+            "emergencyContactName": "",
+            "emergencyContactPhone": "",
+            "firstName": "Ben",
+            "gender": "Male",
+            "height": 0,
+            "id": "<id:2>",
+            "lastName": "Sample",
+            "middleName": "",
+            "notes": "",
+            "referralId": null,
+            "referralSource": "Friend",
+            "updatedAt": "<ts>",
+            "weight": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create patient Cleo",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": {
+          "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+          "contact": "76123456",
+          "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+          "dateOfBirth": "1965-02-20",
+          "firstName": "Cleo",
+          "gender": "Female",
+          "lastName": "Placeholder",
+          "referralId": "<id:1>",
+          "referralSource": "Referral"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "address": "",
+            "bloodType": "",
+            "city": {
+              "district": "",
+              "governorate": "",
+              "id": "",
+              "name": ""
+            },
+            "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+            "contact": "76123456",
+            "country": {
+              "id": "",
+              "name": ""
+            },
+            "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1965-02-20",
+            "email": "",
+            "emergencyContactName": "",
+            "emergencyContactPhone": "",
+            "firstName": "Cleo",
+            "gender": "Female",
+            "height": 0,
+            "id": "<id:3>",
+            "lastName": "Placeholder",
+            "middleName": "",
+            "notes": "",
+            "referralId": "<id:1>",
+            "referralSource": "Referral",
+            "updatedAt": "<ts>",
+            "weight": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create patient to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": {
+          "contact": "78123456",
+          "dateOfBirth": "1995-05-05",
+          "firstName": "Dan",
+          "gender": "Male",
+          "lastName": "Dummy"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "address": "",
+            "bloodType": "",
+            "city": {
+              "district": "",
+              "governorate": "",
+              "id": "",
+              "name": ""
+            },
+            "cityId": "",
+            "contact": "78123456",
+            "country": {
+              "id": "",
+              "name": ""
+            },
+            "countryId": "",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1995-05-05",
+            "email": "",
+            "emergencyContactName": "",
+            "emergencyContactPhone": "",
+            "firstName": "Dan",
+            "gender": "Male",
+            "height": 0,
+            "id": "<id:4>",
+            "lastName": "Dummy",
+            "middleName": "",
+            "notes": "",
+            "referralId": null,
+            "referralSource": "",
+            "updatedAt": "<ts>",
+            "weight": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update patient Ada",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patients/<id:1>",
+        "body": {
+          "middleName": "Q",
+          "notes": "Prefers mornings"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "address": "12 Sample Street",
+            "bloodType": "A+",
+            "city": {
+              "district": "",
+              "governorate": "",
+              "id": "",
+              "name": ""
+            },
+            "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+            "contact": "70123456",
+            "country": {
+              "id": "",
+              "name": ""
+            },
+            "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1989-04-12",
+            "email": "ada@example.test",
+            "emergencyContactName": "Ben Sample",
+            "emergencyContactPhone": "70123457",
+            "firstName": "Ada",
+            "gender": "Female",
+            "height": 168,
+            "id": "<id:1>",
+            "lastName": "Example",
+            "middleName": "Q",
+            "notes": "Prefers mornings",
+            "referralId": null,
+            "referralSource": "Instagram",
+            "updatedAt": "<ts>",
+            "weight": 61.5
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete patient without records",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/patients/<id:4>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "rename patient Cleo",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patients/<id:3>",
+        "body": {
+          "lastName": "Example"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "address": "",
+            "bloodType": "",
+            "city": {
+              "district": "",
+              "governorate": "",
+              "id": "",
+              "name": ""
+            },
+            "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+            "contact": "76123456",
+            "country": {
+              "id": "",
+              "name": ""
+            },
+            "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1965-02-20",
+            "email": "",
+            "emergencyContactName": "",
+            "emergencyContactPhone": "",
+            "firstName": "Cleo",
+            "gender": "Female",
+            "height": 0,
+            "id": "<id:3>",
+            "lastName": "Example",
+            "middleName": "",
+            "notes": "",
+            "referralId": "<id:1>",
+            "referralSource": "Referral",
+            "updatedAt": "<ts>",
+            "weight": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients?sort=firstName&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients?sort=firstName&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "address": "12 Sample Street",
+                "bloodType": "A+",
+                "city": {
+                  "district": "",
+                  "governorate": "",
+                  "id": "",
+                  "name": ""
+                },
+                "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+                "contact": "70123456",
+                "country": {
+                  "id": "",
+                  "name": ""
+                },
+                "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+                "createdAt": "<ts>",
+                "dateOfBirth": "1989-04-12",
+                "email": "ada@example.test",
+                "emergencyContactName": "Ben Sample",
+                "emergencyContactPhone": "70123457",
+                "firstName": "Ada",
+                "gender": "Female",
+                "height": 168,
+                "id": "<id:1>",
+                "lastName": "Example",
+                "middleName": "Q",
+                "notes": "Prefers mornings",
+                "referralId": null,
+                "referralSource": "Instagram",
+                "updatedAt": "<ts>",
+                "weight": 61.5
+              },
+              {
+                "address": "",
+                "bloodType": "",
+                "city": {
+                  "district": "",
+                  "governorate": "",
+                  "id": "",
+                  "name": ""
+                },
+                "cityId": "5390fb25-9407-45fb-805b-71eff5d4fa16",
+                "contact": "71123456",
+                "country": {
+                  "id": "",
+                  "name": ""
+                },
+                "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+                "createdAt": "<ts>",
+                "dateOfBirth": "2004-07-01",
+                "email": "",
+                "emergencyContactName": "",
+                "emergencyContactPhone": "",
+                "firstName": "Ben",
+                "gender": "Male",
+                "height": 0,
+                "id": "<id:2>",
+                "lastName": "Sample",
+                "middleName": "",
+                "notes": "",
+                "referralId": null,
+                "referralSource": "Friend",
+                "updatedAt": "<ts>",
+                "weight": 0
+              },
+              {
+                "address": "",
+                "bloodType": "",
+                "city": {
+                  "district": "",
+                  "governorate": "",
+                  "id": "",
+                  "name": ""
+                },
+                "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+                "contact": "76123456",
+                "country": {
+                  "id": "",
+                  "name": ""
+                },
+                "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+                "createdAt": "<ts>",
+                "dateOfBirth": "1965-02-20",
+                "email": "",
+                "emergencyContactName": "",
+                "emergencyContactPhone": "",
+                "firstName": "Cleo",
+                "gender": "Female",
+                "height": 0,
+                "id": "<id:3>",
+                "lastName": "Example",
+                "middleName": "",
+                "notes": "",
+                "referralId": "<id:1>",
+                "referralSource": "Referral",
+                "updatedAt": "<ts>",
+                "weight": 0
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients?sort=firstName&order=asc&limit=1&offset=1",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients?sort=firstName&order=asc&limit=1&offset=1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "address": "",
+                "bloodType": "",
+                "city": {
+                  "district": "",
+                  "governorate": "",
+                  "id": "",
+                  "name": ""
+                },
+                "cityId": "5390fb25-9407-45fb-805b-71eff5d4fa16",
+                "contact": "71123456",
+                "country": {
+                  "id": "",
+                  "name": ""
+                },
+                "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+                "createdAt": "<ts>",
+                "dateOfBirth": "2004-07-01",
+                "email": "",
+                "emergencyContactName": "",
+                "emergencyContactPhone": "",
+                "firstName": "Ben",
+                "gender": "Male",
+                "height": 0,
+                "id": "<id:2>",
+                "lastName": "Sample",
+                "middleName": "",
+                "notes": "",
+                "referralId": null,
+                "referralSource": "Friend",
+                "updatedAt": "<ts>",
+                "weight": 0
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients?filter=ada+example",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients?filter=ada+example"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "address": "12 Sample Street",
+                "bloodType": "A+",
+                "city": {
+                  "district": "",
+                  "governorate": "",
+                  "id": "",
+                  "name": ""
+                },
+                "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+                "contact": "70123456",
+                "country": {
+                  "id": "",
+                  "name": ""
+                },
+                "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+                "createdAt": "<ts>",
+                "dateOfBirth": "1989-04-12",
+                "email": "ada@example.test",
+                "emergencyContactName": "Ben Sample",
+                "emergencyContactPhone": "70123457",
+                "firstName": "Ada",
+                "gender": "Female",
+                "height": 168,
+                "id": "<id:1>",
+                "lastName": "Example",
+                "middleName": "Q",
+                "notes": "Prefers mornings",
+                "referralId": null,
+                "referralSource": "Instagram",
+                "updatedAt": "<ts>",
+                "weight": 61.5
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:1>",
+              "name": "Ada Q Example"
+            },
+            {
+              "id": "<id:2>",
+              "name": "Ben Sample"
+            },
+            {
+              "id": "<id:3>",
+              "name": "Cleo Example"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/dropdown?filter=71123456",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/dropdown?filter=71123456"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:2>",
+              "name": "Ben Sample"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "address": "12 Sample Street",
+            "bloodType": "A+",
+            "city": {
+              "district": "Beirut",
+              "governorate": "Beirut",
+              "id": "6809a457-195a-4735-9283-e91e21be7883",
+              "name": "Beirut"
+            },
+            "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+            "contact": "70123456",
+            "country": {
+              "id": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+              "name": "Lebanon"
+            },
+            "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1989-04-12",
+            "email": "ada@example.test",
+            "emergencyContactName": "Ben Sample",
+            "emergencyContactPhone": "70123457",
+            "firstName": "Ada",
+            "gender": "Female",
+            "height": 168,
+            "id": "<id:1>",
+            "lastName": "Example",
+            "middleName": "Q",
+            "notes": "Prefers mornings",
+            "referralId": null,
+            "referralSource": "Instagram",
+            "updatedAt": "<ts>",
+            "weight": 61.5
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:3>",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "address": "",
+            "bloodType": "",
+            "city": {
+              "district": "Beirut",
+              "governorate": "Beirut",
+              "id": "6809a457-195a-4735-9283-e91e21be7883",
+              "name": "Beirut"
+            },
+            "cityId": "6809a457-195a-4735-9283-e91e21be7883",
+            "contact": "76123456",
+            "country": {
+              "id": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+              "name": "Lebanon"
+            },
+            "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+            "createdAt": "<ts>",
+            "dateOfBirth": "1965-02-20",
+            "email": "",
+            "emergencyContactName": "",
+            "emergencyContactPhone": "",
+            "firstName": "Cleo",
+            "gender": "Female",
+            "height": 0,
+            "id": "<id:3>",
+            "lastName": "Example",
+            "middleName": "",
+            "notes": "",
+            "referralId": "<id:1>",
+            "referralSource": "Referral",
+            "updatedAt": "<ts>",
+            "weight": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Patient not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete a patient with appointments",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/patients/<id:1>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete patient while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a patient of an unknown gender",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": {
+          "contact": "70999000",
+          "firstName": "Test",
+          "gender": "Other",
+          "lastName": "Gender"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a patient born in the future",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": {
+          "contact": "70999001",
+          "dateOfBirth": "<day+1>",
+          "firstName": "Test",
+          "gender": "Male",
+          "lastName": "Future"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a patient with a bad phone",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": {
+          "contact": "12",
+          "firstName": "Test",
+          "gender": "Male",
+          "lastName": "Phone"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "update a patient with a bad email",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patients/<id:2>",
+        "body": {
+          "email": "not-an-email"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "address": "",
+            "bloodType": "",
+            "city": {
+              "district": "",
+              "governorate": "",
+              "id": "",
+              "name": ""
+            },
+            "cityId": "5390fb25-9407-45fb-805b-71eff5d4fa16",
+            "contact": "71123456",
+            "country": {
+              "id": "",
+              "name": ""
+            },
+            "countryId": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+            "createdAt": "<ts>",
+            "dateOfBirth": "2004-07-01",
+            "email": "not-an-email",
+            "emergencyContactName": "",
+            "emergencyContactPhone": "",
+            "firstName": "Ben",
+            "gender": "Male",
+            "height": 0,
+            "id": "<id:2>",
+            "lastName": "Sample",
+            "middleName": "",
+            "notes": "",
+            "referralId": null,
+            "referralSource": "Friend",
+            "updatedAt": "<ts>",
+            "weight": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/patients/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Patient not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/patients with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/patients with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/patients",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/patients/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/patients/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Patient not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

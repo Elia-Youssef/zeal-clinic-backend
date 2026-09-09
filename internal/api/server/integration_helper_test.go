@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -34,23 +33,47 @@ func testDSN(dbPath string) string {
 		"&hexkey=" + testHexKey +
 		"&_pragma=busy_timeout(5000)" +
 		"&_pragma=journal_mode(WAL)" +
-		"&_pragma=foreign_keys(1)"
+		"&_pragma=foreign_keys(1)" +
+		"&_pragma=recursive_triggers(1)"
+}
+
+// Test values for the secrets and URLs of the embedded config, so the server
+// under test never carries real ones and never has a peer to reach.
+const (
+	testJWTSecret     = "test-jwt-secret"
+	testSyncSecret    = "test-sync-secret"
+	testPublishSecret = "test-publish-secret"
+	testPublicURL     = "http://127.0.0.1:8080"
+)
+
+// loadTestConfig loads the embedded config and replaces its secrets, public
+// URL and peer URL with the test values above.
+func loadTestConfig() *config.Config {
+	cfg := config.Load()
+	cfg.PeerURL = ""
+	cfg.SyncSecret = testSyncSecret
+	cfg.PublishSecret = testPublishSecret
+	cfg.PublicURL = testPublicURL
+	cfg.JWTSecret = testJWTSecret
+	return cfg
 }
 
 // DB harness
 
 var (
-	dbCounter        atomic.Uint64
-	gooseInitOnce    sync.Once
-	configInitOnce   sync.Once
+	dbCounter      atomic.Uint64
+	gooseInitOnce  sync.Once
+	configInitOnce sync.Once
 )
 
 // setupTestEnv opens a fresh on-disk SQLite, runs migrations, swaps the
-// package-level store.DB / store.RDB handles, and ensures config.Load has
-// been called (so JWT_SECRET etc. are populated). Caller-side cleanup is
-// registered via t.Cleanup.
+// package-level store.DB / store.RDB handles, and loads the test config.
+// The working directory moves to a temp dir for the test, so files the
+// server writes (PDFs, ./tmp or ./data) stay out of the package folder.
+// Caller-side cleanup is registered via t.Cleanup.
 func setupTestEnv(t *testing.T) {
 	t.Helper()
+	t.Chdir(t.TempDir())
 
 	gooseInitOnce.Do(func() {
 		goose.SetBaseFS(migrations.FS)
@@ -60,12 +83,7 @@ func setupTestEnv(t *testing.T) {
 		}
 	})
 	configInitOnce.Do(func() {
-		// Avoid relying on real .env or env vars during tests; just load defaults.
-		// DB_ENCRYPTION_KEY is required by config.Load, so provide a dummy.
-		if os.Getenv("DB_ENCRYPTION_KEY") == "" {
-			os.Setenv("DB_ENCRYPTION_KEY", testHexKey)
-		}
-		_ = config.Load()
+		loadTestConfig()
 	})
 
 	id := dbCounter.Add(1)
@@ -109,21 +127,24 @@ func setupTestEnv(t *testing.T) {
 }
 
 // newTestServer returns the full Echo router under test. setupTestEnv must
-// already have been called.
+// already have been called. On cloud builds it also opens the critical-sync
+// gate for the test, as a connected and synced clinic would.
 func newTestServer(t *testing.T) *echo.Echo {
 	t.Helper()
-	return CreateServer()
+	e := CreateServer()
+	openCriticalSyncGate(t)
+	return e
 }
 
 // HTTP helpers
 
-// loginAdmin posts to /api/auth/login as the seeded `admin` user with the
-// given password (which becomes the user's password on first login). Returns
-// the bearer token.
+// loginAdmin posts to /api/auth/login as the seeded `super-admin` user with
+// the given password (which becomes the user's password on first login).
+// Returns the bearer token.
 func loginAdmin(t *testing.T, e *echo.Echo, password string) string {
 	t.Helper()
 	body, _ := json.Marshal(map[string]string{
-		"username": "admin",
+		"username": "super-admin",
 		"password": password,
 	})
 	rec := doRequest(t, e, http.MethodPost, "/api/auth/login", body, "")

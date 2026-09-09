@@ -1,0 +1,8 @@
+invoice,amount,discount,final,currency,createdat,patient_id,name,notes
+5001,200,20,180,USD,15-Mar-26,101,Alpha Tester,First visit
+5002,-50,0,-50,LBP,16-Mar-26,999,Hotel Missing,Refund
+5003,abc,0,0,$,17-Mar-26,102,Charlie Q Sample,
+5004,75,0,75,EUR,18-Mar-26,103,Delta Example,Paid in euros
+X7,10,0,10,USD,19-Mar-26,104,Echo Dummy,
+5001,1,0,1,USD,20-Mar-26,101,Alpha Tester,Duplicate number
+0,1,0,1,USD,20-Mar-26,101,,

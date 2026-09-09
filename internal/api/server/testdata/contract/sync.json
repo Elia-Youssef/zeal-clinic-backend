@@ -1,0 +1,224 @@
+{
+  "resource": "sync",
+  "cases": [
+    {
+      "name": "sync status",
+      "build": "cloud",
+      "request": {
+        "method": "GET",
+        "path": "/api/sync/status",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "last_pulled_seq": 0,
+          "last_pushed_seq": 0,
+          "max_log_seq": 374,
+          "self_id": "cloud"
+        }
+      }
+    },
+    {
+      "name": "sync status with the query secret",
+      "build": "cloud",
+      "request": {
+        "method": "GET",
+        "path": "/api/sync/status?sync_secret=test-sync-secret",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "last_pulled_seq": 0,
+          "last_pushed_seq": 0,
+          "max_log_seq": 374,
+          "self_id": "cloud"
+        }
+      }
+    },
+    {
+      "name": "sync status with a wrong secret",
+      "build": "cloud",
+      "request": {
+        "method": "GET",
+        "path": "/api/sync/status",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<wrong secret>"
+        }
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "error": "unauthorized"
+        }
+      }
+    },
+    {
+      "name": "pull the first changes",
+      "build": "cloud",
+      "request": {
+        "method": "GET",
+        "path": "/api/sync/pull?since=0&limit=1",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "max_seq": 374,
+          "rows": [
+            {
+              "created_at": "<ts>",
+              "op": "insert",
+              "row_id": "<id:1>",
+              "row_json": {
+                "created_at": "<ts>",
+                "id": "<id:1>",
+                "notes": "",
+                "platform": "<os>",
+                "sha256": "",
+                "url": "",
+                "version": "<version>"
+              },
+              "seq": 1,
+              "table": "versions"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "pull with an old version",
+      "build": "cloud",
+      "request": {
+        "method": "GET",
+        "path": "/api/sync/pull?since=0&limit=1",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "0.0.0-old"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "cloud": "<version>",
+          "error": "version mismatch",
+          "peer": "0.0.0-old"
+        }
+      }
+    },
+    {
+      "name": "push nothing",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/sync/push",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        },
+        "body": {
+          "rows": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "applied_seq": 0
+        }
+      }
+    },
+    {
+      "name": "push a malformed body",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/sync/push",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        },
+        "body": "{\"rows\":"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": "decode: unexpected EOF"
+        }
+      }
+    },
+    {
+      "name": "confirm a stale sync session",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/sync/ready",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        },
+        "body": {
+          "session_token": "stale-token"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": "stale sync session"
+        }
+      }
+    },
+    {
+      "name": "fail a stale sync session",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/sync/failed",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        },
+        "body": {
+          "session_token": "stale-token"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": "stale sync session"
+        }
+      }
+    },
+    {
+      "name": "open the sync stream",
+      "build": "cloud",
+      "request": {
+        "method": "GET",
+        "path": "/api/sync/events",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        }
+      },
+      "response": {
+        "status": 200,
+        "text": "event: hello\ndata: {\"session_token\":\"<token>\"}\n\n"
+      }
+    }
+  ]
+}

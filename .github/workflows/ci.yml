@@ -1,0 +1,266 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Date-window run of test-clinic, test-cloud and e2e-smoke: 00:30 or 01:30 in Beirut,
+    # while the UTC and clinic dates differ.
+    - cron: '30 22 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  DASHBOARD_REPO: ${{ github.repository_owner }}/zeal-clinic-frontend
+
+jobs:
+  static:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: pwsh scripts/ci.ps1 -Stage env-check
+      - run: pwsh scripts/ci.ps1 -Stage workflows
+      - run: pwsh scripts/ci.ps1 -Stage fmt
+      - run: pwsh scripts/ci.ps1 -Stage mod
+      - run: pwsh scripts/ci.ps1 -Stage platform
+      - run: pwsh scripts/ci.ps1 -Stage vet -Tags cloud
+      # Off Windows the clinic build is type-checked for windows.
+      - run: pwsh scripts/ci.ps1 -Stage vet -Tags default
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}
+          path: |
+            ${{ runner.temp }}/artifacts/
+            !${{ runner.temp }}/artifacts/**/*.exe
+            !${{ runner.temp }}/artifacts/**/*.db*
+          retention-days: 14
+
+  test-clinic:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Use LF line endings and long paths
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.longpaths true
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: pwsh scripts/ci.ps1 -Stage go-test -Tags default
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}
+          path: |
+            ${{ runner.temp }}/artifacts/
+            !${{ runner.temp }}/artifacts/**/*.exe
+            !${{ runner.temp }}/artifacts/**/*.db*
+          retention-days: 14
+
+  test-cloud:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: pwsh scripts/ci.ps1 -Stage go-test -Tags cloud
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}
+          path: |
+            ${{ runner.temp }}/artifacts/
+            !${{ runner.temp }}/artifacts/**/*.exe
+            !${{ runner.temp }}/artifacts/**/*.db*
+          retention-days: 14
+
+  build:
+    if: github.event_name != 'schedule'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Use LF line endings and long paths
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.longpaths true
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: pwsh scripts/ci.ps1 -Stage package
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}
+          path: |
+            ${{ runner.temp }}/artifacts/
+            !${{ runner.temp }}/artifacts/**/*.exe
+            !${{ runner.temp }}/artifacts/**/*.db*
+          retention-days: 14
+
+  build-linux:
+    # Disabled until the package stage smoke-tests the Linux binary (--seed-only, then /health).
+    if: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: pwsh scripts/ci.ps1 -Stage package
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}
+          path: |
+            ${{ runner.temp }}/artifacts/
+            !${{ runner.temp }}/artifacts/**/*.exe
+            !${{ runner.temp }}/artifacts/**/*.db*
+          retention-days: 14
+
+  e2e-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Use LF line endings and long paths
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.longpaths true
+      - uses: actions/checkout@v6
+        with:
+          path: zeal-clinic-backend
+      - name: Pick the dashboard branch
+        id: dashboard-ref
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          $found = git ls-remote --heads "$env:GITHUB_SERVER_URL/$($env:DASHBOARD_REPO).git" "refs/heads/$env:BRANCH"
+          "ref=$(if ($found) { $env:BRANCH } else { 'main' })" >> $env:GITHUB_OUTPUT
+      - uses: actions/checkout@v6
+        id: dashboard
+        with:
+          repository: ${{ env.DASHBOARD_REPO }}
+          ref: ${{ steps.dashboard-ref.outputs.ref }}
+          path: zeal-clinic-frontend
+      - name: Record the dashboard commit
+        env:
+          REF: ${{ steps.dashboard-ref.outputs.ref }}
+          COMMIT: ${{ steps.dashboard.outputs.commit }}
+        run: |
+          "Dashboard: $env:DASHBOARD_REPO, branch $env:REF, commit $env:COMMIT" >> $env:GITHUB_STEP_SUMMARY
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: zeal-clinic-backend/go.mod
+          cache-dependency-path: zeal-clinic-backend/go.sum
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: zeal-clinic-frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: zeal-clinic-frontend/package-lock.json
+      - name: Read the Playwright version
+        id: playwright
+        working-directory: zeal-clinic-frontend
+        run: |
+          $version = node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - uses: actions/cache@v5
+        with:
+          path: ~/AppData/Local/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - run: pwsh scripts/ci.ps1 -Stage install
+        working-directory: zeal-clinic-frontend
+      - run: pwsh scripts/ci.ps1 -Stage build
+        working-directory: zeal-clinic-frontend
+      - run: pwsh scripts/ci.ps1 -Stage e2e -E2E smoke -BackendDir ../zeal-clinic-backend
+        working-directory: zeal-clinic-frontend
+      # Parity: the dashboard's scopes, endpoint calls and response envelope against this backend.
+      - run: pwsh scripts/ci.ps1 -Stage contract -Tags default -DashboardDir ../zeal-clinic-frontend
+        working-directory: zeal-clinic-backend
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}
+          path: |
+            ${{ runner.temp }}/artifacts/
+            !${{ runner.temp }}/artifacts/**/*.exe
+            !${{ runner.temp }}/artifacts/**/*.db*
+          retention-days: 14
+
+  system:
+    if: github.event_name != 'schedule'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Use LF line endings and long paths
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.longpaths true
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: pwsh scripts/ci.ps1 -Stage system
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}
+          path: |
+            ${{ runner.temp }}/artifacts/
+            !${{ runner.temp }}/artifacts/**/*.exe
+            !${{ runner.temp }}/artifacts/**/*.db*
+          retention-days: 14
+
+  security:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: pwsh scripts/ci.ps1 -Stage secrets
+      # Advisory on pull requests; the nightly run fails on new findings.
+      - id: vuln
+        run: pwsh scripts/ci.ps1 -Stage vuln
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+      - name: Upload reports
+        if: failure() || steps.vuln.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}
+          path: |
+            ${{ runner.temp }}/artifacts/
+            !${{ runner.temp }}/artifacts/**/*.exe
+            !${{ runner.temp }}/artifacts/**/*.db*
+          retention-days: 14

@@ -1,0 +1,162 @@
+{
+  "resource": "audit",
+  "cases": [
+    {
+      "name": "GET /api/audit-log",
+      "request": {
+        "method": "GET",
+        "path": "/api/audit-log"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "",
+                "entityId": "test",
+                "entityType": "notifications",
+                "id": "<id:1>",
+                "ipAddress": "<ip>",
+                "userId": "<id:2>",
+                "userRole": "nurse",
+                "username": "nora.example"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"amount\":15,\"patientId\":\"<id:4>\",\"transactionMethod\":\"transfer\"}",
+                "entityId": "",
+                "entityType": "client-payments",
+                "id": "<id:3>",
+                "ipAddress": "<ip>",
+                "userId": "<id:5>",
+                "userRole": "staff",
+                "username": "sam.sample"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"appointmentProcedures\":[{\"assignedToId\":\"<id:7>\",\"procedureId\":\"<id:8>\"}],\"endTime\":\"<day+2>T07:30:00.000Z\",\"patientId\":\"<id:4>\",\"roomId\":\"25e6a41c-c76b-4b39-b959-07cf51f4305e\",\"startTime\":\"<day+2>T07:00:00.000Z\"}",
+                "entityId": "",
+                "entityType": "appointments",
+                "id": "<id:6>",
+                "ipAddress": "<ip>",
+                "userId": "<id:5>",
+                "userRole": "staff",
+                "username": "sam.sample"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"employeeId\":\"<id:7>\",\"endDate\":\"2025-10-28\",\"startDate\":\"2025-10-27\",\"type\":\"timeoff\"}",
+                "entityId": "",
+                "entityType": "employee-schedule-changes",
+                "id": "<id:9>",
+                "ipAddress": "<ip>",
+                "userId": "<id:5>",
+                "userRole": "staff",
+                "username": "sam.sample"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"items\":[{\"amount\":320,\"itemId\":\"<id:11>\",\"itemType\":\"product\",\"quantity\":8}],\"patientId\":\"<id:4>\"}",
+                "entityId": "",
+                "entityType": "client-invoices",
+                "id": "<id:10>",
+                "ipAddress": "<ip>",
+                "userId": "<id:5>",
+                "userRole": "staff",
+                "username": "sam.sample"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"items\":[{\"amount\":90,\"itemId\":\"<id:13>\",\"itemType\":\"product\",\"quantity\":5}],\"supplierId\":\"<id:14>\"}",
+                "entityId": "",
+                "entityType": "supplier-invoices",
+                "id": "<id:12>",
+                "ipAddress": "<ip>",
+                "userId": "<id:15>",
+                "userRole": "admin",
+                "username": "admin.example"
+              },
+              {
+                "action": "create",
+                "createdAt": "<ts>",
+                "details": "{\"medicines\":[{\"instructions\":\"After meals\",\"medicineId\":\"<id:17>\"}],\"patientId\":\"<id:18>\",\"prescribedById\":\"<id:7>\",\"startDate\":\"2025-10-27\"}",
+                "entityId": "",
+                "entityType": "prescriptions",
+                "id": "<id:16>",
+                "ipAddress": "<ip>",
+                "userId": "<id:2>",
+                "userRole": "nurse",
+                "username": "nora.example"
+              }
+            ],
+            "total": 7
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/audit-log?entityType=patients",
+      "request": {
+        "method": "GET",
+        "path": "/api/audit-log?entityType=patients"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [],
+            "total": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/audit-log?action=update&userId=<id:15>",
+      "request": {
+        "method": "GET",
+        "path": "/api/audit-log?action=update&userId=<id:15>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [],
+            "total": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/audit-log?filter=serum",
+      "request": {
+        "method": "GET",
+        "path": "/api/audit-log?filter=serum"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [],
+            "total": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    }
+  ]
+}

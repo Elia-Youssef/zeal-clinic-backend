@@ -59,6 +59,14 @@ func main() {
 
 	tracking.Debug(nil, "[main] Server starting")
 
+	// A release build never runs on the committed dev values.
+	if err := cfg.Check(buildmode.Release()); err != nil {
+		tracking.Fatal("Refusing to start", err)
+	}
+	if err := database.SetKey(cfg.DBEncryptionKey); err != nil {
+		tracking.Fatal("Refusing to start", err)
+	}
+
 	if !buildmode.Cloud && !opts.seedOnly && !opts.postUpdate && alreadyRunning() {
 		handoffToRunningInstance(opts, cfg)
 		return

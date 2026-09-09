@@ -1,0 +1,95 @@
+{
+  "resource": "countries",
+  "cases": [
+    {
+      "name": "GET /api/countries?limit=3",
+      "request": {
+        "method": "GET",
+        "path": "/api/countries?limit=3"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "id": "5ea732db-a668-4f8f-ab4e-083a3b4513d4",
+                "name": "Afghanistan"
+              },
+              {
+                "id": "98a07eb1-9814-4159-ad06-574668382a5d",
+                "name": "Albania"
+              },
+              {
+                "id": "078ae410-ddf3-4448-b42c-cc462c1fd70a",
+                "name": "Algeria"
+              }
+            ],
+            "total": 243
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/countries?filter=leban",
+      "request": {
+        "method": "GET",
+        "path": "/api/countries?filter=leban"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "id": "931e6eda-fa3f-4e7c-bb3a-0ea9c6a51645",
+                "name": "Lebanon"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/countries/dropdown?filter=united",
+      "request": {
+        "method": "GET",
+        "path": "/api/countries/dropdown?filter=united"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "31d14fdd-5447-41bf-91c9-0fff9a8c4f3b",
+              "name": "Tanzania, United Republic of"
+            },
+            {
+              "id": "a8f8b80e-be4f-445d-8b58-558df37979d9",
+              "name": "United Arab Emirates"
+            },
+            {
+              "id": "dae5bfc4-844d-4aac-a7f6-7c76e7bd982c",
+              "name": "United Kingdom"
+            },
+            {
+              "id": "a20db636-222b-4c32-8012-f7a86bdad72d",
+              "name": "United States"
+            },
+            {
+              "id": "bef14608-6094-40a5-9bac-f6190d0c5877",
+              "name": "United States Minor Outlying Islands"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    }
+  ]
+}

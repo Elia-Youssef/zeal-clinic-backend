@@ -1,0 +1,8 @@
+patient_id,name,amount,currency,descriptin,type,created_at
+101,Alpha Tester,180,USD,INV # 5001,Invoices,15-Mar-26
+101,Alpha Tester,100,USD,Payment on Invoice # 5001,Invoices,16-Mar-26
+102,Charlie Q Sample,30,USD,Deposit,RECEIPT,17-Mar-26
+103,Delta Example,10,USD,Misc,Odd Type,18-Mar-26
+998,India Unknown,5,USD,Credit,CREDIT NOTE,19-Mar-26
+104,Echo Dummy,12.5,USD,INV #7777,Invoices,20-Mar-26
+0,Nobody,1,USD,,RECEIPT,20-Mar-26

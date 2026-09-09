@@ -1,0 +1,662 @@
+{
+  "resource": "client-payments",
+  "cases": [
+    {
+      "name": "Ada pays a deposit",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-payments",
+        "body": {
+          "amount": 200,
+          "description": "Deposit",
+          "patientId": "<id:1>",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 200,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Deposit",
+            "fromBalanceId": "<id:3>",
+            "fromEntityName": "Ada Example",
+            "id": "<id:2>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "cash",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "Ada pays by card",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-payments",
+        "body": {
+          "amount": 50,
+          "patientId": "<id:1>",
+          "transactionMethod": "card"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 50,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "",
+            "fromBalanceId": "<id:3>",
+            "fromEntityName": "Ada Example",
+            "id": "<id:4>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "card",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "refund Ada",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-refunds",
+        "body": {
+          "amount": 20,
+          "description": "Overcharge",
+          "patientId": "<id:1>",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 20,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Overcharge",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:5>",
+            "toBalanceId": "<id:3>",
+            "toEntityName": "Ada Example",
+            "transactionMethod": "cash",
+            "transactionType": "refund"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "adjust Ada's balance",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-adjustments",
+        "body": {
+          "amount": 5,
+          "description": "Rounding",
+          "direction": "incoming",
+          "patientId": "<id:1>",
+          "transactionMethod": "other"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 5,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Rounding",
+            "fromBalanceId": "<id:3>",
+            "fromEntityName": "Ada Example",
+            "id": "<id:6>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "other",
+            "transactionType": "adjustment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "write off Ben's balance",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-write-offs",
+        "body": {
+          "amount": 10,
+          "description": "Small balance",
+          "direction": "incoming",
+          "patientId": "<id:7>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 10,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Small balance",
+            "fromBalanceId": "<id:9>",
+            "fromEntityName": "Ben Sample",
+            "id": "<id:8>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "other",
+            "transactionType": "write-off"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "staff records Ben's payment",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-payments",
+        "as": "staff",
+        "body": {
+          "amount": 15,
+          "patientId": "<id:7>",
+          "transactionMethod": "transfer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 15,
+            "createdAt": "<ts>",
+            "createdBy": "Sam Sample",
+            "currencyId": "USD",
+            "description": "",
+            "fromBalanceId": "<id:9>",
+            "fromEntityName": "Ben Sample",
+            "id": "<id:10>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "transfer",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete client payment",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/client-payments/<id:10>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:1>/payments",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:1>/payments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 20,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Overcharge",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:5>",
+                "toBalanceId": "<id:3>",
+                "toEntityName": "Ada Example",
+                "transactionMethod": "cash",
+                "transactionType": "refund"
+              },
+              {
+                "amount": 200,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Deposit",
+                "fromBalanceId": "<id:3>",
+                "fromEntityName": "Ada Example",
+                "id": "<id:2>",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityName": "Clinic",
+                "transactionMethod": "cash",
+                "transactionType": "payment"
+              },
+              {
+                "amount": 5,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Rounding",
+                "fromBalanceId": "<id:3>",
+                "fromEntityName": "Ada Example",
+                "id": "<id:6>",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityName": "Clinic",
+                "transactionMethod": "other",
+                "transactionType": "adjustment"
+              },
+              {
+                "amount": 50,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "",
+                "fromBalanceId": "<id:3>",
+                "fromEntityName": "Ada Example",
+                "id": "<id:4>",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityName": "Clinic",
+                "transactionMethod": "card",
+                "transactionType": "payment"
+              }
+            ],
+            "total": 4
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:7>/payments?sort=amount&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:7>/payments?sort=amount&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 10,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Small balance",
+                "fromBalanceId": "<id:9>",
+                "fromEntityName": "Ben Sample",
+                "id": "<id:8>",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityName": "Clinic",
+                "transactionMethod": "other",
+                "transactionType": "write-off"
+              },
+              {
+                "amount": 100,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Redeemed gift card \"Test Gift Card\"",
+                "fromBalanceId": "<id:9>",
+                "fromEntityName": "Ben Sample",
+                "id": "<id:11>",
+                "sourceId": "<id:12>",
+                "sourceType": "discount",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityName": "Clinic",
+                "transactionMethod": "discount",
+                "transactionType": "adjustment"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "pay nothing",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-payments",
+        "body": {
+          "amount": 0,
+          "patientId": "<id:1>",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "pay with an unknown method",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-payments",
+        "body": {
+          "amount": 5,
+          "patientId": "<id:1>",
+          "transactionMethod": "barter"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "pay for an unknown patient",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-payments",
+        "body": {
+          "amount": 5,
+          "patientId": "00000000-0000-7000-8000-000000000000",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Patient not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "refund an unknown patient",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-refunds",
+        "body": {
+          "amount": 5,
+          "patientId": "00000000-0000-7000-8000-000000000000",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Patient not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "adjust an unknown patient",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-adjustments",
+        "body": {
+          "amount": 5,
+          "description": "X",
+          "direction": "incoming",
+          "patientId": "00000000-0000-7000-8000-000000000000",
+          "transactionMethod": "other"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create adjustment",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "adjust without a direction",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-adjustments",
+        "body": {
+          "amount": 5,
+          "description": "X",
+          "patientId": "<id:1>",
+          "transactionMethod": "other"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 5,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "X",
+            "fromBalanceId": "<id:3>",
+            "fromEntityName": "Ada Example",
+            "id": "<id:13>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "other",
+            "transactionType": "adjustment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "write off without a description",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-write-offs",
+        "body": {
+          "amount": 5,
+          "direction": "incoming",
+          "patientId": "<id:1>"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete a supplier payment as a client payment",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/client-payments/<id:14>"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Transaction not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/client-payments/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/client-payments/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Transaction not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-adjustments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-adjustments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-adjustments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-adjustments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-payments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-payments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-payments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-payments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-refunds with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-refunds",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-refunds with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-refunds",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-write-offs with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-write-offs",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/client-write-offs with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/client-write-offs",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

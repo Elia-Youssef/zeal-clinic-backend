@@ -1,0 +1,2021 @@
+{
+  "resource": "appointments",
+  "cases": [
+    {
+      "name": "book the Saturday before DST starts",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "assignedToId": "<id:1>",
+              "notes": "First session",
+              "procedureId": "<id:2>"
+            },
+            {
+              "assignedToId": "<id:1>",
+              "procedureId": "<id:3>"
+            }
+          ],
+          "endTime": "2025-03-29T09:00:00.000Z",
+          "notes": "Before DST",
+          "patientId": "<id:4>",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "2025-03-29T08:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "appointmentProcedures": [
+              {
+                "appointmentId": "",
+                "assignedToId": "<id:1>",
+                "createdAt": "",
+                "id": "",
+                "notes": "",
+                "patientId": "",
+                "procedureId": "<id:3>",
+                "updatedAt": ""
+              },
+              {
+                "appointmentId": "",
+                "assignedToId": "<id:1>",
+                "createdAt": "",
+                "id": "",
+                "notes": "First session",
+                "patientId": "",
+                "procedureId": "<id:2>",
+                "updatedAt": ""
+              }
+            ],
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-03-29T09:00:00.000Z",
+            "id": "<id:5>",
+            "notes": "Before DST",
+            "patientId": "<id:4>",
+            "patientName": "Ada Example",
+            "rescheduledFrom": "",
+            "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+            "startTime": "2025-03-29T08:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "book the Monday after DST starts",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "procedureId": "<id:2>"
+            }
+          ],
+          "endTime": "2025-03-31T07:30:00.000Z",
+          "notes": "After DST",
+          "patientId": "<id:6>",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "2025-03-31T07:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "appointmentProcedures": [
+              {
+                "appointmentId": "",
+                "assignedToId": "",
+                "createdAt": "",
+                "id": "",
+                "notes": "",
+                "patientId": "",
+                "procedureId": "<id:2>",
+                "updatedAt": ""
+              }
+            ],
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-03-31T07:30:00.000Z",
+            "id": "<id:7>",
+            "notes": "After DST",
+            "patientId": "<id:6>",
+            "patientName": "Ben Sample",
+            "rescheduledFrom": "",
+            "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+            "startTime": "2025-03-31T07:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "book just after clinic midnight",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "assignedToId": "<id:1>",
+              "procedureId": "<id:3>"
+            }
+          ],
+          "endTime": "2025-03-30T22:00:00.000Z",
+          "notes": "Late slot",
+          "patientId": "<id:8>",
+          "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+          "startTime": "2025-03-30T21:30:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "appointmentProcedures": [
+              {
+                "appointmentId": "",
+                "assignedToId": "<id:1>",
+                "createdAt": "",
+                "id": "",
+                "notes": "",
+                "patientId": "",
+                "procedureId": "<id:3>",
+                "updatedAt": ""
+              }
+            ],
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-03-30T22:00:00.000Z",
+            "id": "<id:9>",
+            "notes": "Late slot",
+            "patientId": "<id:8>",
+            "patientName": "Cleo Placeholder",
+            "rescheduledFrom": "",
+            "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+            "startTime": "2025-03-30T21:30:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "book the Saturday before DST ends",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "procedureId": "<id:2>"
+            }
+          ],
+          "endTime": "2025-10-25T08:00:00.000Z",
+          "notes": "",
+          "patientId": "<id:4>",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "2025-10-25T07:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "appointmentProcedures": [
+              {
+                "appointmentId": "",
+                "assignedToId": "",
+                "createdAt": "",
+                "id": "",
+                "notes": "",
+                "patientId": "",
+                "procedureId": "<id:2>",
+                "updatedAt": ""
+              }
+            ],
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-10-25T08:00:00.000Z",
+            "id": "<id:10>",
+            "notes": "",
+            "patientId": "<id:4>",
+            "patientName": "Ada Example",
+            "rescheduledFrom": "",
+            "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+            "startTime": "2025-10-25T07:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "book the Sunday DST ends",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "appointmentProcedures": null,
+          "endTime": "2025-10-26T07:45:00.000Z",
+          "notes": "Fall back",
+          "patientId": "<id:8>",
+          "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+          "startTime": "2025-10-26T07:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-10-26T07:45:00.000Z",
+            "id": "<id:11>",
+            "notes": "Fall back",
+            "patientId": "<id:8>",
+            "patientName": "Cleo Placeholder",
+            "rescheduledFrom": "",
+            "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+            "startTime": "2025-10-26T07:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "book the holiday after DST ends",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "assignedToId": "<id:1>",
+              "procedureId": "<id:2>"
+            },
+            {
+              "assignedToId": "<id:12>",
+              "notes": "Assist",
+              "procedureId": "<id:3>"
+            }
+          ],
+          "endTime": "2025-10-27T09:00:00.000Z",
+          "notes": "On a holiday",
+          "patientId": "<id:6>",
+          "roomId": "<id:13>",
+          "startTime": "2025-10-27T08:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "appointmentProcedures": [
+              {
+                "appointmentId": "",
+                "assignedToId": "<id:12>",
+                "createdAt": "",
+                "id": "",
+                "notes": "Assist",
+                "patientId": "",
+                "procedureId": "<id:3>",
+                "updatedAt": ""
+              },
+              {
+                "appointmentId": "",
+                "assignedToId": "<id:1>",
+                "createdAt": "",
+                "id": "",
+                "notes": "",
+                "patientId": "",
+                "procedureId": "<id:2>",
+                "updatedAt": ""
+              }
+            ],
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-10-27T09:00:00.000Z",
+            "id": "<id:14>",
+            "notes": "On a holiday",
+            "patientId": "<id:6>",
+            "patientName": "Ben Sample",
+            "rescheduledFrom": "",
+            "roomId": "<id:13>",
+            "startTime": "2025-10-27T08:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "reschedule the Monday appointment",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments/<id:7>/reschedule",
+        "body": {
+          "cancelNotes": "Patient asked",
+          "endTime": "2025-03-31T09:30:00.000Z",
+          "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+          "startTime": "2025-03-31T09:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-03-31T09:30:00.000Z",
+            "id": "<id:15>",
+            "notes": "After DST",
+            "patientId": "<id:6>",
+            "patientName": "Ben Sample",
+            "rescheduledFrom": "<id:7>",
+            "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+            "startTime": "2025-03-31T09:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "complete the late appointment",
+      "request": {
+        "method": "PUT",
+        "path": "/api/appointments/<id:9>",
+        "body": {
+          "completionNotes": "Went well",
+          "status": "Completed"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "cancelNotes": "",
+            "completionNotes": "Went well",
+            "createdAt": "<ts>",
+            "endTime": "2025-03-30T22:00:00.000Z",
+            "id": "<id:9>",
+            "notes": "Late slot",
+            "patientId": "<id:8>",
+            "patientName": "Cleo Placeholder",
+            "rescheduledFrom": "",
+            "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+            "startTime": "2025-03-30T21:30:00.000Z",
+            "status": "Completed",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "cancel an appointment",
+      "request": {
+        "method": "PUT",
+        "path": "/api/appointments/<id:10>",
+        "body": {
+          "cancelNotes": "Patient ill",
+          "status": "Cancelled"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "cancelNotes": "Patient ill",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-10-25T08:00:00.000Z",
+            "id": "<id:10>",
+            "notes": "",
+            "patientId": "<id:4>",
+            "patientName": "Ada Example",
+            "rescheduledFrom": "",
+            "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+            "startTime": "2025-10-25T07:00:00.000Z",
+            "status": "Cancelled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "start the holiday appointment",
+      "request": {
+        "method": "PUT",
+        "path": "/api/appointments/<id:14>",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "assignedToId": "<id:1>",
+              "notes": "Swapped",
+              "procedureId": "<id:2>"
+            }
+          ],
+          "status": "In-Progress"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-10-27T09:00:00.000Z",
+            "id": "<id:14>",
+            "notes": "On a holiday",
+            "patientId": "<id:6>",
+            "patientName": "Ben Sample",
+            "rescheduledFrom": "",
+            "roomId": "<id:13>",
+            "startTime": "2025-10-27T08:00:00.000Z",
+            "status": "In-Progress",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete an appointment",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/appointments/<id:11>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "book three days ago",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "assignedToId": "<id:1>",
+              "procedureId": "<id:2>"
+            }
+          ],
+          "endTime": "<day-3>T08:00:00.000Z",
+          "patientId": "<id:4>",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "<day-3>T07:00:00.000Z",
+          "status": "Completed"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "appointmentProcedures": [
+              {
+                "appointmentId": "",
+                "assignedToId": "<id:1>",
+                "createdAt": "",
+                "id": "",
+                "notes": "",
+                "patientId": "",
+                "procedureId": "<id:2>",
+                "updatedAt": ""
+              }
+            ],
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "<day-3>T08:00:00.000Z",
+            "id": "<id:16>",
+            "notes": "",
+            "patientId": "<id:4>",
+            "patientName": "Ada Example",
+            "rescheduledFrom": "",
+            "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+            "startTime": "<day-3>T07:00:00.000Z",
+            "status": "Completed",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "staff books in two days",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "as": "staff",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "assignedToId": "<id:1>",
+              "procedureId": "<id:3>"
+            }
+          ],
+          "endTime": "<day+2>T07:30:00.000Z",
+          "patientId": "<id:6>",
+          "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+          "startTime": "<day+2>T07:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "appointmentProcedures": [
+              {
+                "appointmentId": "",
+                "assignedToId": "<id:1>",
+                "createdAt": "",
+                "id": "",
+                "notes": "",
+                "patientId": "",
+                "procedureId": "<id:3>",
+                "updatedAt": ""
+              }
+            ],
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "<day+2>T07:30:00.000Z",
+            "id": "<id:17>",
+            "notes": "",
+            "patientId": "<id:6>",
+            "patientName": "Ben Sample",
+            "rescheduledFrom": "",
+            "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+            "startTime": "<day+2>T07:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments?date=2025-03-29",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments?date=2025-03-29"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [],
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:5>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:18>",
+                    "notes": "",
+                    "patientId": "<id:4>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  },
+                  {
+                    "appointmentId": "<id:5>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:19>",
+                    "notes": "First session",
+                    "patientId": "<id:4>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-29T09:00:00.000Z",
+                "id": "<id:5>",
+                "notes": "Before DST",
+                "patientBalance": 75.5,
+                "patientId": "<id:4>",
+                "patientName": "Ada Example",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "2025-03-29T08:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments?date=2025-03-31",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments?date=2025-03-31"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [],
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:15>",
+                    "assignedToId": "",
+                    "createdAt": "<ts>",
+                    "id": "<id:20>",
+                    "notes": "",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-31T09:30:00.000Z",
+                "id": "<id:15>",
+                "notes": "After DST",
+                "patientBalance": 560,
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "<id:7>",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-31T09:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:9>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:21>",
+                    "notes": "",
+                    "patientId": "<id:8>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "Went well",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-30T22:00:00.000Z",
+                "id": "<id:9>",
+                "notes": "Late slot",
+                "patientBalance": -50,
+                "patientId": "<id:8>",
+                "patientName": "Cleo Example",
+                "rescheduledFrom": "",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-30T21:30:00.000Z",
+                "status": "Completed",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments?date=2025-10-26",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments?date=2025-10-26"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [],
+            "items": [],
+            "total": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments?date=2025-10-27",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments?date=2025-10-27"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [
+              {
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "endDate": "2025-10-27",
+                "id": "<id:22>",
+                "name": "Test Holiday",
+                "notes": "Scenario, clinic closed",
+                "startDate": "2025-10-27",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:14>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:23>",
+                    "notes": "Swapped",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-10-27T09:00:00.000Z",
+                "id": "<id:14>",
+                "notes": "On a holiday",
+                "patientBalance": 560,
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "<id:13>",
+                "startTime": "2025-10-27T08:00:00.000Z",
+                "status": "In-Progress",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments?date=<day+2>",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments?date=<day+2>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [],
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:17>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:24>",
+                    "notes": "",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "<day+2>T07:30:00.000Z",
+                "id": "<id:17>",
+                "notes": "",
+                "patientBalance": 560,
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "<day+2>T07:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments?date=2025-03-31&sort=startTime&order=desc",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments?date=2025-03-31&sort=startTime&order=desc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [],
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:15>",
+                    "assignedToId": "",
+                    "createdAt": "<ts>",
+                    "id": "<id:20>",
+                    "notes": "",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-31T09:30:00.000Z",
+                "id": "<id:15>",
+                "notes": "After DST",
+                "patientBalance": 560,
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "<id:7>",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-31T09:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:9>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:21>",
+                    "notes": "",
+                    "patientId": "<id:8>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "Went well",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-30T22:00:00.000Z",
+                "id": "<id:9>",
+                "notes": "Late slot",
+                "patientBalance": -50,
+                "patientId": "<id:8>",
+                "patientName": "Cleo Example",
+                "rescheduledFrom": "",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-30T21:30:00.000Z",
+                "status": "Completed",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Date is required",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments/count-per-room?date=2025-03-31",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments/count-per-room?date=2025-03-31"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [],
+            "rooms": [
+              {
+                "days": {},
+                "roomId": "e7bf71a3-5fed-4cfb-a206-8e3b9524eb83",
+                "roomName": "Hospital"
+              },
+              {
+                "days": {},
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "roomName": "Room 1"
+              },
+              {
+                "days": {
+                  "2025-03-31": 1
+                },
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "roomName": "Room 2"
+              },
+              {
+                "days": {},
+                "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+                "roomName": "Room 3"
+              },
+              {
+                "days": {},
+                "roomId": "94214e6b-30c5-4173-b766-9765188d2102",
+                "roomName": "Room 4"
+              },
+              {
+                "days": {},
+                "roomId": "42c1c4e3-b14e-4aed-8742-43d1b0827fa4",
+                "roomName": "Room 5"
+              },
+              {
+                "days": {},
+                "roomId": "1f01c7de-f9f9-4f7b-bbf2-db051f2efda1",
+                "roomName": "Room 6"
+              },
+              {
+                "days": {},
+                "roomId": "cd52a2a6-3e99-4e69-a51f-2c8289e6033d",
+                "roomName": "Room 7"
+              },
+              {
+                "days": {},
+                "roomId": "<id:13>",
+                "roomName": "Test Room A"
+              }
+            ]
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments/count-per-room?date=2025-10-27",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments/count-per-room?date=2025-10-27"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [
+              {
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "endDate": "2025-10-27",
+                "id": "<id:22>",
+                "name": "Test Holiday",
+                "notes": "Scenario, clinic closed",
+                "startDate": "2025-10-27",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "rooms": [
+              {
+                "days": {},
+                "roomId": "e7bf71a3-5fed-4cfb-a206-8e3b9524eb83",
+                "roomName": "Hospital"
+              },
+              {
+                "days": {},
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "roomName": "Room 1"
+              },
+              {
+                "days": {},
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "roomName": "Room 2"
+              },
+              {
+                "days": {},
+                "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+                "roomName": "Room 3"
+              },
+              {
+                "days": {},
+                "roomId": "94214e6b-30c5-4173-b766-9765188d2102",
+                "roomName": "Room 4"
+              },
+              {
+                "days": {},
+                "roomId": "42c1c4e3-b14e-4aed-8742-43d1b0827fa4",
+                "roomName": "Room 5"
+              },
+              {
+                "days": {},
+                "roomId": "1f01c7de-f9f9-4f7b-bbf2-db051f2efda1",
+                "roomName": "Room 6"
+              },
+              {
+                "days": {},
+                "roomId": "cd52a2a6-3e99-4e69-a51f-2c8289e6033d",
+                "roomName": "Room 7"
+              },
+              {
+                "days": {
+                  "2025-10-27": 1
+                },
+                "roomId": "<id:13>",
+                "roomName": "Test Room A"
+              }
+            ]
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments/count-per-room",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments/count-per-room"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Date is required",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments/count-per-room?date=31-03-2025",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments/count-per-room?date=31-03-2025"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:4>/appointments",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:4>/appointments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:10>",
+                    "assignedToId": "",
+                    "createdAt": "<ts>",
+                    "id": "<id:25>",
+                    "notes": "",
+                    "patientId": "<id:4>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "Patient ill",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-10-25T08:00:00.000Z",
+                "id": "<id:10>",
+                "notes": "",
+                "patientId": "<id:4>",
+                "patientName": "Ada Example",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "2025-10-25T07:00:00.000Z",
+                "status": "Cancelled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:16>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:26>",
+                    "notes": "",
+                    "patientId": "<id:4>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "<day-3>T08:00:00.000Z",
+                "id": "<id:16>",
+                "notes": "",
+                "patientId": "<id:4>",
+                "patientName": "Ada Example",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "<day-3>T07:00:00.000Z",
+                "status": "Completed",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:5>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:18>",
+                    "notes": "",
+                    "patientId": "<id:4>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  },
+                  {
+                    "appointmentId": "<id:5>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:19>",
+                    "notes": "First session",
+                    "patientId": "<id:4>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-29T09:00:00.000Z",
+                "id": "<id:5>",
+                "notes": "Before DST",
+                "patientId": "<id:4>",
+                "patientName": "Ada Example",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "2025-03-29T08:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:6>/appointments?sort=startTime&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:6>/appointments?sort=startTime&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:7>",
+                    "assignedToId": "",
+                    "createdAt": "<ts>",
+                    "id": "<id:27>",
+                    "notes": "",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "Patient asked",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-31T07:30:00.000Z",
+                "id": "<id:7>",
+                "notes": "After DST",
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+                "startTime": "2025-03-31T07:00:00.000Z",
+                "status": "Rescheduled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:15>",
+                    "assignedToId": "",
+                    "createdAt": "<ts>",
+                    "id": "<id:20>",
+                    "notes": "",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-31T09:30:00.000Z",
+                "id": "<id:15>",
+                "notes": "After DST",
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "<id:7>",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-31T09:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:14>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:23>",
+                    "notes": "Swapped",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-10-27T09:00:00.000Z",
+                "id": "<id:14>",
+                "notes": "On a holiday",
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "<id:13>",
+                "startTime": "2025-10-27T08:00:00.000Z",
+                "status": "In-Progress",
+                "updatedAt": "<ts>"
+              },
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:17>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:24>",
+                    "notes": "",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "<day+2>T07:30:00.000Z",
+                "id": "<id:17>",
+                "notes": "",
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "<day+2>T07:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 4
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:1>/appointments?date=2025-03-31",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>/appointments?date=2025-03-31"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:9>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:21>",
+                    "notes": "",
+                    "patientId": "<id:8>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "Went well",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-30T22:00:00.000Z",
+                "id": "<id:9>",
+                "notes": "Late slot",
+                "patientBalance": -50,
+                "patientId": "<id:8>",
+                "patientName": "Cleo Example",
+                "rescheduledFrom": "",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-30T21:30:00.000Z",
+                "status": "Completed",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/employees/<id:1>/appointments?date=2025-10-27",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>/appointments?date=2025-10-27"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:14>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:23>",
+                    "notes": "Swapped",
+                    "patientId": "<id:6>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "2025-10-27T09:00:00.000Z",
+                "id": "<id:14>",
+                "notes": "On a holiday",
+                "patientBalance": 560,
+                "patientId": "<id:6>",
+                "patientName": "Ben Sample",
+                "rescheduledFrom": "",
+                "roomId": "<id:13>",
+                "startTime": "2025-10-27T08:00:00.000Z",
+                "status": "In-Progress",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "nurse reads her own appointments",
+      "request": {
+        "method": "GET",
+        "path": "/api/employees/<id:1>/appointments?date=2025-03-31",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:9>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:21>",
+                    "notes": "",
+                    "patientId": "<id:8>",
+                    "procedureId": "<id:3>",
+                    "procedureName": "Test Peels, Test Laser Session",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "Went well",
+                "createdAt": "<ts>",
+                "endTime": "2025-03-30T22:00:00.000Z",
+                "id": "<id:9>",
+                "notes": "Late slot",
+                "patientBalance": -50,
+                "patientId": "<id:8>",
+                "patientName": "Cleo Example",
+                "rescheduledFrom": "",
+                "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
+                "startTime": "2025-03-30T21:30:00.000Z",
+                "status": "Completed",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "book today",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "appointmentProcedures": [
+            {
+              "assignedToId": "<id:1>",
+              "procedureId": "<id:2>"
+            }
+          ],
+          "endTime": "<day+0>T07:45:00.000Z",
+          "patientId": "<id:8>",
+          "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+          "startTime": "<day+0>T07:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "appointmentProcedures": [
+              {
+                "appointmentId": "",
+                "assignedToId": "<id:1>",
+                "createdAt": "",
+                "id": "",
+                "notes": "",
+                "patientId": "",
+                "procedureId": "<id:2>",
+                "updatedAt": ""
+              }
+            ],
+            "cancelNotes": "",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "<day+0>T07:45:00.000Z",
+            "id": "<id:28>",
+            "notes": "",
+            "patientId": "<id:8>",
+            "patientName": "Cleo Example",
+            "rescheduledFrom": "",
+            "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+            "startTime": "<day+0>T07:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/appointments?date=<day+0>",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments?date=<day+0>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "holidays": [],
+            "items": [
+              {
+                "appointmentProcedures": [
+                  {
+                    "appointmentId": "<id:28>",
+                    "assignedToId": "<id:1>",
+                    "assignedToName": "Nora Example",
+                    "createdAt": "<ts>",
+                    "id": "<id:29>",
+                    "notes": "",
+                    "patientId": "<id:8>",
+                    "procedureId": "<id:2>",
+                    "procedureName": "Test Peels, Test Glow Peel",
+                    "updatedAt": "<ts>"
+                  }
+                ],
+                "cancelNotes": "",
+                "completionNotes": "",
+                "createdAt": "<ts>",
+                "endTime": "<day+0>T07:45:00.000Z",
+                "id": "<id:28>",
+                "notes": "",
+                "patientBalance": -50,
+                "patientId": "<id:8>",
+                "patientName": "Cleo Example",
+                "rescheduledFrom": "",
+                "roomId": "27fa19ea-2e15-406b-b8af-a1f83ee9dd67",
+                "startTime": "<day+0>T07:00:00.000Z",
+                "status": "Scheduled",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "book over an existing appointment",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "endTime": "2025-03-29T09:30:00.000Z",
+          "patientId": "<id:8>",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "2025-03-29T08:30:00.000Z"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create appointment",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "book with a bad start time",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "endTime": "2025-03-29T09:30:00.000Z",
+          "patientId": "<id:8>",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "tomorrow"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "book with an unknown status",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "endTime": "2025-05-01T08:00:00.000Z",
+          "patientId": "<id:8>",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "2025-05-01T07:00:00.000Z",
+          "status": "Maybe"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "book for an unknown patient",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {
+          "endTime": "2025-05-01T08:00:00.000Z",
+          "patientId": "00000000-0000-7000-8000-000000000000",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "2025-05-01T07:00:00.000Z"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create appointment",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "move an appointment onto a booked slot",
+      "request": {
+        "method": "PUT",
+        "path": "/api/appointments/<id:14>",
+        "body": {
+          "endTime": "2025-03-29T08:45:00.000Z",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "2025-03-29T08:15:00.000Z"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "This room is already booked for that time",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "reschedule onto a booked slot",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments/<id:17>/reschedule",
+        "body": {
+          "endTime": "2025-03-29T08:45:00.000Z",
+          "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+          "startTime": "2025-03-29T08:15:00.000Z"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "This room is already booked for that time",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "reschedule a cancelled appointment",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments/<id:10>/reschedule",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "This appointment can no longer be rescheduled",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "reschedule an appointment twice",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments/<id:7>/reschedule",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "This appointment can no longer be rescheduled",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "revive a cancelled appointment",
+      "request": {
+        "method": "PUT",
+        "path": "/api/appointments/<id:10>",
+        "body": {
+          "status": "Scheduled"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "cancelNotes": "Patient ill",
+            "completionNotes": "",
+            "createdAt": "<ts>",
+            "endTime": "2025-10-25T08:00:00.000Z",
+            "id": "<id:10>",
+            "notes": "",
+            "patientId": "<id:4>",
+            "patientName": "Ada Example",
+            "rescheduledFrom": "",
+            "roomId": "99ca4a8e-9d61-415a-9afb-4f563b11242d",
+            "startTime": "2025-10-25T07:00:00.000Z",
+            "status": "Scheduled",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/appointments/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/appointments/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Appointment not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/appointments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/appointments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/appointments/:id/reschedule with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments/00000000-0000-7000-8000-000000000000/reschedule",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/appointments/:id/reschedule with unknown ids",
+      "request": {
+        "method": "POST",
+        "path": "/api/appointments/00000000-0000-7000-8000-000000000000/reschedule",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Appointment not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/appointments/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/appointments/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/appointments/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/appointments/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Appointment not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "day schedule PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments/pdf?date=2025-03-31"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/appointments-2025-03-31-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: day schedule PDF",
+      "request": {
+        "method": "GET",
+        "path": "/files/appointments-2025-03-31-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "week schedule PDF",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments/pdf?date=2025-10-27&range=week"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/appointments-2025-10-27-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: week schedule PDF",
+      "request": {
+        "method": "GET",
+        "path": "/files/appointments-2025-10-27-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "schedule PDF without a date",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments/pdf"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Date is required",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

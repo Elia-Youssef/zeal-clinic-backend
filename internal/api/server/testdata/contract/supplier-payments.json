@@ -1,0 +1,385 @@
+{
+  "resource": "supplier-payments",
+  "cases": [
+    {
+      "name": "pay Acme",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-payments",
+        "body": {
+          "amount": 150,
+          "description": "Partial",
+          "supplierId": "<id:1>",
+          "transactionMethod": "transfer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 150,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Partial",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:2>",
+            "toBalanceId": "<id:3>",
+            "toEntityName": "Acme Test Supplies",
+            "transactionMethod": "transfer",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "adjust Acme's balance",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-adjustments",
+        "body": {
+          "amount": 5,
+          "description": "Credit note",
+          "direction": "outgoing",
+          "supplierId": "<id:1>",
+          "transactionMethod": "other"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 5,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Credit note",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:4>",
+            "toBalanceId": "<id:3>",
+            "toEntityName": "Acme Test Supplies",
+            "transactionMethod": "other",
+            "transactionType": "adjustment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "write off Acme's balance",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-write-offs",
+        "body": {
+          "amount": 2,
+          "description": "Rounding",
+          "direction": "incoming",
+          "supplierId": "<id:1>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 2,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "Rounding",
+            "fromBalanceId": "<id:3>",
+            "fromEntityName": "Acme Test Supplies",
+            "id": "<id:5>",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityName": "Clinic",
+            "transactionMethod": "other",
+            "transactionType": "write-off"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "pay Acme again",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-payments",
+        "body": {
+          "amount": 10,
+          "supplierId": "<id:1>",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 10,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "description": "",
+            "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "fromEntityName": "Clinic",
+            "id": "<id:6>",
+            "toBalanceId": "<id:3>",
+            "toEntityName": "Acme Test Supplies",
+            "transactionMethod": "cash",
+            "transactionType": "payment"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete supplier payment",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/supplier-payments/<id:6>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/suppliers/<id:1>/payments",
+      "request": {
+        "method": "GET",
+        "path": "/api/suppliers/<id:1>/payments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 150,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Partial",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:2>",
+                "toBalanceId": "<id:3>",
+                "toEntityName": "Acme Test Supplies",
+                "transactionMethod": "transfer",
+                "transactionType": "payment"
+              },
+              {
+                "amount": 2,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Rounding",
+                "fromBalanceId": "<id:3>",
+                "fromEntityName": "Acme Test Supplies",
+                "id": "<id:5>",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityName": "Clinic",
+                "transactionMethod": "other",
+                "transactionType": "write-off"
+              },
+              {
+                "amount": 5,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "description": "Credit note",
+                "fromBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "fromEntityName": "Clinic",
+                "id": "<id:4>",
+                "toBalanceId": "<id:3>",
+                "toEntityName": "Acme Test Supplies",
+                "transactionMethod": "other",
+                "transactionType": "adjustment"
+              }
+            ],
+            "total": 3
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "pay an unknown supplier",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-payments",
+        "body": {
+          "amount": 5,
+          "supplierId": "00000000-0000-7000-8000-000000000000",
+          "transactionMethod": "cash"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Supplier not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "adjust an unknown supplier",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-adjustments",
+        "body": {
+          "amount": 5,
+          "description": "X",
+          "direction": "incoming",
+          "supplierId": "00000000-0000-7000-8000-000000000000",
+          "transactionMethod": "other"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "Data": null,
+          "Error": "Couldn't create adjustment",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete an employee payment as a supplier payment",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/supplier-payments/<id:7>"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Transaction not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/supplier-payments/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/supplier-payments/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Transaction not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/supplier-adjustments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-adjustments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/supplier-adjustments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-adjustments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/supplier-payments with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-payments",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/supplier-payments with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-payments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/supplier-write-offs with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-write-offs",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/supplier-write-offs with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-write-offs",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

@@ -302,22 +302,26 @@ func TestEmployeeSchedule_CreateAndDelete(t *testing.T) {
 
 	empID := createEmployee(t, e, tok, "Sched", "Avail")
 
+	// A weekday is saved whole: the body lists every shift from startDate on.
 	body := asJSON(t, map[string]any{
 		"employeeId": empID,
 		"dayOfWeek":  1,
-		"startTime":  "09:00",
-		"endTime":    "17:00",
 		"startDate":  "2026-01-01",
+		"shifts":     []map[string]any{{"startTime": "09:00", "endTime": "17:00"}},
 	})
-	rec := doRequest(t, e, http.MethodPost, "/api/employee-schedules", body, tok)
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("create schedule: %d body=%s", rec.Code, rec.Body.String())
+	rec := doRequest(t, e, http.MethodPut, "/api/employee-schedules/day", body, tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("save schedule day: %d body=%s", rec.Code, rec.Body.String())
 	}
-	var sa struct {
+	var shifts []struct {
 		ID       string `json:"id"`
 		IsActive bool   `json:"isActive"`
 	}
-	decodeEnvelope(t, rec.Body, &sa)
+	decodeEnvelope(t, rec.Body, &shifts)
+	if len(shifts) != 1 {
+		t.Fatalf("expected 1 shift row, got %d (body=%s)", len(shifts), rec.Body.String())
+	}
+	sa := shifts[0]
 	if sa.ID == "" {
 		t.Fatalf("no id returned")
 	}
@@ -339,8 +343,8 @@ func TestEmployeeSchedule_ValidationFails(t *testing.T) {
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
-	// Missing employeeId and times, bad dayOfWeek.
-	rec := doRequest(t, e, http.MethodPost, "/api/employee-schedules",
+	// Missing employeeId, bad dayOfWeek.
+	rec := doRequest(t, e, http.MethodPut, "/api/employee-schedules/day",
 		asJSON(t, map[string]any{"dayOfWeek": 9}), tok)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())

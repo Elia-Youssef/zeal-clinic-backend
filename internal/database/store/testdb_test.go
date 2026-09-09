@@ -24,7 +24,8 @@ func testDSN(dbPath string) string {
 		"&hexkey=" + testHexKey +
 		"&_pragma=busy_timeout(5000)" +
 		"&_pragma=journal_mode(WAL)" +
-		"&_pragma=foreign_keys(1)"
+		"&_pragma=foreign_keys(1)" +
+		"&_pragma=recursive_triggers(1)"
 }
 
 // dbCounter ensures each test gets a unique on-disk file path so they don't

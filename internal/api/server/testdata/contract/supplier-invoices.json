@@ -1,0 +1,575 @@
+{
+  "resource": "supplier-invoices",
+  "cases": [
+    {
+      "name": "receive serum from Acme",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": 200,
+              "itemId": "<id:1>",
+              "itemType": "product",
+              "quantity": 10
+            },
+            {
+              "amount": 15,
+              "itemType": "other",
+              "notes": "Delivery fee",
+              "quantity": 1
+            }
+          ],
+          "notes": "First delivery",
+          "supplierId": "<id:2>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 215,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountValue": 0,
+            "finalAmount": 215,
+            "fromBalanceId": "<id:4>",
+            "fromEntityId": "<id:2>",
+            "fromEntityName": "Acme Test Supplies",
+            "id": "<id:3>",
+            "invoiceNumber": 1,
+            "items": [
+              {
+                "amount": 15,
+                "createdAt": "<ts>",
+                "finalAmount": 15,
+                "id": "<id:5>",
+                "invoiceId": "<id:3>",
+                "itemId": "",
+                "itemName": "",
+                "itemType": "other",
+                "notes": "Delivery fee",
+                "quantity": 1
+              },
+              {
+                "amount": 200,
+                "createdAt": "<ts>",
+                "finalAmount": 200,
+                "id": "<id:6>",
+                "invoiceId": "<id:3>",
+                "itemId": "<id:1>",
+                "itemName": "",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 10
+              }
+            ],
+            "notes": "First delivery",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityId": "self",
+            "toEntityName": "Clinic",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update supplier invoice",
+      "request": {
+        "method": "PUT",
+        "path": "/api/supplier-invoices/<id:3>",
+        "body": {
+          "notes": "First delivery, checked"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "amount": 215,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountValue": 0,
+            "finalAmount": 215,
+            "fromBalanceId": "<id:4>",
+            "fromEntityId": "<id:2>",
+            "fromEntityName": "Acme Test Supplies",
+            "id": "<id:3>",
+            "invoiceNumber": 1,
+            "items": [
+              {
+                "amount": 15,
+                "createdAt": "<ts>",
+                "finalAmount": 15,
+                "id": "<id:5>",
+                "invoiceId": "<id:3>",
+                "itemId": "",
+                "itemName": "Other",
+                "itemType": "other",
+                "notes": "Delivery fee",
+                "quantity": 1
+              },
+              {
+                "amount": 200,
+                "createdAt": "<ts>",
+                "finalAmount": 200,
+                "id": "<id:6>",
+                "invoiceId": "<id:3>",
+                "itemId": "<id:1>",
+                "itemName": "Test Serum",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 10
+              }
+            ],
+            "notes": "First delivery, checked",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityId": "self",
+            "toEntityName": "Clinic",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "correct a supplier invoice line",
+      "request": {
+        "method": "PUT",
+        "path": "/api/supplier-invoices/<id:3>/items/<id:6>",
+        "body": {
+          "amount": 180
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "amount": 195,
+            "createdAt": "<ts>",
+            "createdBy": "Super Admin",
+            "currencyId": "USD",
+            "discountValue": 0,
+            "finalAmount": 195,
+            "fromBalanceId": "<id:4>",
+            "fromEntityId": "<id:2>",
+            "fromEntityName": "Acme Test Supplies",
+            "id": "<id:3>",
+            "invoiceNumber": 1,
+            "items": [
+              {
+                "amount": 15,
+                "createdAt": "<ts>",
+                "finalAmount": 15,
+                "id": "<id:5>",
+                "invoiceId": "<id:3>",
+                "itemId": "",
+                "itemName": "Other",
+                "itemType": "other",
+                "notes": "Delivery fee",
+                "quantity": 1
+              },
+              {
+                "amount": 180,
+                "createdAt": "<ts>",
+                "finalAmount": 180,
+                "id": "<id:6>",
+                "invoiceId": "<id:3>",
+                "itemId": "<id:1>",
+                "itemName": "Test Serum",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 10
+              }
+            ],
+            "notes": "First delivery, checked",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityId": "self",
+            "toEntityName": "Clinic",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "admin receives cream from Globex",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-invoices",
+        "as": "admin",
+        "body": {
+          "items": [
+            {
+              "amount": 90,
+              "itemId": "<id:7>",
+              "itemType": "product",
+              "quantity": 5
+            }
+          ],
+          "supplierId": "<id:8>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "amount": 90,
+            "createdAt": "<ts>",
+            "createdBy": "Admin Example",
+            "currencyId": "USD",
+            "discountValue": 0,
+            "finalAmount": 90,
+            "fromBalanceId": "<id:10>",
+            "fromEntityId": "<id:8>",
+            "fromEntityName": "Globex Sample Traders",
+            "id": "<id:9>",
+            "invoiceNumber": 2,
+            "items": [
+              {
+                "amount": 90,
+                "createdAt": "<ts>",
+                "finalAmount": 90,
+                "id": "<id:11>",
+                "invoiceId": "<id:9>",
+                "itemId": "<id:7>",
+                "itemName": "",
+                "itemType": "product",
+                "notes": "",
+                "quantity": 5
+              }
+            ],
+            "notes": "",
+            "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+            "toEntityId": "self",
+            "toEntityName": "Clinic",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete supplier invoice",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/supplier-invoices/<id:9>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/suppliers/<id:2>/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/suppliers/<id:2>/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "amount": 195,
+                "createdAt": "<ts>",
+                "createdBy": "Super Admin",
+                "currencyId": "USD",
+                "discountValue": 0,
+                "finalAmount": 195,
+                "fromBalanceId": "<id:4>",
+                "fromEntityId": "<id:2>",
+                "fromEntityName": "Acme Test Supplies",
+                "id": "<id:3>",
+                "invoiceNumber": 1,
+                "items": [
+                  {
+                    "amount": 15,
+                    "createdAt": "<ts>",
+                    "finalAmount": 15,
+                    "id": "<id:5>",
+                    "invoiceId": "<id:3>",
+                    "itemId": "",
+                    "itemName": "Other",
+                    "itemType": "other",
+                    "notes": "Delivery fee",
+                    "quantity": 1
+                  },
+                  {
+                    "amount": 180,
+                    "createdAt": "<ts>",
+                    "finalAmount": 180,
+                    "id": "<id:6>",
+                    "invoiceId": "<id:3>",
+                    "itemId": "<id:1>",
+                    "itemName": "Test Serum",
+                    "itemType": "product",
+                    "notes": "",
+                    "quantity": 10
+                  }
+                ],
+                "notes": "First delivery, checked",
+                "toBalanceId": "54f4f6eb-826e-4254-84d5-b5d0cad56b87",
+                "toEntityId": "self",
+                "toEntityName": "Clinic",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/suppliers/<id:8>/invoices",
+      "request": {
+        "method": "GET",
+        "path": "/api/suppliers/<id:8>/invoices"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [],
+            "total": 0
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete a supplier invoice whose stock was sold",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/supplier-invoices/<id:3>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Deleting this invoice would make stock for \"Test Serum\" negative (have 2, would remove 10)",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "supplier invoice without a supplier",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": 1,
+              "itemType": "other",
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "supplier invoice for an unknown supplier",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": 1,
+              "itemType": "other",
+              "quantity": 1
+            }
+          ],
+          "supplierId": "00000000-0000-7000-8000-000000000000"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Supplier not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "supplier invoice on a patient balance",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-invoices",
+        "body": {
+          "items": [
+            {
+              "amount": 1,
+              "itemType": "other",
+              "quantity": 1
+            }
+          ],
+          "supplierBalanceId": "<id:12>"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Not a supplier balance",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "set a negative supplier invoice line",
+      "request": {
+        "method": "PUT",
+        "path": "/api/supplier-invoices/<id:3>/items/<id:6>",
+        "body": {
+          "amount": -5
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Amount cannot be negative",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/supplier-invoices/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/supplier-invoices/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Invoice not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/supplier-invoices with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-invoices",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/supplier-invoices with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/supplier-invoices",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/supplier-invoices/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/supplier-invoices/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/supplier-invoices/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/supplier-invoices/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Invoice not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/supplier-invoices/:id/items/:itemId with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/supplier-invoices/00000000-0000-7000-8000-000000000000/items/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/supplier-invoices/:id/items/:itemId with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/supplier-invoices/00000000-0000-7000-8000-000000000000/items/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Invoice or item not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

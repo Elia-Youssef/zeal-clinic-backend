@@ -2,49 +2,62 @@ package config
 
 import (
 	"clinic-api/internal/buildmode"
+	"clinic-api/internal/config/envfile"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 const appDataDirName = "Zeal Clinic"
 
 type Config struct {
-	Port          string
-	JWTSecret     string
-	JWTLifetime   time.Duration
-	PeerURL       string
-	SyncSecret    string
-	PublicURL     string
-	PublishSecret string
+	Port            string
+	JWTSecret       string
+	JWTLifetime     time.Duration
+	PeerURL         string
+	SyncSecret      string
+	PublicURL       string
+	PublishSecret   string
+	DBEncryptionKey string
 }
 
 var current *Config
 
-// Load parses the embedded env file (local.env.defaults or cloud.env.defaults) into Config.
+// Load reads the build's embedded env files into Config: the committed dev
+// defaults (local.env.defaults or cloud.env.defaults), with the non-empty
+// values of the local override (local.env or cloud.env, git-ignored) applied
+// key by key when that file existed at build time.
 func Load() *Config {
-	env, err := godotenv.Unmarshal(embeddedEnv)
+	env, overridden, err := envfile.Load(envFiles, envFile)
 	if err != nil {
-		log.Printf("[config] failed to parse embedded env: %v", err)
+		log.Printf("[config] %v", err)
 		env = map[string]string{}
 	}
-
-	cfg := &Config{
-		Port:          env["PORT"],
-		JWTSecret:     env["JWT_SECRET"],
-		JWTLifetime:   parseDuration(env["JWT_LIFETIME"]),
-		PeerURL:       env["PEER_URL"],
-		SyncSecret:    env["SYNC_SECRET"],
-		PublicURL:     env["PUBLIC_URL"],
-		PublishSecret: env["PUBLISH_SECRET"],
+	if len(overridden) > 0 {
+		log.Printf("[config] %s sets %s", envFile, strings.Join(overridden, ", "))
+	} else {
+		log.Printf("[config] no %s: running on the dev defaults", envFile)
 	}
-
+	cfg := fromEnv(env)
 	current = cfg
 	return cfg
+}
+
+func fromEnv(env map[string]string) *Config {
+	return &Config{
+		Port:            env[envfile.KeyPort],
+		JWTSecret:       env[envfile.KeyJWTSecret],
+		JWTLifetime:     parseDuration(env[envfile.KeyJWTLifetime]),
+		PeerURL:         env[envfile.KeyPeerURL],
+		SyncSecret:      env[envfile.KeySyncSecret],
+		PublicURL:       env[envfile.KeyPublicURL],
+		PublishSecret:   env[envfile.KeyPublishSecret],
+		DBEncryptionKey: env[envfile.KeyDBEncryptionKey],
+	}
 }
 
 // Current returns the loaded config.
@@ -53,6 +66,44 @@ func Current() *Config {
 		log.Fatal("[config] Current() called before Load()")
 	}
 	return current
+}
+
+// Check validates the config for this build: every build needs a DB key of 64
+// hex characters, and a release build (see buildmode.Release) also refuses the
+// committed dev values and a JWT secret shorter than 32 characters. The error
+// names keys, never values.
+func (c *Config) Check(release bool) error {
+	defaults, err := envfile.Read(envFiles, envFile+envfile.DefaultsSuffix)
+	if err != nil {
+		return err
+	}
+	if p := envfile.Problems(c.secrets(), defaults, release); len(p) > 0 {
+		kind := "dev"
+		if release {
+			kind = "release"
+		}
+		return fmt.Errorf("config of this %s build (%s): %s", kind, envFile, strings.Join(p, "; "))
+	}
+	return nil
+}
+
+// DevKeys lists the secret keys that hold a dev value: a committed default,
+// or any value marked dev-only.
+func (c *Config) DevKeys() []string {
+	defaults, err := envfile.Read(envFiles, envFile+envfile.DefaultsSuffix)
+	if err != nil {
+		return nil
+	}
+	return envfile.DevKeys(c.secrets(), defaults)
+}
+
+func (c *Config) secrets() map[string]string {
+	return map[string]string{
+		envfile.KeyJWTSecret:       c.JWTSecret,
+		envfile.KeySyncSecret:      c.SyncSecret,
+		envfile.KeyPublishSecret:   c.PublishSecret,
+		envfile.KeyDBEncryptionKey: c.DBEncryptionKey,
+	}
 }
 
 // SharedDataDir is the per-user install data dir: %LOCALAPPDATA%\Zeal Clinic\Data

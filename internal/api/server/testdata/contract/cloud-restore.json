@@ -1,0 +1,122 @@
+{
+  "resource": "cloud-restore",
+  "cases": [
+    {
+      "name": "POST /api/cloud-restore with a malformed body",
+      "build": "clinic",
+      "request": {
+        "method": "POST",
+        "path": "/api/cloud-restore",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": "Cloud sync is not configured"
+        }
+      }
+    },
+    {
+      "name": "POST /api/cloud-restore with an empty body",
+      "build": "clinic",
+      "request": {
+        "method": "POST",
+        "path": "/api/cloud-restore",
+        "body": {}
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": "Cloud sync is not configured"
+        }
+      }
+    },
+    {
+      "name": "cloud restore without a peer",
+      "build": "clinic",
+      "request": {
+        "method": "POST",
+        "path": "/api/cloud-restore",
+        "body": {}
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": "Cloud sync is not configured"
+        }
+      }
+    },
+    {
+      "name": "cloud restore as a nurse",
+      "build": "clinic",
+      "request": {
+        "method": "POST",
+        "path": "/api/cloud-restore",
+        "as": "nurse",
+        "body": {}
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "Data": null,
+          "Error": "You don't have permission",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "cloud restore without a checksum",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/cloud-restore",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<sync secret>",
+          "X-Sync-Version": "<version>"
+        },
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": "Missing or invalid dump checksum"
+        }
+      }
+    },
+    {
+      "name": "cloud restore with a wrong secret",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/cloud-restore",
+        "as": "anonymous",
+        "header": {
+          "X-Sync-Secret": "<wrong secret>"
+        },
+        "body": {}
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "error": "Not authorized"
+        }
+      }
+    },
+    {
+      "name": "cloud restore with a token",
+      "build": "cloud",
+      "request": {
+        "method": "POST",
+        "path": "/api/cloud-restore",
+        "body": {}
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "error": "Not authorized"
+        }
+      }
+    }
+  ]
+}

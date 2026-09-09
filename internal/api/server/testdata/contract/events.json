@@ -1,0 +1,29 @@
+{
+  "resource": "events",
+  "cases": [
+    {
+      "name": "the event stream on the clinic",
+      "build": "clinic",
+      "request": {
+        "method": "GET",
+        "path": "/api/events"
+      },
+      "response": {
+        "status": 200,
+        "text": "event: hello\ndata: null\n\nevent: cloud_connection\ndata: false\n\n"
+      }
+    },
+    {
+      "name": "the event stream on the cloud",
+      "build": "cloud",
+      "request": {
+        "method": "GET",
+        "path": "/api/events"
+      },
+      "response": {
+        "status": 200,
+        "text": "event: hello\ndata: null\n\nevent: cloud_connection\ndata: true\n\n"
+      }
+    }
+  ]
+}

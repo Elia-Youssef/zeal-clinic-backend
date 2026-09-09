@@ -1,0 +1,245 @@
+{
+  "resource": "envelope",
+  "cases": [
+    {
+      "name": "a record",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "dataKeys": [
+            "id",
+            "firstName",
+            "middleName",
+            "lastName",
+            "gender",
+            "dateOfBirth",
+            "contact",
+            "email",
+            "emergencyContactName",
+            "emergencyContactPhone",
+            "weight",
+            "height",
+            "bloodType",
+            "countryId",
+            "cityId",
+            "address",
+            "referralId",
+            "referralSource",
+            "notes",
+            "createdAt",
+            "updatedAt",
+            "country",
+            "city"
+          ],
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a list",
+      "request": {
+        "method": "GET",
+        "path": "/api/rooms"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "dataKeys": [
+            "items",
+            "total"
+          ],
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a list without a total",
+      "request": {
+        "method": "GET",
+        "path": "/api/rooms/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a write",
+      "request": {
+        "method": "PUT",
+        "path": "/api/rooms/<id:2>",
+        "body": {
+          "type": "Consultation"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "dataKeys": [
+            "id",
+            "name",
+            "type",
+            "isAvailable",
+            "createdAt"
+          ],
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a delete",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/notifications/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a not-found error",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a validation error",
+      "request": {
+        "method": "POST",
+        "path": "/api/rooms",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a sign-in error",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients",
+        "as": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a permission error",
+      "request": {
+        "method": "GET",
+        "path": "/api/audit-log",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "an unknown API path",
+      "request": {
+        "method": "GET",
+        "path": "/api/no-such-route"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "keys": [
+            "message"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a login",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/login",
+        "as": "anonymous",
+        "body": {
+          "password": "admin-example-pw",
+          "username": "admin.example"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "dataKeys": [
+            "token",
+            "expiresAt",
+            "userId",
+            "user",
+            "role",
+            "scopes"
+          ],
+          "keys": [
+            "Error",
+            "Success",
+            "Data"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,367 @@
+{
+  "resource": "suppliers",
+  "cases": [
+    {
+      "name": "create supplier Acme",
+      "request": {
+        "method": "POST",
+        "path": "/api/suppliers",
+        "body": {
+          "address": "1 Test Street",
+          "contact": "+961 1 000 111",
+          "email": "orders@acme.example",
+          "name": "Acme Test Supplies",
+          "notes": "Main supplier"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "address": "1 Test Street",
+            "contact": "+9611000111",
+            "createdAt": "<ts>",
+            "email": "orders@acme.example",
+            "id": "<id:1>",
+            "name": "Acme Test Supplies",
+            "notes": "Main supplier",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create supplier Globex",
+      "request": {
+        "method": "POST",
+        "path": "/api/suppliers",
+        "body": {
+          "contact": "01000222",
+          "name": "Globex Sample Traders"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "address": "",
+            "contact": "01000222",
+            "createdAt": "<ts>",
+            "email": "",
+            "id": "<id:2>",
+            "name": "Globex Sample Traders",
+            "notes": "",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update supplier Globex",
+      "request": {
+        "method": "PUT",
+        "path": "/api/suppliers/<id:2>",
+        "body": {
+          "notes": "Second supplier"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "address": "",
+            "contact": "01000222",
+            "createdAt": "<ts>",
+            "email": "",
+            "id": "<id:2>",
+            "name": "Globex Sample Traders",
+            "notes": "Second supplier",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create supplier to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/suppliers",
+        "body": {
+          "name": "Initech Temp Vendor"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "address": "",
+            "contact": "",
+            "createdAt": "<ts>",
+            "email": "",
+            "id": "<id:3>",
+            "name": "Initech Temp Vendor",
+            "notes": "",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused supplier",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/suppliers/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/suppliers?sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/suppliers?sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "address": "1 Test Street",
+                "contact": "+9611000111",
+                "createdAt": "<ts>",
+                "email": "orders@acme.example",
+                "id": "<id:1>",
+                "name": "Acme Test Supplies",
+                "notes": "Main supplier",
+                "updatedAt": "<ts>"
+              },
+              {
+                "address": "",
+                "contact": "01000222",
+                "createdAt": "<ts>",
+                "email": "",
+                "id": "<id:2>",
+                "name": "Globex Sample Traders",
+                "notes": "Second supplier",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/suppliers/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/suppliers/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:1>",
+              "name": "Acme Test Supplies"
+            },
+            {
+              "id": "<id:2>",
+              "name": "Globex Sample Traders"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/suppliers/<id:1>",
+      "request": {
+        "method": "GET",
+        "path": "/api/suppliers/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "address": "1 Test Street",
+            "contact": "+9611000111",
+            "createdAt": "<ts>",
+            "email": "orders@acme.example",
+            "id": "<id:1>",
+            "name": "Acme Test Supplies",
+            "notes": "Main supplier",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/suppliers/00000000-0000-7000-8000-000000000000",
+      "request": {
+        "method": "GET",
+        "path": "/api/suppliers/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Supplier not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete a supplier in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/suppliers/<id:1>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete supplier while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a supplier with a bad phone",
+      "request": {
+        "method": "POST",
+        "path": "/api/suppliers",
+        "body": {
+          "contact": "call me",
+          "name": "Test Bad Phone"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a supplier with a bad email",
+      "request": {
+        "method": "POST",
+        "path": "/api/suppliers",
+        "body": {
+          "email": "ok@example.test, nope",
+          "name": "Test Bad Email"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/suppliers/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/suppliers/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Supplier not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/suppliers with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/suppliers",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/suppliers with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/suppliers",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/suppliers/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/suppliers/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/suppliers/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/suppliers/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Supplier not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

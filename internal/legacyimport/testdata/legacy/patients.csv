@@ -1,0 +1,9 @@
+id,firstnam,midlnam,lastnam,gender,datbirth,bloodtype,weight,height,createdat,phone,email,emcontnam,emcontphn,address,refersourc,notes
+101,Alpha,,Tester,F,05-Jan-90,A+,60,165,10-Jan-24,555-0101,alpha@example.com,Bravo Tester,555-0102,1 Sample Street,Instagram,First fixture patient
+102,Charlie,Q,Sample,m,15-Jun-26,0+,,,11-Jan-24,555-0103,,,,,Walk-in,
+103,Delta,,Example,,--,ab+,abc,170,,555-0104,,,,,,
+104,Echo,,Dummy,Female,15-Jun-27,XY,55.5,160,12-Jan-24,555-0105,echo@example.com,,,,,
+105,Foxtrot,,Fixture,f,31-Foo-90,B-,70,175,13-Jan-24,555-0106,,,,,,
+101,Duplicate,,Row,M,01-Jan-80,,,,,,,,,,,
+106,.,-,--,,,,,,,,,,,,,
+0,Zero,,Id,,,,,,,,,,,,,

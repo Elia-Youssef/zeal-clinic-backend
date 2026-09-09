@@ -1,0 +1,412 @@
+{
+  "resource": "prescriptions",
+  "cases": [
+    {
+      "name": "create prescription",
+      "request": {
+        "method": "POST",
+        "path": "/api/prescriptions",
+        "body": {
+          "endDate": "2025-04-14",
+          "medicines": [
+            {
+              "instructions": "1 capsule twice daily",
+              "medicineId": "<id:1>"
+            },
+            {
+              "instructions": "As needed",
+              "medicineId": "<id:2>"
+            }
+          ],
+          "patientId": "<id:3>",
+          "prescribedById": "<id:4>",
+          "startDate": "2025-03-31"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "endDate": "2025-04-14",
+            "id": "<id:5>",
+            "medicines": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:6>",
+                "instructions": "1 capsule twice daily",
+                "medicineId": "<id:1>",
+                "medicineName": "Amoxitest 500",
+                "prescriptionId": "<id:5>"
+              },
+              {
+                "createdAt": "<ts>",
+                "id": "<id:7>",
+                "instructions": "As needed",
+                "medicineId": "<id:2>",
+                "medicineName": "Ibutest 200",
+                "prescriptionId": "<id:5>"
+              }
+            ],
+            "patientId": "<id:3>",
+            "prescribedById": "<id:4>",
+            "prescribedByName": "Otto Placeholder",
+            "startDate": "2025-03-31",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update prescription",
+      "request": {
+        "method": "PUT",
+        "path": "/api/prescriptions/<id:5>",
+        "body": {
+          "endDate": "2025-04-21",
+          "medicines": [
+            {
+              "instructions": "1 capsule three times daily",
+              "medicineId": "<id:1>"
+            }
+          ],
+          "patientId": "<id:3>",
+          "prescribedById": "<id:4>",
+          "startDate": "2025-03-31"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "endDate": "2025-04-21",
+            "id": "<id:5>",
+            "medicines": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:8>",
+                "instructions": "1 capsule three times daily",
+                "medicineId": "<id:1>",
+                "medicineName": "Amoxitest 500",
+                "prescriptionId": "<id:5>"
+              }
+            ],
+            "patientId": "<id:3>",
+            "prescribedById": "<id:4>",
+            "prescribedByName": "Otto Placeholder",
+            "startDate": "2025-03-31",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create prescription to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/prescriptions",
+        "body": {
+          "medicines": [
+            {
+              "instructions": "Once",
+              "medicineId": "<id:2>"
+            }
+          ],
+          "patientId": "<id:9>",
+          "prescribedById": "<id:4>",
+          "startDate": "2025-04-01"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "endDate": "",
+            "id": "<id:10>",
+            "medicines": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:11>",
+                "instructions": "Once",
+                "medicineId": "<id:2>",
+                "medicineName": "Ibutest 200",
+                "prescriptionId": "<id:10>"
+              }
+            ],
+            "patientId": "<id:9>",
+            "prescribedById": "<id:4>",
+            "prescribedByName": "Otto Placeholder",
+            "startDate": "2025-04-01",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete prescription",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/prescriptions/<id:10>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "nurse creates a prescription",
+      "request": {
+        "method": "POST",
+        "path": "/api/prescriptions",
+        "as": "nurse",
+        "body": {
+          "medicines": [
+            {
+              "instructions": "After meals",
+              "medicineId": "<id:2>"
+            }
+          ],
+          "patientId": "<id:12>",
+          "prescribedById": "<id:13>",
+          "startDate": "2025-10-27"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "endDate": "",
+            "id": "<id:14>",
+            "medicines": [
+              {
+                "createdAt": "<ts>",
+                "id": "<id:15>",
+                "instructions": "After meals",
+                "medicineId": "<id:2>",
+                "medicineName": "Ibutest 200",
+                "prescriptionId": "<id:14>"
+              }
+            ],
+            "patientId": "<id:12>",
+            "prescribedById": "<id:13>",
+            "prescribedByName": "Nora Example",
+            "startDate": "2025-10-27",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:3>/prescriptions",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:3>/prescriptions"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "endDate": "2025-04-21",
+                "id": "<id:5>",
+                "medicines": [
+                  {
+                    "createdAt": "<ts>",
+                    "id": "<id:8>",
+                    "instructions": "1 capsule three times daily",
+                    "medicineId": "<id:1>",
+                    "medicineName": "Amoxitest 500",
+                    "prescriptionId": "<id:5>"
+                  }
+                ],
+                "patientId": "<id:3>",
+                "prescribedById": "<id:4>",
+                "prescribedByName": "Otto Placeholder",
+                "startDate": "2025-03-31",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/patients/<id:12>/prescriptions",
+      "request": {
+        "method": "GET",
+        "path": "/api/patients/<id:12>/prescriptions"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "endDate": "",
+                "id": "<id:14>",
+                "medicines": [
+                  {
+                    "createdAt": "<ts>",
+                    "id": "<id:15>",
+                    "instructions": "After meals",
+                    "medicineId": "<id:2>",
+                    "medicineName": "Ibutest 200",
+                    "prescriptionId": "<id:14>"
+                  }
+                ],
+                "patientId": "<id:12>",
+                "prescribedById": "<id:13>",
+                "prescribedByName": "Nora Example",
+                "startDate": "2025-10-27",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 1
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create a prescription without a start date",
+      "request": {
+        "method": "POST",
+        "path": "/api/prescriptions",
+        "body": {
+          "patientId": "<id:9>",
+          "prescribedById": "<id:4>"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a prescription with a bad end date",
+      "request": {
+        "method": "POST",
+        "path": "/api/prescriptions",
+        "body": {
+          "endDate": "01/05/2025",
+          "patientId": "<id:9>",
+          "prescribedById": "<id:4>",
+          "startDate": "2025-04-01"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/prescriptions/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/prescriptions/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Prescription not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/prescriptions with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/prescriptions",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/prescriptions with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/prescriptions",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/prescriptions/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/prescriptions/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/prescriptions/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/prescriptions/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

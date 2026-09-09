@@ -25,27 +25,24 @@ func TestLogin_FirstLoginCapturesPassword(t *testing.T) {
 
 	// Reload user: password_hash should now be non-empty.
 	var u store.User
-	if err := u.GetByUsername("admin"); err != nil {
+	if err := u.GetByUsername("super-admin"); err != nil {
 		t.Fatal(err)
 	}
 	if u.PasswordHash == "" {
 		t.Errorf("password_hash still empty after first login")
 	}
 
-	// Second login with the SAME password must succeed.
-	// NB: must wait 1s because JWT iat/exp are second-precision, so two logins in
-	// the same second produce identical token strings and hit the
-	// tokens.token UNIQUE constraint.
-	time.Sleep(1100 * time.Millisecond)
+	// Second login with the SAME password must succeed, even within the same
+	// second (each token carries a unique jti).
 	rec := doRequest(t, e, http.MethodPost, "/api/auth/login",
-		asJSON(t, map[string]string{"username": "admin", "password": "secret-1"}), "")
+		asJSON(t, map[string]string{"username": "super-admin", "password": "secret-1"}), "")
 	if rec.Code != http.StatusOK {
 		t.Errorf("repeat login expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
 	// Wrong password now rejected.
 	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
-		asJSON(t, map[string]string{"username": "admin", "password": "wrong"}), "")
+		asJSON(t, map[string]string{"username": "super-admin", "password": "wrong"}), "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("wrong pw expected 401, got %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -76,11 +73,11 @@ func TestLogin_InactiveUserReturns403(t *testing.T) {
 	e := newTestServer(t)
 
 	// Disable the admin user directly.
-	if _, err := store.DB.Exec(`UPDATE users SET is_active = 0 WHERE username = 'admin'`); err != nil {
+	if _, err := store.DB.Exec(`UPDATE users SET is_active = 0 WHERE username = 'super-admin'`); err != nil {
 		t.Fatal(err)
 	}
 	rec := doRequest(t, e, http.MethodPost, "/api/auth/login",
-		asJSON(t, map[string]string{"username": "admin", "password": "x"}), "")
+		asJSON(t, map[string]string{"username": "super-admin", "password": "x"}), "")
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("expected 403, got %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -206,7 +203,7 @@ func TestVerify_RejectsExpiredTokenAndDeletesIt(t *testing.T) {
 	// Force an expired token row in the DB (signature still valid; DB row says
 	// expired). Use a JWT generated with an immediate expiry.
 	var u store.User
-	if err := u.GetByUsername("admin"); err != nil {
+	if err := u.GetByUsername("super-admin"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -237,7 +234,7 @@ func TestVerify_RejectsTokenForInactiveUser(t *testing.T) {
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
-	if _, err := store.DB.Exec(`UPDATE users SET is_active = 0 WHERE username = 'admin'`); err != nil {
+	if _, err := store.DB.Exec(`UPDATE users SET is_active = 0 WHERE username = 'super-admin'`); err != nil {
 		t.Fatal(err)
 	}
 	rec := doRequest(t, e, http.MethodGet, "/api/auth/verify", nil, tok)
@@ -305,7 +302,7 @@ func TestLogin_RapidRepeatSucceeds(t *testing.T) {
 	tok1 := loginAdmin(t, e, "rapid-pw")
 
 	rec := doRequest(t, e, http.MethodPost, "/api/auth/login",
-		asJSON(t, map[string]string{"username": "admin", "password": "rapid-pw"}), "")
+		asJSON(t, map[string]string{"username": "super-admin", "password": "rapid-pw"}), "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 on rapid repeat login, got %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -326,7 +323,7 @@ func TestLogin_BodyContainsRoleAndScopes(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	rec := doRequest(t, e, http.MethodPost, "/api/auth/login",
-		asJSON(t, map[string]string{"username": "admin", "password": "x"}), "")
+		asJSON(t, map[string]string{"username": "super-admin", "password": "x"}), "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("login: %d %s", rec.Code, rec.Body.String())
 	}
@@ -346,7 +343,7 @@ func TestLogin_BodyContainsRoleAndScopes(t *testing.T) {
 	if len(env.Data.Scopes) == 0 {
 		t.Errorf("scopes empty")
 	}
-	if env.Data.User != "Admin" {
-		t.Errorf("user = %q want Admin", env.Data.User)
+	if env.Data.User != "Super Admin" {
+		t.Errorf("user = %q want Super Admin", env.Data.User)
 	}
 }

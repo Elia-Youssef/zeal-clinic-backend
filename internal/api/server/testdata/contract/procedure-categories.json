@@ -1,0 +1,335 @@
+{
+  "resource": "procedure-categories",
+  "cases": [
+    {
+      "name": "create procedure category",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-categories",
+        "body": {
+          "description": "Parent",
+          "name": "Test Skin Care"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Parent",
+            "id": "<id:1>",
+            "name": "Test Skin Care",
+            "parentId": ""
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create procedure subcategory",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-categories",
+        "body": {
+          "description": "Child",
+          "name": "Test Peels",
+          "parentId": "<id:1>"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Child",
+            "id": "<id:2>",
+            "name": "Test Peels",
+            "parentId": "<id:1>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update procedure subcategory",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-categories/<id:2>",
+        "body": {
+          "description": "Chemical peels"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Chemical peels",
+            "id": "<id:2>",
+            "name": "Test Peels",
+            "parent": {
+              "createdAt": "<ts>",
+              "description": "Parent",
+              "id": "<id:1>",
+              "name": "Test Skin Care",
+              "parentId": ""
+            },
+            "parentId": "<id:1>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create procedure category to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-categories",
+        "body": {
+          "name": "Test Temp Category"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "",
+            "id": "<id:3>",
+            "name": "Test Temp Category",
+            "parentId": ""
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused procedure category",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-categories/<id:3>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedure-categories?filter=Test&sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedure-categories?filter=Test&sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "description": "Chemical peels",
+                "id": "<id:2>",
+                "name": "Test Peels",
+                "parent": {
+                  "createdAt": "<ts>",
+                  "description": "Parent",
+                  "id": "<id:1>",
+                  "name": "Test Skin Care",
+                  "parentId": ""
+                },
+                "parentId": "<id:1>"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "Parent",
+                "id": "<id:1>",
+                "name": "Test Skin Care",
+                "parentId": ""
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedure-categories/dropdown?filter=Test",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedure-categories/dropdown?filter=Test"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "<id:2>",
+              "name": "Test Peels"
+            },
+            {
+              "id": "<id:1>",
+              "name": "Test Skin Care"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create a duplicate procedure category",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-categories",
+        "body": {
+          "name": "test peels"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "A category with this name already exists",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "make a procedure category its own parent",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-categories/<id:2>",
+        "body": {
+          "parentId": "<id:2>"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "A category can't be its own parent",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete a procedure category in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-categories/<id:2>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete category while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete a parent procedure category",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-categories/<id:1>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/procedure-categories/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-categories/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Category not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/procedure-categories with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-categories",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/procedure-categories with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-categories",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/procedure-categories/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-categories/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/procedure-categories/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-categories/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Category not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

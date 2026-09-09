@@ -12,13 +12,17 @@ import (
 )
 
 func Snapshot(dir string) (string, error) {
+	key, err := currentKey()
+	if err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", fmt.Errorf("create backup dir: %w", err)
 	}
 	// Nanoseconds avoid a collision when a manual restore starts in the same
 	// second as the periodic backup monitor.
 	dest := filepath.Join(dir, "clinic-"+time.Now().UTC().Format("20060102T150405.000000000Z")+".db")
-	target := "file:" + filepath.ToSlash(dest) + "?vfs=adiantum&hexkey=" + encryptionKey
+	target := "file:" + filepath.ToSlash(dest) + "?vfs=adiantum&hexkey=" + key
 	stmt := "VACUUM INTO '" + strings.ReplaceAll(target, "'", "''") + "'"
 	if _, err := store.DB.Exec(stmt); err != nil {
 		return "", fmt.Errorf("vacuum into backup: %w", err)

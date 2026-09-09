@@ -1,0 +1,295 @@
+{
+  "resource": "procedure-types",
+  "cases": [
+    {
+      "name": "create procedure type",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-types",
+        "body": {
+          "description": "Scenario type",
+          "name": "Test Aesthetic"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Scenario type",
+            "id": "<id:1>",
+            "name": "Test Aesthetic"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update procedure type",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-types/<id:1>",
+        "body": {
+          "description": "Scenario type, updated"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "Scenario type, updated",
+            "id": "<id:1>",
+            "name": "Test Aesthetic"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create procedure type to delete",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-types",
+        "body": {
+          "name": "Test Temp Type"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "createdAt": "<ts>",
+            "description": "",
+            "id": "<id:2>",
+            "name": "Test Temp Type"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused procedure type",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-types/<id:2>"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedure-types?sort=name&order=asc",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedure-types?sort=name&order=asc"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "createdAt": "<ts>",
+                "description": "",
+                "id": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+                "name": "Clinic Procedure"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "",
+                "id": "88c192e9-ab64-4537-9c71-af79936a30f7",
+                "name": "Hospital Surgery"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "",
+                "id": "07881ca6-698b-444a-a45c-37cccbac2469",
+                "name": "Minor Surgery"
+              },
+              {
+                "createdAt": "<ts>",
+                "description": "Scenario type, updated",
+                "id": "<id:1>",
+                "name": "Test Aesthetic"
+              }
+            ],
+            "total": 4
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/procedure-types/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/procedure-types/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "4347efc8-5f3d-46fc-8e1c-0620d8b6e4ec",
+              "name": "Clinic Procedure"
+            },
+            {
+              "id": "88c192e9-ab64-4537-9c71-af79936a30f7",
+              "name": "Hospital Surgery"
+            },
+            {
+              "id": "07881ca6-698b-444a-a45c-37cccbac2469",
+              "name": "Minor Surgery"
+            },
+            {
+              "id": "<id:1>",
+              "name": "Test Aesthetic"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "create a duplicate procedure type",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-types",
+        "body": {
+          "name": "clinic procedure"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "A type with this name already exists",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "rename a procedure type to a taken name",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-types/<id:1>",
+        "body": {
+          "name": "Hospital Surgery"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "A type with this name already exists",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "delete a procedure type in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-types/<id:1>"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete type while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/procedure-types/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/procedure-types/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Type not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/procedure-types with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-types",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/procedure-types with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/procedure-types",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/procedure-types/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-types/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/procedure-types/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/procedure-types/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Type not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

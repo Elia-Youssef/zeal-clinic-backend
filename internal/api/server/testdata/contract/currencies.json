@@ -1,0 +1,248 @@
+{
+  "resource": "currencies",
+  "cases": [
+    {
+      "name": "create currency",
+      "request": {
+        "method": "POST",
+        "path": "/api/currencies",
+        "body": {
+          "code": "EUR",
+          "exchangeRate": 0.92,
+          "name": "Euro",
+          "symbol": "EUR"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "Data": {
+            "code": "EUR",
+            "createdAt": "<ts>",
+            "exchangeRate": 0.92,
+            "id": "EUR",
+            "name": "Euro",
+            "symbol": "EUR",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "update currency",
+      "request": {
+        "method": "PUT",
+        "path": "/api/currencies/EUR",
+        "body": {
+          "exchangeRate": 0.91
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "code": "EUR",
+            "createdAt": "<ts>",
+            "exchangeRate": 0.91,
+            "id": "EUR",
+            "name": "Euro",
+            "symbol": "EUR",
+            "updatedAt": "<ts>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete unused currency",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/currencies/EUR"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": null,
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/currencies",
+      "request": {
+        "method": "GET",
+        "path": "/api/currencies"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "items": [
+              {
+                "code": "LBP",
+                "createdAt": "<ts>",
+                "exchangeRate": 89500,
+                "id": "LBP",
+                "name": "Lebanese Pound",
+                "symbol": "LBP",
+                "updatedAt": "<ts>"
+              },
+              {
+                "code": "USD",
+                "createdAt": "<ts>",
+                "exchangeRate": 1,
+                "id": "USD",
+                "name": "US Dollar",
+                "symbol": "$",
+                "updatedAt": "<ts>"
+              }
+            ],
+            "total": 2
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "GET /api/currencies/dropdown",
+      "request": {
+        "method": "GET",
+        "path": "/api/currencies/dropdown"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": [
+            {
+              "id": "LBP",
+              "name": "Lebanese Pound"
+            },
+            {
+              "id": "USD",
+              "name": "US Dollar"
+            }
+          ],
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "delete the currency in use",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/currencies/USD"
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "Data": null,
+          "Error": "Can't delete currency while it's in use",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "create a currency without a name",
+      "request": {
+        "method": "POST",
+        "path": "/api/currencies",
+        "body": {
+          "code": "CHF"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "DELETE /api/currencies/:id with unknown ids",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/currencies/00000000-0000-7000-8000-000000000000"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Currency not found",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/currencies with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/currencies",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "POST /api/currencies with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/currencies",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Please check your input",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/currencies/:id with a malformed body",
+      "request": {
+        "method": "PUT",
+        "path": "/api/currencies/00000000-0000-7000-8000-000000000000",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid request",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "PUT /api/currencies/:id with unknown ids",
+      "request": {
+        "method": "PUT",
+        "path": "/api/currencies/00000000-0000-7000-8000-000000000000",
+        "body": {}
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "Data": null,
+          "Error": "Currency not found",
+          "Success": false
+        }
+      }
+    }
+  ]
+}

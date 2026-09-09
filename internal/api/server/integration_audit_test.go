@@ -8,13 +8,14 @@ import (
 	"clinic-api/internal/database/store"
 )
 
-// auditEntries returns all audit_log rows in chronological order.
+// auditEntries returns all audit_log rows in chronological order. created_at
+// has one-second resolution, so ties fall back to the time-ordered id.
 func auditEntries(t *testing.T) []store.AuditLogEntry {
 	t.Helper()
 	rows, err := store.RDB.Query(
 		`SELECT a.id, a.user_id, COALESCE(u.username, ''), a.user_role, a.action, a.entity_type, a.entity_id, a.details, a.ip_address, a.created_at
 		 FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
-		 ORDER BY a.created_at ASC`)
+		 ORDER BY a.created_at ASC, a.id ASC`)
 	if err != nil {
 		t.Fatal(err)
 	}
