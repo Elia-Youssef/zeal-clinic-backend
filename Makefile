@@ -114,7 +114,7 @@ update-zip-cloud: release-cloud
 	@echo Wrote $(UPDATE_ZIP_CLOUD)
 
 installer: release
-	$(ISCC) build/local/installer.iss
+	"$(ISCC)" build/local/installer.iss
 
 # Full deploy: build the frontend once, then the cloud release + the Windows
 # installer (which also produces the local release), and both self-update zips.

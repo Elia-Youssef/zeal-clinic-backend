@@ -63,6 +63,12 @@ func main() {
 	if err := cfg.Check(buildmode.Release()); err != nil {
 		tracking.Fatal("Refusing to start", err)
 	}
+
+	if cfg.ClinicTimezone != "" {
+		if err := store.SetClinicTimezone(cfg.ClinicTimezone); err != nil {
+			tracking.Fatal("Invalid clinic timezone", err)
+		}
+	}
 	if err := database.SetKey(cfg.DBEncryptionKey); err != nil {
 		tracking.Fatal("Refusing to start", err)
 	}

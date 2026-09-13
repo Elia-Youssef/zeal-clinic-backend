@@ -12,6 +12,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
+	_ "time/tzdata"
 
 	"github.com/joho/godotenv"
 )
@@ -26,6 +28,7 @@ const (
 	KeyPublicURL       = "PUBLIC_URL"
 	KeyPublishSecret   = "PUBLISH_SECRET"
 	KeyDBEncryptionKey = "DB_ENCRYPTION_KEY"
+	KeyClinicTimezone  = "CLINIC_TIMEZONE"
 )
 
 // DefaultsSuffix names the committed dev defaults of an override file:
@@ -91,6 +94,11 @@ func Problems(env, defaults map[string]string, release bool) []string {
 	var out []string
 	if !ValidDBKey(env[KeyDBEncryptionKey]) {
 		out = append(out, KeyDBEncryptionKey+" must be 64 hex characters")
+	}
+	if tz := env[KeyClinicTimezone]; tz != "" {
+		if _, err := time.LoadLocation(tz); err != nil {
+			out = append(out, KeyClinicTimezone+" is invalid")
+		}
 	}
 	if !release {
 		return out
@@ -187,6 +195,9 @@ func CheckRelease(dir string, nodes []string) ([]string, error) {
 		}
 		if !strings.EqualFold(clinic[KeyDBEncryptionKey], cloud[KeyDBEncryptionKey]) {
 			out = append(out, KeyDBEncryptionKey+" differs between local.env and cloud.env")
+		}
+		if clinic[KeyClinicTimezone] != cloud[KeyClinicTimezone] {
+			out = append(out, KeyClinicTimezone+" differs between local.env and cloud.env")
 		}
 	}
 	return out, nil

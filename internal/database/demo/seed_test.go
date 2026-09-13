@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 	"clinic-api/internal/database"
 	"clinic-api/internal/database/store"
 	syncpkg "clinic-api/internal/sync"
+	"clinic-api/internal/validation"
 
 	"github.com/labstack/echo/v4"
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -155,6 +157,71 @@ func TestSeedDemo_Smoke(t *testing.T) {
 		}
 		if code := loginStatus(t, accounts[0].username, "wrong-password"); code != http.StatusUnauthorized {
 			t.Errorf("sign-in with a wrong password = %d, want 401", code)
+		}
+	})
+
+	t.Run("fictional identities and phone formats", func(t *testing.T) {
+		for _, q := range []struct {
+			table string
+			query string
+		}{
+			{"employees", `SELECT email FROM employees WHERE email != ''`},
+			{"patients", `SELECT email FROM patients WHERE email != ''`},
+			{"suppliers", `SELECT email FROM suppliers WHERE email != ''`},
+		} {
+			rows, err := db.Query(q.query)
+			if err != nil {
+				t.Fatalf("%s: %v", q.table, err)
+			}
+			for rows.Next() {
+				var email string
+				if err := rows.Scan(&email); err != nil {
+					t.Fatal(err)
+				}
+				if !strings.HasSuffix(email, "@example.com") &&
+					!strings.HasSuffix(email, "@example.org") &&
+					!strings.HasSuffix(email, "@example.net") {
+					t.Errorf("%s: email %q does not end with @example.(com|org|net)", q.table, email)
+				}
+			}
+			rows.Close()
+		}
+
+		phoneRe := regexp.MustCompile(`^\+1 555 01\d{2}$`)
+		for _, q := range []struct {
+			table string
+			query string
+		}{
+			{"employees", `SELECT contact FROM employees WHERE contact != ''`},
+			{"patients", `SELECT contact FROM patients WHERE contact != ''`},
+			{"suppliers", `SELECT contact FROM suppliers WHERE contact != ''`},
+		} {
+			rows, err := db.Query(q.query)
+			if err != nil {
+				t.Fatalf("%s: %v", q.table, err)
+			}
+			for rows.Next() {
+				var contact string
+				if err := rows.Scan(&contact); err != nil {
+					t.Fatal(err)
+				}
+				if !phoneRe.MatchString(contact) {
+					t.Errorf("%s: contact %q does not match +1 555 01xx", q.table, contact)
+				}
+				if msg := validation.Phone(contact); msg != "" {
+					t.Errorf("%s: contact %q failed validation.Phone: %s", q.table, contact, msg)
+				}
+			}
+			rows.Close()
+		}
+
+		const consultID = "6df0a12d-18ae-48a7-8d26-fb8fa70f4a31"
+		var consultCount int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM appointment_procedures WHERE procedure_id = ?`, consultID).Scan(&consultCount); err != nil {
+			t.Fatalf("consultation procedure query: %v", err)
+		}
+		if consultCount == 0 {
+			t.Errorf("expected appointment with procedure %s, found none", consultID)
 		}
 	})
 }

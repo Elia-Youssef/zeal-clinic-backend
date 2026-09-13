@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	syncpkg "clinic-api/internal/sync"
+
+	"github.com/pressly/goose/v3"
 )
 
 // openTestDB opens a migrated database in a temp dir through Open. Both
@@ -168,5 +170,49 @@ func TestMigrate_RolesSyncByName(t *testing.T) {
 	db.QueryRow(`SELECT COUNT(*), MAX(op) FROM sync_log WHERE table_name='roles' AND row_id='admin'`).Scan(&count, &op)
 	if count != 1 || op != "update" {
 		t.Errorf("after two role updates: got count=%d op=%q, want 1/update", count, op)
+	}
+}
+
+// TestMigrate_AlandIslands checks that a fresh database holds "Åland Islands"
+// correctly encoded and that migration 00014 repairs the mis-encoded name an
+// older database may carry: after planting the old value, rolling back to
+// 00013 and migrating up again fixes the row, and a second round changes
+// nothing.
+func TestMigrate_AlandIslands(t *testing.T) {
+	db := openTestDB(t)
+
+	const alandID = "a5fa8f1e-72e3-41a5-8ef1-22f3395e194d"
+	const want = "Åland Islands"
+	name := func() string {
+		t.Helper()
+		var n string
+		if err := db.QueryRow(`SELECT name FROM countries WHERE id = ?`, alandID).Scan(&n); err != nil {
+			t.Fatalf("query country %s: %v", alandID, err)
+		}
+		return n
+	}
+	if got := name(); got != want {
+		t.Errorf("fresh database: name = %q, want %q", got, want)
+	}
+
+	if _, err := db.Exec(`UPDATE countries SET name = 'Ã…land Islands' WHERE id = ?`, alandID); err != nil {
+		t.Fatalf("plant the old name: %v", err)
+	}
+	rerun := func() {
+		t.Helper()
+		if err := goose.DownTo(db, ".", 13); err != nil {
+			t.Fatalf("roll back to 00013: %v", err)
+		}
+		if err := goose.Up(db, "."); err != nil {
+			t.Fatalf("migrate up: %v", err)
+		}
+	}
+	rerun()
+	if got := name(); got != want {
+		t.Errorf("after 00014: name = %q, want %q", got, want)
+	}
+	rerun()
+	if got := name(); got != want {
+		t.Errorf("after running 00014 twice: name = %q, want %q", got, want)
 	}
 }

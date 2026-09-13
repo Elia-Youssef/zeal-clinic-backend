@@ -478,9 +478,9 @@ func spaIndexPage(t *testing.T) []byte {
 	t.Helper()
 	b, err := fs.ReadFile(client.DistFS(), "index.html")
 	if err != nil {
-		return []byte(`<!doctype html><meta charset="utf-8"><title>Zeal Clinic</title><body>Frontend not built.</body>`)
+		b = []byte(`<!doctype html><meta charset="utf-8"><title>Zeal Clinic</title><body>Frontend not built.</body>`)
 	}
-	return b
+	return injectClinicTimezone(b, store.ClinicTimezoneName())
 }
 
 func decodeContractJSON(t *testing.T, b []byte) any {

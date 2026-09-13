@@ -95,6 +95,7 @@ func TestProblems_ReleaseRules(t *testing.T) {
 		{"a DB key that isn't hex", map[string]string{KeyDBEncryptionKey: strings.Repeat("g", 64)}, true, []string{KeyDBEncryptionKey + " must be 64 hex characters"}},
 		{"no DB key", map[string]string{KeyDBEncryptionKey: ""}, false, []string{KeyDBEncryptionKey + " must be 64 hex characters"}},
 		{"an empty secret without a default", map[string]string{KeyPublishSecret: ""}, true, nil},
+		{"an invalid clinic timezone", map[string]string{KeyClinicTimezone: "Invalid/Zone"}, false, []string{KeyClinicTimezone + " is invalid"}},
 	}
 	for _, c := range cases {
 		env := releaseValues()
@@ -266,6 +267,23 @@ func TestCheckRelease(t *testing.T) {
 		write(t, dir, "cloud.env", cloud)
 		if p, err := CheckRelease(dir, both); err != nil || len(p) != 0 {
 			t.Errorf("same key in upper case: problems %q, err %v", p, err)
+		}
+	})
+
+	t.Run("the nodes must share the clinic timezone", func(t *testing.T) {
+		dir := newDir(t)
+		clinic, cloud := good()
+		clinic[KeyClinicTimezone] = "Asia/Beirut"
+		cloud[KeyClinicTimezone] = "Europe/London"
+		write(t, dir, "local.env", clinic)
+		write(t, dir, "cloud.env", cloud)
+		p, err := CheckRelease(dir, both)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string{KeyClinicTimezone + " differs between local.env and cloud.env"}
+		if !reflect.DeepEqual(p, want) {
+			t.Errorf("problems = %q, want %q", p, want)
 		}
 	})
 

@@ -398,7 +398,7 @@ func TestHandleCloud_RejectsBadDumps(t *testing.T) {
 			prepare: func(t *testing.T, db *sql.DB) {
 				mustExec(t, db, `DELETE FROM goose_db_version WHERE version_id = (SELECT MAX(version_id) FROM goose_db_version)`)
 			},
-			err: "schema version mismatch: local=12 cloud=13",
+			err: "schema version mismatch: local=13 cloud=14",
 		},
 		{
 			name: "changed table",

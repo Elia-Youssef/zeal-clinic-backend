@@ -14,7 +14,7 @@ import (
 )
 
 var demoUsers = []struct{ name, role string }{
-	{"jvance", "admin"}, {"tmansour", "staff"}, {"lhaddad", "nurse"}, {"maoun", "nurse"},
+	{"jvance", "admin"}, {"tmercer", "staff"}, {"lhayes", "nurse"}, {"mowens", "nurse"},
 }
 
 // Lists whose totals must match on both nodes after the first sync.
@@ -132,7 +132,7 @@ func stepInitialSync(t *testing.T, h *harness) {
 			switch {
 			case u.name == "jvance" && n == h.cloud:
 				h.cloudAdmin = s
-			case u.name == "lhaddad" && n == h.cloud:
+			case u.name == "lhayes" && n == h.cloud:
 				h.cloudNurse = s
 			}
 		}

@@ -10,6 +10,7 @@ import (
 	"clinic-api/internal/config"
 	"clinic-api/internal/config/envfile"
 	"clinic-api/internal/database"
+	"clinic-api/internal/database/store"
 	"clinic-api/internal/legacyimport"
 )
 
@@ -45,6 +46,11 @@ func main() {
 func useConfigKey(cfg *config.Config) error {
 	if err := cfg.Check(buildmode.Release()); err != nil {
 		return err
+	}
+	if cfg.ClinicTimezone != "" {
+		if err := store.SetClinicTimezone(cfg.ClinicTimezone); err != nil {
+			return err
+		}
 	}
 	if err := database.SetKey(cfg.DBEncryptionKey); err != nil {
 		return err

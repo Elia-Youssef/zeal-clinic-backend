@@ -156,17 +156,17 @@ func seedEmployees(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 		username, displayName, userRole                    string // username == "" means no user account
 	}
 	employees := []emp{
-		{"Julian", "Vance", "Plastic Surgeon", "+1 555 0107", "julian@example.org", "1978-04-12", "Full-time",
+		{"Julian", "Vance", "Plastic Surgeon", "+1 555 0101", "julian.vance@example.org", "1978-04-12", "Full-time",
 			5000, true, "jvance", "Dr. Julian Vance", "admin"},
-		{"Lina", "Haddad", "Dermatologist", "+1 555 0108", "lina@example.org", "1984-09-03", "Full-time",
-			4200, true, "lhaddad", "Dr. Lina Haddad", "nurse"},
-		{"Tarek", "Mansour", "Laser Technician", "+1 555 0109", "tarek@example.org", "1988-01-21", "Full-time",
-			1800, false, "tmansour", "Tarek Mansour", "staff"},
-		{"Maya", "Aoun", "Nurse", "+1 555 0113", "maya@example.org", "1990-07-17", "Full-time",
-			1500, false, "maoun", "Maya Aoun", "nurse"},
-		{"Rita", "Saad", "Receptionist", "+1 555 0114", "rita@example.org", "1992-11-30", "Part-time",
+		{"Laura", "Hayes", "Dermatologist", "+1 555 0102", "laura.hayes@example.org", "1984-09-03", "Full-time",
+			4200, true, "lhayes", "Dr. Laura Hayes", "nurse"},
+		{"Thomas", "Mercer", "Laser Technician", "+1 555 0103", "thomas.mercer@example.org", "1988-01-21", "Full-time",
+			1800, false, "tmercer", "Thomas Mercer", "staff"},
+		{"Margaret", "Owens", "Nurse", "+1 555 0104", "margaret.owens@example.org", "1990-07-17", "Full-time",
+			1500, false, "mowens", "Margaret Owens", "nurse"},
+		{"Rachel", "Sterling", "Receptionist", "+1 555 0105", "rachel.sterling@example.org", "1992-11-30", "Part-time",
 			900, false, "", "", ""},
-		{"Samir", "Nassar", "Accountant", "+1 555 0115", "samir@example.org", "1986-05-25", "Part-time",
+		{"Simon", "North", "Accountant", "+1 555 0106", "simon.north@example.org", "1986-05-25", "Part-time",
 			1200, false, "", "", ""},
 	}
 
@@ -269,9 +269,9 @@ func seedSchedules(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 
 func seedSuppliers(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	suppliers := []struct{ name, contact, email, address string }{
-		{"MedSupply Co", "+961 1 234 567", "orders@example.com", "Beirut, Lebanon"},
-		{"DermaPharma", "+961 1 345 678", "info@example.org", "Jounieh, Lebanon"},
-		{"LaserCare Parts", "+961 1 456 789", "support@lasercare.example", "Dbayeh, Lebanon"},
+		{"Apex Medical Supplies", "+1 555 0110", "orders@example.com", "Beirut, Lebanon"},
+		{"Nova Derma Products", "+1 555 0111", "info@example.org", "Jounieh, Lebanon"},
+		{"Precision Laser Parts", "+1 555 0112", "support@example.net", "Dbayeh, Lebanon"},
 	}
 	for _, s := range suppliers {
 		id := newID()
@@ -326,40 +326,40 @@ func seedPatients(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 		weight, height                                                                float64
 	}
 	patients := []pat{
-		{"Nour", "Abou Khalil", "Female", "1991-03-14", "+1 555 0118", "nour@example.com",
+		{"Nora", "Bennett", "Female", "1991-03-14", "+1 555 0121", "nora.bennett@example.com",
 			"A+", "Beirut", "Achrafieh, Rue Sursock", "Instagram", "Regular client",
 			58, 165},
-		{"Rami", "Chahine", "Male", "1985-08-22", "+1 555 0120", "rami@example.com",
-			"O+", "Jounieh", "Kaslik, Main Road", "Google", "Prefers Dr. Julian",
+		{"Robert", "Carter", "Male", "1985-08-22", "+1 555 0122", "robert.carter@example.org",
+			"O+", "Jounieh", "Kaslik, Main Road", "Google", "Prefers morning appointments",
 			82, 180},
-		{"Lea", "Sassine", "Female", "1994-12-01", "+1 555 0134", "lea@example.com",
+		{"Clara", "Donovan", "Female", "1994-12-01", "+1 555 0123", "clara.donovan@example.net",
 			"B+", "Beirut", "Gemmayzeh", "Friend referral", "",
 			54, 168},
-		{"Karim", "Fakhoury", "Male", "1979-05-19", "+1 555 0136", "karim@example.com",
+		{"David", "Evans", "Male", "1979-05-19", "+1 555 0124", "david.evans@example.com",
 			"A-", "Baabda", "Rabieh, Block 4", "Walk-in", "Botox for migraine",
 			90, 183},
-		{"Yasmina", "Daou", "Female", "1996-02-28", "+1 555 0138", "yasmina@example.com",
+		{"Eleanor", "Foster", "Female", "1996-02-28", "+1 555 0125", "eleanor.foster@example.org",
 			"AB+", "Tripoli", "Dam wel Farez", "Instagram", "First-time lip filler",
 			60, 170},
-		{"Elie", "Zogheib", "Male", "1982-07-09", "+1 555 0140", "elie@example.com",
+		{"Felix", "Gibson", "Male", "1982-07-09", "+1 555 0126", "felix.gibson@example.net",
 			"O-", "Jbeil", "Old Souk", "TikTok", "",
 			78, 178},
-		{"Mira", "Hobeika", "Female", "1989-10-12", "+1 555 0192", "mira@example.com",
+		{"Harriet", "Hayes", "Female", "1989-10-12", "+1 555 0127", "harriet.hayes@example.com",
 			"A+", "Zahle", "Ksara", "Friend referral", "Interested in skin boosters",
 			62, 166},
-		{"Omar", "Karam", "Male", "1993-06-03", "+1 555 0193", "omar@example.com",
+		{"Henry", "Ingram", "Male", "1993-06-03", "+1 555 0128", "henry.ingram@example.org",
 			"B-", "Saida", "Abra", "Google", "Laser hair removal package",
 			84, 181},
-		{"Sara", "Maalouf", "Female", "1976-01-26", "+1 555 0194", "sara@example.com",
-			"O+", "Beirut", "Verdun", "Instagram", "Prefers morning appointments",
+		{"Iris", "Jenkins", "Female", "1976-01-26", "+1 555 0129", "iris.jenkins@example.net",
+			"O+", "Beirut", "Verdun", "Instagram", "Prefers afternoon visits",
 			67, 164},
-		{"Hadi", "Nehme", "Male", "1987-09-18", "+1 555 0195", "hadi@example.com",
+		{"Lucas", "Keller", "Male", "1987-09-18", "+1 555 0130", "lucas.keller@example.com",
 			"AB-", "Jounieh", "Haret Sakher", "Walk-in", "Post-surgery follow-up",
 			88, 176},
-		{"Dalia", "Sfeir", "Female", "1998-04-07", "+1 555 0196", "dalia@example.com",
+		{"Vera", "Lambert", "Female", "1998-04-07", "+1 555 0131", "vera.lambert@example.org",
 			"A-", "Batroun", "Sea Road", "TikTok", "Sensitive skin",
 			55, 162},
-		{"Nabil", "Rahme", "Male", "1969-12-15", "+1 555 0197", "nabil@example.com",
+		{"Oliver", "Monroe", "Male", "1969-12-15", "+1 555 0132", "oliver.monroe@example.net",
 			"O+", "Tripoli", "Mina", "Doctor referral", "Consultation required before surgery",
 			92, 179},
 	}
@@ -395,7 +395,7 @@ func seedPatients(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 }
 
 func seedPatientLinks(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
-	// Index-based map: patientIDs[0]=Nour, [1]=Rami, [2]=Lea, [3]=Karim, [4]=Yasmina, [5]=Elie
+	// Index-based map: patientIDs[0]=Nora, [1]=Robert, [2]=Clara, [3]=David, [4]=Eleanor, [5]=Felix
 	allergyLinks := map[int][]string{
 		0:  {"Penicillin", "Latex"},
 		3:  {"Aspirin"},
@@ -617,6 +617,7 @@ func seedAppointmentsAndInvoices(ctx context.Context, tx *sql.Tx, c *demoCtx) er
 		duration               int
 		status                 string
 		procedureName          string
+		procedureID            string
 		productNames           []string
 		paymentAmount          float64
 		paymentMethod          string
@@ -625,23 +626,23 @@ func seedAppointmentsAndInvoices(ctx context.Context, tx *sql.Tx, c *demoCtx) er
 	}
 	appointments := []apt{
 		// Past: completed, fully paid in cash.
-		{0, room1, -7, 10, 60, "Completed", "Botox Full", nil, 220, "cash", false, "Routine touch-up", "Done; client happy"},
+		{0, room1, -7, 10, 60, "Completed", "Botox Full", "", nil, 220, "cash", false, "Routine touch-up", "Done; client happy"},
 		// Past: completed, 20% Botox offer applied, paid by card.
-		{3, room2, -5, 14, 60, "Completed", "Botox Migraine", nil, 320, "card", true, "Migraine session", ""},
+		{3, room2, -5, 14, 60, "Completed", "Botox Migraine", "", nil, 320, "card", true, "Migraine session", ""},
 		// Past: completed, partial payment ($150 of $250 lips filler).
-		{2, room1, -3, 11, 45, "Completed", "Lips", nil, 150, "cash", false, "First filler", ""},
-		{7, room2, -12, 13, 75, "Completed", "Full Body Package 2", nil, 250, "transfer", false, "Package session 1", "No reaction"},
-		{6, room1, -10, 12, 60, "Completed", "Profhilo Face", []string{"Post Laser Repair Balm"}, 180, "card", false, "Hydration session", ""},
-		{11, room1, -2, 9, 30, "Completed", "Consultation with Dr. Joe", nil, 0, "", false, "Surgical consult", "Discussed hospital estimate"},
-		{8, room2, 0, 11, 90, "In-Progress", "Face + Plasma (1 session)", []string{"SPF 50 Mineral Cream"}, 200, "cash", false, "Morpheus8 session", ""},
+		{2, room1, -3, 11, 45, "Completed", "Lips", "", nil, 150, "cash", false, "First filler", ""},
+		{7, room2, -12, 13, 75, "Completed", "Full Body Package 2", "", nil, 250, "transfer", false, "Package session 1", "No reaction"},
+		{6, room1, -10, 12, 60, "Completed", "Profhilo Face", "", []string{"Post Laser Repair Balm"}, 180, "card", false, "Hydration session", ""},
+		{11, room1, -2, 9, 30, "Completed", "", "6df0a12d-18ae-48a7-8d26-fb8fa70f4a31", nil, 0, "", false, "Surgical consult", "Discussed hospital estimate"},
+		{8, room2, 0, 11, 90, "In-Progress", "Face + Plasma (1 session)", "", []string{"SPF 50 Mineral Cream"}, 200, "cash", false, "Morpheus8 session", ""},
 		// Today: scheduled (no invoice).
-		{4, room1, 0, 16, 60, "Scheduled", "", nil, 0, "", false, "Lip filler consult", ""},
+		{4, room1, 0, 16, 60, "Scheduled", "", "", nil, 0, "", false, "Lip filler consult", ""},
 		// Tomorrow: scheduled retail order (products only, charge invoice, no payment).
-		{1, room2, 1, 12, 30, "Scheduled", "", []string{"Vitamin C Serum", "Hyaluronic Acid Cream"}, 0, "", false, "Retail pickup", ""},
+		{1, room2, 1, 12, 30, "Scheduled", "", "", []string{"Vitamin C Serum", "Hyaluronic Acid Cream"}, 0, "", false, "Retail pickup", ""},
 		// +3 days: scheduled.
-		{5, room1, 3, 15, 60, "Scheduled", "", nil, 0, "", false, "", ""},
-		{9, room2, 4, 10, 45, "Scheduled", "Mole Removal", nil, 0, "", false, "Minor surgery booking", ""},
-		{10, room1, -1, 17, 30, "Cancelled", "", nil, 0, "", false, "Patch test", "Client rescheduled"},
+		{5, room1, 3, 15, 60, "Scheduled", "", "", nil, 0, "", false, "", ""},
+		{9, room2, 4, 10, 45, "Scheduled", "Mole Removal", "", nil, 0, "", false, "Minor surgery booking", ""},
+		{10, room1, -1, 17, 30, "Cancelled", "", "", nil, 0, "", false, "Patch test", "Client rescheduled"},
 	}
 
 	for _, a := range appointments {
@@ -661,8 +662,14 @@ func seedAppointmentsAndInvoices(ctx context.Context, tx *sql.Tx, c *demoCtx) er
 
 		// Build invoice items + totals. Skip when there's nothing to charge.
 		var items []invoiceItem
-		if a.procedureName != "" {
-			procID := c.procedures[a.procedureName]
+		procID := a.procedureID
+		if procID == "" && a.procedureName != "" {
+			procID = c.procedures[a.procedureName]
+			if procID == "" {
+				return fmt.Errorf("demo seed: unknown procedure %q", a.procedureName)
+			}
+		}
+		if procID != "" {
 			price, err := procedurePrice(ctx, tx, procID)
 			if err != nil {
 				return err
@@ -872,7 +879,7 @@ func seedNotifications(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 		read                       bool
 	}{
 		{"Low stock: Botox Vial 100u", "Quantity 8 has dropped near min threshold.", "/inventory", false},
-		{"Appointment scheduled", "Yasmina Daou is scheduled for today at 16:00.", "/appointments", true},
+		{"Appointment scheduled", "Eleanor Foster is scheduled for today at 16:00.", "/appointments", true},
 	}
 	for _, n := range notifications {
 		read := 0

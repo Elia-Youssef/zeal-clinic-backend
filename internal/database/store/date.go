@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql/driver"
 	"fmt"
+	"sync"
 	"time"
 	// Embed the IANA tz database so Asia/Beirut resolves on minimal builds
 	// (notably Windows containers without zoneinfo).
@@ -12,29 +13,59 @@ import (
 const (
 	DateTimeFormat = time.RFC3339
 	DateFormat     = "2006-01-02"
-	// ClinicTimezone is the clinic's IANA timezone. All storage and API I/O
-	// remain UTC; this is consulted only when the backend has to anchor
-	// "now / today / this week / this month" reasoning on its own (no user
-	// input available to derive the intended calendar day from).
-	ClinicTimezone = "Asia/Beirut"
 )
+
+var (
+	tzMu sync.RWMutex
+	// clinicTimezone is the clinic's IANA timezone, set once at startup from
+	// the config (SetClinicTimezone). All storage and API I/O remain UTC; this
+	// is consulted only when the backend has to anchor "now / today / this
+	// week / this month" reasoning on its own (no user input available to
+	// derive the intended calendar day from).
+	clinicTimezone = "Asia/Beirut"
+	clinicLocation = func() *time.Location {
+		loc, err := time.LoadLocation(clinicTimezone)
+		if err != nil {
+			return time.UTC
+		}
+		return loc
+	}()
+)
+
+// SetClinicTimezone configures the clinic's IANA timezone and updates the
+// cached location. An unknown zone is refused and leaves the current one.
+func SetClinicTimezone(tz string) error {
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		return fmt.Errorf("load timezone %q: %w", tz, err)
+	}
+	tzMu.Lock()
+	clinicTimezone = tz
+	clinicLocation = loc
+	tzMu.Unlock()
+	return nil
+}
+
+// ClinicTimezoneName returns the configured IANA zone name.
+func ClinicTimezoneName() string {
+	tzMu.RLock()
+	defer tzMu.RUnlock()
+	return clinicTimezone
+}
 
 type Date string
 
-var clinicLocation = func() *time.Location {
-	loc, err := time.LoadLocation(ClinicTimezone)
-	if err != nil {
-		return time.UTC
-	}
-	return loc
-}()
-
 // ClinicLocation returns the clinic's *time.Location, falling back to UTC if
 // the tz database could not be loaded.
-func ClinicLocation() *time.Location { return clinicLocation }
+func ClinicLocation() *time.Location {
+	tzMu.RLock()
+	loc := clinicLocation
+	tzMu.RUnlock()
+	return loc
+}
 
 // ClinicNow returns the current wall-clock time in the clinic's timezone.
-func ClinicNow() time.Time { return time.Now().In(clinicLocation) }
+func ClinicNow() time.Time { return time.Now().In(ClinicLocation()) }
 
 // ClinicToday returns today's clinic-local calendar date as YYYY-MM-DD.
 func ClinicToday() Date {
@@ -44,8 +75,9 @@ func ClinicToday() Date {
 // ClinicDayBounds returns the [start, end) UTC RFC3339 instants of the
 // clinic-local calendar day containing t.
 func ClinicDayBounds(t time.Time) (Date, Date) {
-	local := t.In(clinicLocation)
-	start := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, clinicLocation)
+	loc := ClinicLocation()
+	local := t.In(loc)
+	start := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, loc)
 	end := start.AddDate(0, 0, 1)
 	return DateFrom(start), DateFrom(end)
 }
@@ -57,8 +89,9 @@ func ClinicTodayBounds() (Date, Date) { return ClinicDayBounds(ClinicNow()) }
 // ClinicWeekBounds returns the [start, end) UTC instants of the Sunday-Saturday
 // week containing t, anchored in the clinic's timezone.
 func ClinicWeekBounds(t time.Time) (Date, Date) {
-	local := t.In(clinicLocation)
-	start := time.Date(local.Year(), local.Month(), local.Day()-int(local.Weekday()), 0, 0, 0, 0, clinicLocation)
+	loc := ClinicLocation()
+	local := t.In(loc)
+	start := time.Date(local.Year(), local.Month(), local.Day()-int(local.Weekday()), 0, 0, 0, 0, loc)
 	end := start.AddDate(0, 0, 7)
 	return DateFrom(start), DateFrom(end)
 }
@@ -66,8 +99,9 @@ func ClinicWeekBounds(t time.Time) (Date, Date) {
 // ClinicMonthBounds returns the [start, end) UTC instants of the calendar
 // month containing t, anchored in the clinic's timezone.
 func ClinicMonthBounds(t time.Time) (Date, Date) {
-	local := t.In(clinicLocation)
-	start := time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, clinicLocation)
+	loc := ClinicLocation()
+	local := t.In(loc)
+	start := time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, loc)
 	end := start.AddDate(0, 1, 0)
 	return DateFrom(start), DateFrom(end)
 }

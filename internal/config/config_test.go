@@ -138,6 +138,21 @@ func TestCommittedEnvFiles(t *testing.T) {
 	if cloud[envfile.KeyPublishSecret] == "" {
 		t.Error("the cloud defaults need a PUBLISH_SECRET")
 	}
+	if local[envfile.KeyClinicTimezone] != "Asia/Beirut" || cloud[envfile.KeyClinicTimezone] != "Asia/Beirut" {
+		t.Error("the clinic and cloud defaults must share CLINIC_TIMEZONE Asia/Beirut")
+	}
+}
+
+func TestCheck_ClinicTimezone(t *testing.T) {
+	cfg := Load()
+	cfg.ClinicTimezone = "Asia/Beirut"
+	if err := cfg.Check(false); err != nil {
+		t.Errorf("Check with Asia/Beirut failed: %v", err)
+	}
+	cfg.ClinicTimezone = "Invalid/Zone_Name"
+	if err := cfg.Check(false); err == nil {
+		t.Error("Check with invalid timezone accepted")
+	}
 }
 
 func sortedKeys(m map[string]string) []string {

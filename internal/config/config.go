@@ -23,6 +23,7 @@ type Config struct {
 	PublicURL       string
 	PublishSecret   string
 	DBEncryptionKey string
+	ClinicTimezone  string
 }
 
 var current *Config
@@ -48,6 +49,10 @@ func Load() *Config {
 }
 
 func fromEnv(env map[string]string) *Config {
+	tz := env[envfile.KeyClinicTimezone]
+	if tz == "" {
+		tz = "Asia/Beirut"
+	}
 	return &Config{
 		Port:            env[envfile.KeyPort],
 		JWTSecret:       env[envfile.KeyJWTSecret],
@@ -57,6 +62,7 @@ func fromEnv(env map[string]string) *Config {
 		PublicURL:       env[envfile.KeyPublicURL],
 		PublishSecret:   env[envfile.KeyPublishSecret],
 		DBEncryptionKey: env[envfile.KeyDBEncryptionKey],
+		ClinicTimezone:  tz,
 	}
 }
 
@@ -69,10 +75,13 @@ func Current() *Config {
 }
 
 // Check validates the config for this build: every build needs a DB key of 64
-// hex characters, and a release build (see buildmode.Release) also refuses the
-// committed dev values and a JWT secret shorter than 32 characters. The error
-// names keys, never values.
+// hex characters and a valid IANA clinic timezone, and a release build (see
+// buildmode.Release) also refuses the committed dev values and a JWT secret
+// shorter than 32 characters. The error names keys, never values.
 func (c *Config) Check(release bool) error {
+	if _, err := time.LoadLocation(c.ClinicTimezone); err != nil {
+		return fmt.Errorf("%s: invalid timezone %q: %w", envfile.KeyClinicTimezone, c.ClinicTimezone, err)
+	}
 	defaults, err := envfile.Read(envFiles, envFile+envfile.DefaultsSuffix)
 	if err != nil {
 		return err

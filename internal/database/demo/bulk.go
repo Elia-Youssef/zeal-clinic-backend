@@ -22,15 +22,15 @@ type pricedItem struct {
 func seedBulkPatients(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	const count = 140
 
-	firstM := []string{"Rami", "Karim", "Elie", "Omar", "Hadi", "Nabil", "Georges", "Tony", "Marc",
-		"Ziad", "Fadi", "Walid", "Charbel", "Jad", "Rabih", "Samer", "Wissam", "Bilal", "Hassan",
-		"Ali", "Maroun", "Marwan", "Roy", "Patrick", "Joseph", "Antoine", "Michel", "Bassam"}
-	firstF := []string{"Nour", "Lea", "Yasmina", "Mira", "Sara", "Dalia", "Rita", "Carla", "Joelle",
-		"Nadine", "Hiba", "Rana", "Yara", "Tala", "Christelle", "Pamela", "Reem", "Layal", "Zeina",
-		"Farah", "Cynthia", "Maria", "Lara", "Maya", "Rim", "Diana", "Grace", "Nathalie"}
-	last := []string{"Khoury", "Haddad", "Saad", "Aoun", "Karam", "Nehme", "Sfeir", "Rahme", "Chahine",
-		"Sassine", "Fakhoury", "Daou", "Zogheib", "Hobeika", "Maalouf", "Gemayel", "Frangieh", "Salameh",
-		"Najjar", "Tannous", "Asmar", "Rizk", "Mansour", "Eid", "Khalil", "Saliba", "Geagea", "Murr"}
+	firstM := []string{"Alexander", "Benjamin", "Christopher", "Daniel", "Edward", "Felix", "Gabriel", "Henry", "Ian",
+		"Julian", "Lucas", "Matthew", "Nicholas", "Oliver", "Philip", "Quinn", "Robert", "Samuel", "Thomas",
+		"Victor", "William", "Zachary", "Arthur", "Brian", "Colin", "David", "Elliott", "Francis"}
+	firstF := []string{"Alice", "Beatrice", "Clara", "Eleanor", "Fiona", "Harriet", "Hannah", "Iris", "Julia",
+		"Katherine", "Lucy", "Margaret", "Nora", "Olivia", "Penelope", "Rose", "Sophia", "Theresa", "Victoria",
+		"Wendy", "Amelia", "Charlotte", "Miriam", "Emma", "Georgia", "Helen", "Isla", "Jane"}
+	last := []string{"Adler", "Bennett", "Carter", "Donovan", "Evans", "Foster", "Gibson", "Hayes", "Ingram",
+		"Jenkins", "Keller", "Lambert", "Monroe", "Navarro", "Palmer", "Parker", "Quincy", "Reynolds",
+		"Sinclair", "Sterling", "Townsend", "Underwood", "Vance", "Wallace", "York", "Zimmerman", "Mercer", "North"}
 	// Beirut weighted heavier so "Top Cities" has a clear leader.
 	cities := []string{"Beirut", "Beirut", "Beirut", "Beirut", "Jounieh", "Jounieh", "Tripoli",
 		"Tripoli", "Jbeil", "Zahle", "Saida", "Batroun", "Baabda"}
