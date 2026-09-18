@@ -18,8 +18,25 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
+// Options are the few things a development run changes about the server.
+type Options struct {
+	// Dev allows cross-origin calls from the dashboard's Vite dev server. The
+	// built binary serves the dashboard itself, so it needs no CORS.
+	Dev bool
+	// DebugRoutes registers the routes that only serve development runs and
+	// the automated tests (the test notification). A development run sets it;
+	// the built server never does.
+	DebugRoutes bool
+}
+
 func CreateServer() *echo.Echo {
+	return CreateServerWithOptions(Options{})
+}
+
+func CreateServerWithOptions(opts Options) *echo.Echo {
 	e := echo.New()
+	e.IPExtractor = mw.ClientIPExtractor()
+	e.HTTPErrorHandler = apiErrorHandler(e)
 	cfg := config.Current()
 	restoreAPI := cloudrestore.New(cloudrestore.Config{
 		PeerURL:    cfg.PeerURL,
@@ -28,20 +45,19 @@ func CreateServer() *echo.Echo {
 	})
 
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "${time_rfc3339} | ${status} | ${latency_human} | ${method} ${uri}\n",
+		Format:        "${time_rfc3339} | ${status} | ${latency_human} | ${method} ${custom}\n",
+		CustomTagFunc: logRequestTarget,
 	}))
 	e.Use(middleware.Recover())
 	e.Use(tracking.Middleware())
-	e.Use(middleware.CORS())
+	e.Use(securityHeaders())
+	if opts.Dev {
+		e.Use(devCORS())
+	}
+	e.Use(bodyLimitMiddleware())
 	e.Use(mw.UpdateGate())
 	e.Use(restoreAPI.Middleware())
 	e.Use(syncpkg.Middleware())
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Response().Header().Set("X-Robots-Tag", "noindex, nofollow")
-			return next(c)
-		}
-	})
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok", "version": buildmode.Version})
@@ -68,6 +84,9 @@ func CreateServer() *echo.Echo {
 
 	for _, register := range protectedRouteRegistrars {
 		register(api)
+	}
+	if opts.DebugRoutes {
+		routes.SetupDebugRoutes(api)
 	}
 
 	syncAPI := &syncpkg.API{
@@ -137,6 +156,7 @@ var protectedRouteRegistrars = []func(*echo.Group){
 }
 
 func Start(e *echo.Echo, cfg *config.Config) {
+	e.Server.ReadHeaderTimeout = readHeaderTimeout
 	if err := e.Start(":" + cfg.Port); err != nil && err != http.ErrServerClosed {
 		e.Logger.Fatal(err)
 	}

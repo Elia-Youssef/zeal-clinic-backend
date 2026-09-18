@@ -988,7 +988,7 @@
               },
               {
                 "days": {
-                  "2025-03-31": 1
+                  "2025-03-31": 2
                 },
                 "roomId": "25e6a41c-c76b-4b39-b959-07cf51f4305e",
                 "roomName": "Room 2"
@@ -2013,6 +2013,21 @@
         "body": {
           "Data": null,
           "Error": "Date is required",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "schedule PDF with a malformed date",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments/pdf?date=31-03-2025"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date",
           "Success": false
         }
       }

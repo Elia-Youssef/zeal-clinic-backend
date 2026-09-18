@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/labstack/echo/v4"
 )
@@ -33,6 +34,23 @@ func (r *LoginRequest) IsValid() error {
 	return nil
 }
 
+// comparePassword is the password comparison a sign-in runs. Tests replace it
+// to see which hash each attempt is checked against.
+var comparePassword = auth.ComparePassword
+
+// loginDummyHash is the hash an unknown username or a disabled account is
+// checked against, so those refusals run the same argon2id work as a wrong
+// password. It is made once, on first use, by auth.HashPassword, so it carries
+// the parameters of every freshly stored hash. The attempt is refused whatever
+// the comparison says.
+var loginDummyHash = sync.OnceValue(func() string {
+	hash, err := auth.HashPassword("no account behind this sign-in")
+	if err != nil {
+		log.Println("Error: [Login] failed to build the comparison hash:", err)
+	}
+	return hash
+})
+
 func Login(c echo.Context) error {
 	var req LoginRequest
 	if err := c.Bind(&req); err != nil {
@@ -48,13 +66,22 @@ func Login(c echo.Context) error {
 	}
 
 	username := strings.TrimSpace(req.Username)
-	password := strings.TrimSpace(req.Password)
+	// The password is compared as typed: it is never trimmed.
+	password := req.Password
 
+	// An unknown username, a disabled account and a wrong password get the
+	// same status and body, and each runs one argon2id comparison: a wrong
+	// password against the stored hash, the other two against loginDummyHash
+	// (the parameters of a freshly stored hash). So neither the answer nor the
+	// hashing time tells them apart while the stored hash uses the current
+	// parameters; only the first unknown-username or disabled-account refusal
+	// of a process also builds the dummy hash. Failed attempts are logged
+	// without the username, at debug level.
 	user := store.User{}
 	if err := user.GetByUsername(username); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [Login] user not found:", username)
-			tracking.Warn(c, "[Login] user not found: "+username)
+			_, _ = comparePassword(password, loginDummyHash())
+			tracking.Debug(c, "[Login] unknown username")
 			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Invalid username or password"})
 		}
 		log.Println("Error: [Login] db error:", err)
@@ -62,9 +89,9 @@ func Login(c echo.Context) error {
 	}
 
 	if !user.IsActive {
-		log.Println("Error: [Login] account disabled:", username)
-		tracking.Warn(c, "[Login] account disabled: "+username)
-		return c.JSON(http.StatusForbidden, httpx.Response{Error: "Your account is disabled"})
+		_, _ = comparePassword(password, loginDummyHash())
+		tracking.Debug(c, "[Login] disabled account")
+		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Invalid username or password"})
 	}
 
 	if user.PasswordHash == "" {
@@ -79,10 +106,9 @@ func Login(c echo.Context) error {
 		}
 		user.PasswordHash = hash
 	} else {
-		match, err := auth.ComparePassword(password, user.PasswordHash)
+		match, err := comparePassword(password, user.PasswordHash)
 		if err != nil || !match {
-			log.Println("Error: [Login] invalid password for:", username)
-			tracking.Warn(c, "[Login] invalid password for: "+username)
+			tracking.Debug(c, "[Login] wrong password")
 			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Invalid username or password"})
 		}
 	}

@@ -1,6 +1,8 @@
 package pdf
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,8 +31,41 @@ func TmpDir() string {
 	return dir
 }
 
+// tmpPath is <name>-<unix milliseconds>-<random suffix>.pdf in the cache
+// folder; the suffix keeps two files made in the same millisecond apart.
 func tmpPath(name string) string {
-	return filepath.Join(TmpDir(), fmt.Sprintf("%s-%d.pdf", name, time.Now().UnixMilli()))
+	suffix := make([]byte, 3)
+	_, _ = rand.Read(suffix)
+	return filepath.Join(TmpDir(), fmt.Sprintf("%s-%d-%s.pdf", name, time.Now().UnixMilli(), hex.EncodeToString(suffix)))
+}
+
+// rangeFileDates names the clinic-local calendar days a report range covers,
+// for the file name. A bare YYYY-MM-DD bound is a calendar day already; an
+// RFC3339 instant takes the clinic-local date it falls on, and the exclusive
+// upper instant steps back a second onto the last day it includes.
+func rangeFileDates(from, to string) (string, string, error) {
+	start, err := boundDay(from, 0)
+	if err != nil {
+		return "", "", err
+	}
+	end, err := boundDay(to, -time.Second)
+	if err != nil {
+		return "", "", err
+	}
+	return start, end, nil
+}
+
+func boundDay(v string, shift time.Duration) (string, error) {
+	if len(v) == len(store.DateFormat) {
+		if _, err := time.Parse(store.DateFormat, v); err == nil {
+			return v, nil
+		}
+	}
+	t, err := time.Parse(time.RFC3339, v)
+	if err != nil {
+		return "", fmt.Errorf("range bound %q is neither a date nor an instant", v)
+	}
+	return t.Add(shift).In(store.ClinicLocation()).Format(store.DateFormat), nil
 }
 
 func save(m core.Maroto, name string) (string, error) {

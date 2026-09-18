@@ -35,13 +35,17 @@ func GetInvoicePDF(c echo.Context) error {
 // Monday-Sunday week containing date instead of the single day. Cancelled
 // appointments are listed too, marked as such.
 func GetAllAppointmentsPDF(c echo.Context) error {
-	date := c.QueryParam("date")
-	if date == "" {
+	if c.QueryParam("date") == "" {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Date is required"})
 	}
+	day, err := parseDate(c.QueryParam("date"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid date"})
+	}
+	// The file is named after the parsed day, never after the raw parameter.
+	date := day.Format(store.DateFormat)
 	params := parseListParams(c)
 	apts := store.AppointmentList{}
-	var err error
 	if c.QueryParam("range") == "week" {
 		_, err = apts.GetWeek(date, params)
 	} else {
@@ -72,7 +76,10 @@ func GetAllAppointmentsPDF(c echo.Context) error {
 
 // GetRevenueReportPDF generates a PDF for the revenue report.
 func GetRevenueReportPDF(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	report, err := (&store.Reports{}).Revenue(store.RevenueParams{
 		From:       from,
 		To:         to,
@@ -96,7 +103,10 @@ func GetRevenueReportPDF(c echo.Context) error {
 // GetAnalyticsReportPDF generates the dashboard-style analytics PDF for the
 // requested date range.
 func GetAnalyticsReportPDF(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	data, err := (&store.Analytics{}).Report(from, to)
 	if err != nil {
 		log.Println("Error: GetAnalyticsReportPDF:", err)
@@ -112,7 +122,10 @@ func GetAnalyticsReportPDF(c echo.Context) error {
 
 // GetExpensesReportPDF generates a PDF for the expenses report.
 func GetExpensesReportPDF(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	report, err := (&store.Reports{}).Expenses(store.ExpensesParams{
 		From:       from,
 		To:         to,

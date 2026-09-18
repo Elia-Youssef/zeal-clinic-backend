@@ -6,8 +6,8 @@ frontend — all served from one executable.
 
 ## Requirements
 
-- Go 1.26+
-- Frontend built into `client/dist` before any release build (`make frontend`)
+- Go 1.26.1 or newer (a dependency requires it; with the default `GOTOOLCHAIN=auto`, the go command fetches the matching toolchain on its own when yours is older)
+- Frontend built into `client/dist` before any release build (`make frontend`, from the sibling `../zeal-clinic-frontend` checkout; `FRONTEND=<path>` overrides)
 - Inno Setup 6 — only for the Windows installer
 
 ## Run

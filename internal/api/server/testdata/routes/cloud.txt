@@ -169,7 +169,6 @@ POST /api/expenses
 POST /api/gift-cards/redeem
 POST /api/holidays
 POST /api/medicines
-POST /api/notifications/test
 POST /api/patients
 POST /api/patients/:patientId/allergies
 POST /api/patients/:patientId/medicines

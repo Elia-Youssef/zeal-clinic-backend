@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -431,6 +432,74 @@ func stepLongSSE(t *testing.T, h *harness) {
 	if n := len(requests(events, http.MethodGet, "/api/sync/events")); n != 0 {
 		t.Fatalf("the sync event stream reconnected %d times", n)
 	}
+}
+
+// stepLargeUpload restores a clinic database of about 50 MiB into the cloud:
+// the restore upload has to pass whatever body limit the API applies elsewhere.
+func stepLargeUpload(t *testing.T, h *harness) {
+	if !h.cfg.full {
+		t.Skip("full mode only")
+	}
+	const (
+		targetBytes = int64(52 << 20)
+		minUpload   = int64(20 << 20)
+		noteBytes   = 512 << 10
+		maxRows     = 400
+	)
+	// Patients with large notes grow the clinic database while the peer is out
+	// of reach, so nothing is pushed row by row: the restore carries it all and
+	// resets the outbox.
+	h.disconnect()
+	filler := strings.Repeat("Systest large upload filler text. ", noteBytes/34+1)[:noteBytes]
+	before := h.clinicAdmin.total(t, "/api/patients", "")
+	onDisk := func() int64 { return fileSize(h.clinic.dbPath()) + fileSize(h.clinic.dbPath()+"-wal") }
+	rows := 0
+	for rows < maxRows && onDisk() < targetBytes {
+		h.phone++
+		h.clinicAdmin.expect(t, http.StatusCreated, http.MethodPost, "/api/patients", map[string]any{
+			"firstName": "Systest", "lastName": fmt.Sprintf("Bulk%03d", rows), "gender": "Female",
+			"contact": strconv.Itoa(h.phone), "notes": fmt.Sprintf("%04d ", rows) + filler,
+		})
+		rows++
+	}
+	t.Logf("%d patients with %d KiB of notes each; clinic database %.1f MiB on disk", rows, noteBytes>>10, float64(onDisk())/(1<<20))
+
+	h.reconnect()
+	mark := h.proxy.mark()
+	start := time.Now()
+	r, err := h.clinicAdmin.doWithin(10*time.Minute, http.MethodPost, "/api/cloud-restore", nil)
+	if err != nil {
+		t.Fatalf("large cloud restore: %v", err)
+	}
+	if r.status != http.StatusOK || !r.env.Success {
+		t.Fatalf("large cloud restore: %s", r)
+	}
+	elapsed := time.Since(start)
+	uploads := requests(h.proxy.since(mark), http.MethodPost, "/api/cloud-restore")
+	if len(uploads) != 1 {
+		t.Fatalf("restore uploads through the proxy: %d, want 1", len(uploads))
+	}
+	size := uploads[0].length
+	t.Logf("snapshot of %.1f MiB uploaded, applied and acknowledged in %s", float64(size)/(1<<20), elapsed.Round(100*time.Millisecond))
+	if size < minUpload {
+		t.Fatalf("uploaded snapshot %.1f MiB, want at least %d MiB", float64(size)/(1<<20), minUpload>>20)
+	}
+
+	// The cloud holds every bulk row, and sync carries on afterwards.
+	a, b := h.clinicAdmin.total(t, "/api/patients", ""), h.cloudAdmin.total(t, "/api/patients", "")
+	if a < before+rows || b != a {
+		t.Fatalf("patients after the restore: clinic %d, cloud %d, want at least %d on both", a, b, before+rows)
+	}
+	p := h.createPatient(t, h.clinicAdmin, "Systest", "After Large Restore")
+	h.cloudAdmin.waitStatus(t, "/api/patients/"+p.ID, http.StatusOK)
+}
+
+func fileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
 }
 
 func stepShutdown(t *testing.T, h *harness) {

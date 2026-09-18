@@ -22,6 +22,9 @@ const appointmentCancelled = "Cancelled"
 // listed too, flagged in the status column with the cancellation reason in the
 // notes column.
 func GenerateAppointments(apts store.AppointmentList, rooms map[string]string, date string) (string, error) {
+	if _, err := time.Parse(store.DateFormat, date); err != nil {
+		return "", fmt.Errorf("date %q is not a calendar day", date)
+	}
 	cfg := config.NewBuilder().
 		WithMaxGridSize(100).
 		WithOrientation(orientation.Horizontal).
@@ -73,7 +76,7 @@ func GenerateAppointments(apts store.AppointmentList, rooms map[string]string, d
 		)
 	}
 
-	return save(m, fmt.Sprintf("appointments-%s", date))
+	return save(m, "appointments-"+date)
 }
 
 // appointmentTimeRange formats the appointment window in clinic-local time as

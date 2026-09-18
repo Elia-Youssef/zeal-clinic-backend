@@ -28,8 +28,8 @@ const (
 	guardAllScopes   = "all"            // every listed scope
 	guardScopeOrSelf = "self"           // the scope, or :id is the caller's own record
 	guardCritical    = "critical"       // cloud only: closed until a clinic has synced
-	guardSyncSecret  = "sync-secret"    // X-Sync-Secret header, or the sync_secret query parameter
-	guardSyncHeader  = "sync-header"    // X-Sync-Secret header only
+	guardSyncSecret  = "sync-secret"    // X-Sync-Secret header, checked by the sync API (never a query parameter)
+	guardSyncHeader  = "sync-header"    // X-Sync-Secret header, checked by the update and restore handlers
 	guardPublish     = "publish-header" // X-Publish-Secret header
 	guardVersion     = "version"        // X-Sync-Version equal to the build version
 )

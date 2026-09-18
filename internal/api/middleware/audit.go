@@ -18,7 +18,7 @@ func AuditLogger() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			method := c.Request().Method
 
-			if method != "POST" && method != "PUT" && method != "DELETE" {
+			if method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE" {
 				return next(c)
 			}
 
@@ -79,7 +79,7 @@ func mapMethodToAction(method string) string {
 	switch method {
 	case "POST":
 		return "create"
-	case "PUT":
+	case "PUT", "PATCH":
 		return "update"
 	case "DELETE":
 		return "delete"

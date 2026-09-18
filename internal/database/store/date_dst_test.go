@@ -42,14 +42,15 @@ func TestClinicDayBounds_AcrossDST(t *testing.T) {
 	}{
 		{"2026-03-27", "2026-03-26T22:00:00Z", "2026-03-27T22:00:00Z", 24},
 		{"2026-03-28", "2026-03-27T22:00:00Z", "2026-03-28T22:00:00Z", 24},
-		// The 23-hour day: midnight does not exist, the start normalizes to
-		// 01:00 and the end is taken one calendar day later at 01:00, so the
-		// window is 24 hours and reaches one hour into 30 March.
-		{"2026-03-29", "2026-03-28T22:00:00Z", "2026-03-29T22:00:00Z", 24},
+		// The 23-hour day: midnight does not exist, so the day starts at its
+		// first instant (01:00 EEST) and ends at the first instant of 30 March
+		// (00:00 EEST), 23 hours later, without reaching into 30 March.
+		{"2026-03-29", "2026-03-28T22:00:00Z", "2026-03-29T21:00:00Z", 23},
 		{"2026-03-30", "2026-03-29T21:00:00Z", "2026-03-30T21:00:00Z", 24},
 		{"2026-10-24", "2026-10-23T21:00:00Z", "2026-10-24T22:00:00Z", 25},
 		{"2026-10-25", "2026-10-24T22:00:00Z", "2026-10-25T22:00:00Z", 24},
-		{"2027-03-28", "2027-03-27T22:00:00Z", "2027-03-28T22:00:00Z", 24},
+		// The 23-hour day of the following year, likewise.
+		{"2027-03-28", "2027-03-27T22:00:00Z", "2027-03-28T21:00:00Z", 23},
 		{"2027-10-30", "2027-10-29T21:00:00Z", "2027-10-30T22:00:00Z", 25},
 	}
 	for _, tc := range cases {
@@ -70,17 +71,17 @@ func TestClinicDayBounds_AcrossDST(t *testing.T) {
 	}
 }
 
-// The windows of 29 and 30 March 2026 overlap: 00:00-00:59 on 30 March
-// belongs to 30 March but also sits inside the 29 March window.
-func TestClinicDayBounds_SpringForwardWindowsOverlap(t *testing.T) {
-	inOverlap := mustInstant(t, "2026-03-29T21:30:00Z")
-	start, end := ClinicDayBounds(inOverlap)
+// The windows of 29 and 30 March 2026 meet at the first instant of 30 March:
+// 00:00-00:59 on 30 March belongs to 30 March only.
+func TestClinicDayBounds_SpringForwardWindowsMeet(t *testing.T) {
+	inNext := mustInstant(t, "2026-03-29T21:30:00Z")
+	start, end := ClinicDayBounds(inNext)
 	if start != "2026-03-29T21:00:00Z" || end != "2026-03-30T21:00:00Z" {
 		t.Fatalf("bounds of 30 March 00:30 = [%s, %s)", start, end)
 	}
 	_, prevEnd := ClinicDayBounds(clinicTime(t, "2026-03-29", 12, 0))
-	if !mustInstant(t, string(prevEnd)).After(inOverlap) {
-		t.Fatalf("29 March window ends at %s; expected it to still contain %s", prevEnd, inOverlap.Format(time.RFC3339))
+	if prevEnd != start {
+		t.Fatalf("29 March window ends at %s, want the start of 30 March %s", prevEnd, start)
 	}
 }
 
@@ -91,10 +92,10 @@ func TestClinicWeekBounds_AcrossDST(t *testing.T) {
 		hours      int
 	}{
 		{"2026-03-25", "2026-03-21T22:00:00Z", "2026-03-28T22:00:00Z", 168},
-		// Weeks starting on the 23-hour Sunday are 168 hours long and end an
-		// hour into the next week, like the day bounds above.
-		{"2026-03-29", "2026-03-28T22:00:00Z", "2026-04-04T22:00:00Z", 168},
-		{"2026-04-01", "2026-03-28T22:00:00Z", "2026-04-04T22:00:00Z", 168},
+		// The week starting on the 23-hour Sunday is 167 hours long and ends
+		// at the first instant of the next Sunday, like the day bounds above.
+		{"2026-03-29", "2026-03-28T22:00:00Z", "2026-04-04T21:00:00Z", 167},
+		{"2026-04-01", "2026-03-28T22:00:00Z", "2026-04-04T21:00:00Z", 167},
 		{"2026-04-05", "2026-04-04T21:00:00Z", "2026-04-11T21:00:00Z", 168},
 		{"2026-10-24", "2026-10-17T21:00:00Z", "2026-10-24T22:00:00Z", 169},
 		{"2026-10-25", "2026-10-24T22:00:00Z", "2026-10-31T22:00:00Z", 168},
@@ -178,9 +179,9 @@ func TestRangeStartEnd_HalfOpenBounds(t *testing.T) {
 	}
 }
 
-// PreviousPeriod shifts by the window's duration, so across a DST switch the
-// previous window is an hour off the clinic calendar, and a month's previous
-// period is the same number of days rather than the previous month.
+// PreviousPeriod shifts by the window's calendar span: the previous window of
+// a clinic day is the previous clinic day whatever its length, and a month's
+// previous period is the previous month.
 func TestPreviousPeriod_AcrossDST(t *testing.T) {
 	dayOf := func(d string) [2]string {
 		s, e := ClinicDayBounds(clinicTime(t, d, 12, 0))
@@ -195,13 +196,18 @@ func TestPreviousPeriod_AcrossDST(t *testing.T) {
 		current    [2]string
 		want       [2]string
 		clinicPrev [2]string
-		sameStart  bool
 	}{
-		{"after the 23-hour day", dayOf("2026-03-30"), [2]string{"2026-03-28T21:00:00Z", "2026-03-29T21:00:00Z"}, dayOf("2026-03-29"), false},
-		{"the 23-hour day", dayOf("2026-03-29"), [2]string{"2026-03-27T22:00:00Z", "2026-03-28T22:00:00Z"}, dayOf("2026-03-28"), true},
-		{"after the 25-hour day", dayOf("2026-10-25"), [2]string{"2026-10-23T22:00:00Z", "2026-10-24T22:00:00Z"}, dayOf("2026-10-24"), false},
-		{"the 25-hour day", dayOf("2026-10-24"), [2]string{"2026-10-22T20:00:00Z", "2026-10-23T21:00:00Z"}, dayOf("2026-10-23"), false},
-		{"April", monthOf("2026-04-15"), [2]string{"2026-03-01T21:00:00Z", "2026-03-31T21:00:00Z"}, monthOf("2026-03-15"), false},
+		// The previous window of 30 March is the 23-hour day: from its first
+		// instant (01:00 EEST) to the first instant of 30 March.
+		{"after the 23-hour day", dayOf("2026-03-30"), [2]string{"2026-03-28T22:00:00Z", "2026-03-29T21:00:00Z"}, dayOf("2026-03-29")},
+		// The previous window of the 23-hour day is the full 24 hours of 28 March.
+		{"the 23-hour day", dayOf("2026-03-29"), [2]string{"2026-03-27T22:00:00Z", "2026-03-28T22:00:00Z"}, dayOf("2026-03-28")},
+		// The previous window of 25 October is the 25-hour Saturday.
+		{"after the 25-hour day", dayOf("2026-10-25"), [2]string{"2026-10-23T21:00:00Z", "2026-10-24T22:00:00Z"}, dayOf("2026-10-24")},
+		// The previous window of the 25-hour day is the full 24 hours of 23 October.
+		{"the 25-hour day", dayOf("2026-10-24"), [2]string{"2026-10-22T21:00:00Z", "2026-10-23T21:00:00Z"}, dayOf("2026-10-23")},
+		// April's previous period is March: 31 days, from 1 March 00:00 EET.
+		{"April", monthOf("2026-04-15"), [2]string{"2026-02-28T22:00:00Z", "2026-03-31T21:00:00Z"}, monthOf("2026-03-15")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -212,8 +218,8 @@ func TestPreviousPeriod_AcrossDST(t *testing.T) {
 			if to != tc.current[0] {
 				t.Errorf("previous window ends at %s, want the current start %s", to, tc.current[0])
 			}
-			if (from == tc.clinicPrev[0]) != tc.sameStart {
-				t.Errorf("previous start %s, clinic calendar start %s: same = %v, want %v", from, tc.clinicPrev[0], from == tc.clinicPrev[0], tc.sameStart)
+			if from != tc.clinicPrev[0] || to != tc.clinicPrev[1] {
+				t.Errorf("previous window [%s, %s), want the clinic calendar's own [%s, %s)", from, to, tc.clinicPrev[0], tc.clinicPrev[1])
 			}
 		})
 	}

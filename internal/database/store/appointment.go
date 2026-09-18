@@ -260,11 +260,7 @@ func (a *AppointmentList) GetAll(date string, params ListParams) (int, error) {
 	// `date` is a clinic-local calendar day (YYYY-MM-DD) picked by the user.
 	// Convert to UTC half-open instants so a 1 AM Beirut appointment (which
 	// is stored as the previous UTC day) is still attributed to the right day.
-	t, err := time.Parse(DateFormat, date)
-	if err != nil {
-		t = ClinicNow()
-	}
-	dayStart, dayEnd := ClinicDayBounds(t)
+	dayStart, dayEnd := ClinicDayBounds(clinicDay(date))
 	total, err := a.getAllBetween(dayStart, dayEnd, params)
 	if err != nil {
 		return total, err
@@ -283,13 +279,20 @@ func (a *AppointmentList) GetWeek(date string, params ListParams) (int, error) {
 	return total, a.LoadPatientBalances()
 }
 
+// clinicDay reads a bare YYYY-MM-DD date as a calendar day of the clinic's
+// timezone. An empty or invalid date falls back to now.
+func clinicDay(date string) time.Time {
+	t, err := time.ParseInLocation(DateFormat, date, ClinicLocation())
+	if err != nil {
+		return ClinicNow()
+	}
+	return t
+}
+
 // weekBounds returns the half-open UTC instants of the Monday-Sunday clinic
 // week containing date. Empty/invalid date falls back to the current week.
 func weekBounds(date string) (Date, Date) {
-	t, err := time.Parse(DateFormat, date)
-	if err != nil {
-		t = ClinicNow()
-	}
+	t := clinicDay(date)
 	offset := int(t.Weekday() - time.Monday)
 	if offset < 0 {
 		offset = 6
@@ -320,15 +323,22 @@ type RoomDayCount struct {
 	Days     map[string]int `json:"days"`
 }
 
+// GetAppointmentCountPerRoom counts, per room and clinic-local calendar day,
+// the appointments that start on the days from weekStart to weekEnd (bare
+// YYYY-MM-DD dates, both included). Each appointment counts on the clinic day
+// of its start, so one booked at 00:30 clinic time counts on that day even
+// though it is stored on the previous UTC day.
 func GetAppointmentCountPerRoom(weekStart, weekEnd Date) ([]RoomDayCount, error) {
-	query := `SELECT r.id, r.name, DATE(a.start_time) as day, COUNT(a.id) as count
+	loc := ClinicLocation()
+	rangeStart, _ := ClinicDayBounds(clinicDay(string(weekStart)))
+	_, rangeEnd := ClinicDayBounds(clinicDay(string(weekEnd)))
+	query := `SELECT r.id, r.name, a.start_time
 		FROM rooms r
 		LEFT JOIN appointments a ON a.room_id = r.id
 			AND a.start_time >= ? AND a.start_time < ?
 			AND a.status NOT IN ('Cancelled','Rescheduled')
-		GROUP BY r.id, r.name, DATE(a.start_time)
-		ORDER BY r.name, day`
-	rows, err := RDB.Query(query, RangeStart(string(weekStart)), RangeEnd(string(weekEnd)))
+		ORDER BY r.name, a.start_time`
+	rows, err := RDB.Query(query, rangeStart, rangeEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -338,17 +348,19 @@ func GetAppointmentCountPerRoom(weekStart, weekEnd Date) ([]RoomDayCount, error)
 	var order []string
 	for rows.Next() {
 		var roomID, roomName string
-		var day sql.NullString
-		var count int
-		if err := rows.Scan(&roomID, &roomName, &day, &count); err != nil {
+		var start sql.NullString
+		if err := rows.Scan(&roomID, &roomName, &start); err != nil {
 			continue
 		}
 		if _, exists := roomMap[roomID]; !exists {
 			roomMap[roomID] = &RoomDayCount{RoomID: roomID, RoomName: roomName, Days: make(map[string]int)}
 			order = append(order, roomID)
 		}
-		if day.Valid {
-			roomMap[roomID].Days[day.String] = count
+		if !start.Valid {
+			continue
+		}
+		if t, err := Date(start.String).Time(); err == nil {
+			roomMap[roomID].Days[t.In(loc).Format(DateFormat)]++
 		}
 	}
 

@@ -89,6 +89,7 @@ func TestSystem(t *testing.T) {
 		{"cloud_restore_failures", stepCloudRestoreFailures},
 		{"cloud_restore", stepCloudRestore},
 		{"long_sse", stepLongSSE},
+		{"large_upload", stepLargeUpload},
 		{"shutdown", stepShutdown},
 	}
 	failed := ""

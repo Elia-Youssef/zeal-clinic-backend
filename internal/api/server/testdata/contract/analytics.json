@@ -1160,6 +1160,36 @@
       }
     },
     {
+      "name": "GET /api/analytics/money?from=yesterday",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/money?from=yesterday"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date range",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/analytics/series?metric=revenue&from=2025-05",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/series?metric=revenue&from=2025-05"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date range",
+          "Success": false
+        }
+      }
+    },
+    {
       "name": "GET /api/analytics/appointments/recent-today",
       "request": {
         "method": "GET",
@@ -1278,6 +1308,53 @@
           "contentType": "application/pdf",
           "pdfHeader": true,
           "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "analytics report PDF between clinic midnights",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/report/pdf?from=<day-1> 00:00 clinic&to=<day+2> 00:00 clinic"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/analytics-report-<day-1>-<day+1>-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: analytics report PDF between clinic midnights",
+      "request": {
+        "method": "GET",
+        "path": "/files/analytics-report-<day-1>-<day+1>-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "analytics report PDF with a malformed range",
+      "request": {
+        "method": "GET",
+        "path": "/api/analytics/report/pdf?to=yesterday"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date range",
+          "Success": false
         }
       }
     }

@@ -178,12 +178,12 @@ func newContractRun(t *testing.T) *contractRun {
 	start := time.Now() // before the migrations, which stamp the seeded rows
 	setupTestEnv(t)
 	quietServerLogs(t)
-	e := CreateServer()
+	e := CreateServerWithOptions(Options{DebugRoutes: true})
 	openCriticalSyncGate(t)
 	r := &contractRun{
 		t:        t,
 		e:        e,
-		cold:     CreateServer(),
+		cold:     CreateServerWithOptions(Options{DebugRoutes: true}),
 		norm:     newContractNormalizer(t, start),
 		files:    map[string]*contractFile{},
 		resource: map[string]string{},

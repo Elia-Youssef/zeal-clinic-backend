@@ -1,10 +1,6 @@
 {
   "files": [
-    "internal/api/handlers/reports.go",
-    "internal/api/middleware/audit_test.go",
     "internal/api/middleware/cache.go",
-    "internal/auth/hash_test.go",
-    "internal/database/demo/bulk.go",
-    "internal/database/store/date_test.go"
+    "internal/database/demo/bulk.go"
   ]
 }

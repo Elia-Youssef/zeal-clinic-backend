@@ -18,6 +18,10 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to string) (string
 	if report == nil {
 		return "", fmt.Errorf("report is empty")
 	}
+	firstDay, lastDay, err := rangeFileDates(from, to)
+	if err != nil {
+		return "", err
+	}
 
 	m := newReportDoc("Revenue Report")
 
@@ -55,11 +59,15 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to string) (string
 		emphCell(12, "", align.Right),
 	)
 
-	return save(m, fmt.Sprintf("revenue-report-%s-%s", from[:10], to[:10]))
+	return save(m, fmt.Sprintf("revenue-report-%s-%s", firstDay, lastDay))
 }
 
 // GenerateExpensesReport writes an expenses report PDF and returns its path.
 func GenerateExpensesReport(report store.ExpensesReport, from, to string) (string, error) {
+	firstDay, lastDay, err := rangeFileDates(from, to)
+	if err != nil {
+		return "", err
+	}
 	m := newReportDoc("Expenses Report")
 
 	hdr := &rowBuf{}
@@ -102,7 +110,7 @@ func GenerateExpensesReport(report store.ExpensesReport, from, to string) (strin
 		emphCell(10, money(report.Totals.Remaining), align.Right),
 	)
 
-	return save(m, fmt.Sprintf("expenses-report-%s-%s", from[:10], to[:10]))
+	return save(m, fmt.Sprintf("expenses-report-%s-%s", firstDay, lastDay))
 }
 
 func newReportDoc(label string) core.Maroto {

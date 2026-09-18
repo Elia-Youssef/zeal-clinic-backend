@@ -13,9 +13,10 @@
       "response": {
         "status": 200,
         "header": {
-          "Access-Control-Allow-Origin": "*",
           "Content-Type": "application/json",
-          "Vary": "Origin",
+          "Referrer-Policy": "same-origin",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
           "X-Robots-Tag": "noindex, nofollow"
         },
         "body": {
@@ -75,12 +76,17 @@
         }
       },
       "response": {
-        "status": 204,
+        "status": 401,
         "header": {
-          "Access-Control-Allow-Headers": "authorization,content-type",
-          "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
-          "Access-Control-Allow-Origin": "*",
-          "Vary": "Origin"
+          "Referrer-Policy": "same-origin",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
+          "X-Robots-Tag": "noindex, nofollow"
+        },
+        "body": {
+          "Data": null,
+          "Error": "Please sign in again",
+          "Success": false
         }
       }
     },
@@ -95,6 +101,9 @@
         "status": 401,
         "header": {
           "Content-Type": "application/json",
+          "Referrer-Policy": "same-origin",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
           "X-Robots-Tag": "noindex, nofollow"
         },
         "body": {
@@ -115,6 +124,9 @@
         "status": 400,
         "header": {
           "Content-Type": "application/json",
+          "Referrer-Policy": "same-origin",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
           "X-Robots-Tag": "noindex, nofollow"
         },
         "body": {

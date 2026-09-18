@@ -2,8 +2,50 @@ package server
 
 import (
 	"bytes"
+	"net/http"
+	"strings"
 	"testing"
 )
+
+func TestLooksLikeAsset(t *testing.T) {
+	for rel, want := range map[string]bool{
+		"assets/index-abc123.js":   true,
+		"assets/":                  true,
+		"icon.ico":                 true,
+		"fonts/inter.woff2":        true,
+		"patients/some-id/x.png":   true,
+		"":                         false,
+		"patients":                 false,
+		"patients/some-id/details": false,
+		"settings/v1.2/general":    false,
+	} {
+		if got := looksLikeAsset(rel); got != want {
+			t.Errorf("looksLikeAsset(%q) = %v, want %v", rel, got, want)
+		}
+	}
+}
+
+// A missing asset answers 404 while the root and the app routes keep the shell.
+func TestSPAHandlerAnswers404ForMissingAssets(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	for reqPath, want := range map[string]int{
+		"/assets/index-stale.js":    http.StatusNotFound,
+		"/assets/":                  http.StatusNotFound,
+		"/missing.png":              http.StatusNotFound,
+		"/":                         http.StatusOK,
+		"/settings":                 http.StatusOK,
+		"/patients/some-id/details": http.StatusOK,
+	} {
+		rec := doRequest(t, e, http.MethodGet, reqPath, nil, "")
+		if rec.Code != want {
+			t.Errorf("GET %s: %d, want %d", reqPath, rec.Code, want)
+		}
+		if want == http.StatusOK && !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/html") {
+			t.Errorf("GET %s: Content-Type %q, want the app shell", reqPath, rec.Header().Get("Content-Type"))
+		}
+	}
+}
 
 func TestInjectClinicTimezone(t *testing.T) {
 	cases := []struct {

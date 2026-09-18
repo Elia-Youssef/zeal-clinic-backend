@@ -43,6 +43,7 @@ type proxyEvent struct {
 	kind   string // "request" or "event"
 	method string
 	path   string // request target, or the event name ("ping" for a keep-alive)
+	length int64  // a request's Content-Length
 }
 
 func (e proxyEvent) String() string {
@@ -339,7 +340,7 @@ func (c *proxyConn) relayRequests() {
 			c.endRequests(err)
 			return
 		}
-		c.p.record(proxyEvent{kind: "request", method: method, path: target})
+		c.p.record(proxyEvent{kind: "request", method: method, path: target, length: length})
 		if strings.HasPrefix(target, "/api/sync/events") {
 			c.mu.Lock()
 			c.stream = true

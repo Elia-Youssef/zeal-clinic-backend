@@ -32,12 +32,9 @@
         "as": "anonymous"
       },
       "response": {
-        "status": 200,
+        "status": 401,
         "body": {
-          "last_pulled_seq": 0,
-          "last_pushed_seq": 0,
-          "max_log_seq": 374,
-          "self_id": "cloud"
+          "error": "unauthorized"
         }
       }
     },

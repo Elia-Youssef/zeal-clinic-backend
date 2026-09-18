@@ -32,13 +32,13 @@ func TestParseEntityFromPath(t *testing.T) {
 
 func TestMapMethodToAction(t *testing.T) {
 	cases := map[string]string{
-		"POST":    "create",
-		"PUT":     "update",
-		"DELETE":  "delete",
-		"GET":     "unknown",
-		"PATCH":   "unknown",
-		"weird":   "unknown",
-		"":        "unknown",
+		"POST":   "create",
+		"PUT":    "update",
+		"DELETE": "delete",
+		"GET":    "unknown",
+		"PATCH":  "update",
+		"weird":  "unknown",
+		"":       "unknown",
 	}
 	for in, want := range cases {
 		if got := mapMethodToAction(in); got != want {

@@ -13,7 +13,10 @@ import (
 // Section-grouped KPI endpoints (each returns one section's tiles + deltas)
 
 func GetAnalyticsMoney(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	data, err := (&store.Analytics{}).Money(from, to)
 	if err != nil {
 		log.Println("Error: GetAnalyticsMoney failed:", err)
@@ -23,7 +26,10 @@ func GetAnalyticsMoney(c echo.Context) error {
 }
 
 func GetAnalyticsPatients(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	data, err := (&store.Analytics{}).Patients(from, to)
 	if err != nil {
 		log.Println("Error: GetAnalyticsPatients failed:", err)
@@ -33,7 +39,10 @@ func GetAnalyticsPatients(c echo.Context) error {
 }
 
 func GetAnalyticsOperations(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	data, err := (&store.Analytics{}).Operations(from, to)
 	if err != nil {
 		log.Println("Error: GetAnalyticsOperations failed:", err)
@@ -63,7 +72,10 @@ func GetAnalyticsDemographics(c echo.Context) error {
 }
 
 func GetAnalyticsReferralSources(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	items, err := (&store.Analytics{}).ReferralSources(from, to)
 	if err != nil {
 		log.Println("Error: GetAnalyticsReferralSources failed:", err)
@@ -73,7 +85,10 @@ func GetAnalyticsReferralSources(c echo.Context) error {
 }
 
 func GetAnalyticsStaffPerformance(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	items, err := (&store.Analytics{}).StaffPerformance(from, to)
 	if err != nil {
 		log.Println("Error: GetAnalyticsStaffPerformance failed:", err)
@@ -83,7 +98,10 @@ func GetAnalyticsStaffPerformance(c echo.Context) error {
 }
 
 func GetAnalyticsTopProcedures(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	limit := parseLimit(c.QueryParam("limit"), 5)
 	items, err := (&store.Analytics{}).TopProcedures(from, to, limit, c.QueryParam("by"))
 	if err != nil {
@@ -94,7 +112,10 @@ func GetAnalyticsTopProcedures(c echo.Context) error {
 }
 
 func GetAnalyticsTopProducts(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	limit := parseLimit(c.QueryParam("limit"), 5)
 	items, err := (&store.Analytics{}).TopProducts(from, to, limit)
 	if err != nil {
@@ -105,7 +126,10 @@ func GetAnalyticsTopProducts(c echo.Context) error {
 }
 
 func GetAnalyticsAppointmentDistribution(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	data, err := (&store.Analytics{}).AppointmentDistribution(from, to)
 	if err != nil {
 		log.Println("Error: GetAnalyticsAppointmentDistribution failed:", err)
@@ -115,7 +139,10 @@ func GetAnalyticsAppointmentDistribution(c echo.Context) error {
 }
 
 func GetAnalyticsRoomUtilization(c echo.Context) error {
-	from, to := parseRange(c)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 	items, err := (&store.Analytics{}).RoomUtilization(from, to)
 	if err != nil {
 		log.Println("Error: GetAnalyticsRoomUtilization failed:", err)
@@ -154,7 +181,10 @@ func GetAnalyticsSeries(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Metric is required"})
 	}
 
-	from, to := defaultDateRange(c.QueryParam("from"), c.QueryParam("to"), 29)
+	from, to, err := parseRange(c)
+	if err != nil {
+		return invalidDateRange(c)
+	}
 
 	groupBy := c.QueryParam("groupBy")
 	if groupBy == "" {

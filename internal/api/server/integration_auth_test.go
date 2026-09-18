@@ -68,18 +68,45 @@ func TestLogin_UnknownUser(t *testing.T) {
 	}
 }
 
-func TestLogin_InactiveUserReturns403(t *testing.T) {
+// A disabled account gets the wrong-password answer, so a sign-in attempt
+// can't tell it from an unknown username.
+func TestLogin_InactiveUserGetsTheWrongPasswordAnswer(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
+	loginAdmin(t, e, "admin-pw")
 
-	// Disable the admin user directly.
 	if _, err := store.DB.Exec(`UPDATE users SET is_active = 0 WHERE username = 'super-admin'`); err != nil {
 		t.Fatal(err)
 	}
+	for _, password := range []string{"admin-pw", "x"} {
+		rec := doRequest(t, e, http.MethodPost, "/api/auth/login",
+			asJSON(t, map[string]string{"username": "super-admin", "password": password}), "")
+		var body struct{ Error string }
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if rec.Code != http.StatusUnauthorized || body.Error != "Invalid username or password" {
+			t.Errorf("disabled account with password %q: %d %q, want 401 \"Invalid username or password\"", password, rec.Code, body.Error)
+		}
+	}
+}
+
+// The password is compared as typed: padding it with spaces fails the
+// sign-in, while the username is still trimmed.
+func TestLogin_PasswordIsNotTrimmed(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	loginAdmin(t, e, "admin-pw")
+
 	rec := doRequest(t, e, http.MethodPost, "/api/auth/login",
-		asJSON(t, map[string]string{"username": "super-admin", "password": "x"}), "")
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("expected 403, got %d body=%s", rec.Code, rec.Body.String())
+		asJSON(t, map[string]string{"username": " super-admin ", "password": " admin-pw "}), "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("padded password: %d body=%s, want 401", rec.Code, rec.Body.String())
+	}
+	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
+		asJSON(t, map[string]string{"username": " super-admin ", "password": "admin-pw"}), "")
+	if rec.Code != http.StatusOK {
+		t.Errorf("padded username: %d body=%s, want 200", rec.Code, rec.Body.String())
 	}
 }
 

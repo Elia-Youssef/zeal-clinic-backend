@@ -134,10 +134,10 @@ func TestComparePassword_MalformedHash(t *testing.T) {
 			b64("salt") + "$" + b64("hash"),
 		"missing version prefix": "$argon2id$19$m=65536,t=3,p=2$" +
 			b64("salt") + "$" + b64("hash"),
-		"bad params":            "$argon2id$v=19$broken$" + b64("salt") + "$" + b64("hash"),
-		"bad salt b64":          "$argon2id$v=19$m=65536,t=3,p=2$!!!notb64$" + b64("hash"),
-		"bad hash b64":          "$argon2id$v=19$m=65536,t=3,p=2$" + b64("salt") + "$!!!",
-		"too many segments":     "$argon2id$v=19$m=65536,t=3,p=2$x$y$extra",
+		"bad params":        "$argon2id$v=19$broken$" + b64("salt") + "$" + b64("hash"),
+		"bad salt b64":      "$argon2id$v=19$m=65536,t=3,p=2$!!!notb64$" + b64("hash"),
+		"bad hash b64":      "$argon2id$v=19$m=65536,t=3,p=2$" + b64("salt") + "$!!!",
+		"too many segments": "$argon2id$v=19$m=65536,t=3,p=2$x$y$extra",
 	}
 	for name, h := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -184,8 +184,8 @@ func TestComparePassword_MatchesArgon2idKDF(t *testing.T) {
 }
 
 // helpers
-func b64(s string) string       { return b64Bytes([]byte(s)) }
-func b64Bytes(b []byte) string  { return rawStdNoPad(b) }
+func b64(s string) string      { return b64Bytes([]byte(s)) }
+func b64Bytes(b []byte) string { return rawStdNoPad(b) }
 
 // Inline base64.RawStdEncoding to avoid importing in test signatures cleanly.
 func rawStdNoPad(b []byte) string {

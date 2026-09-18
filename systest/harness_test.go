@@ -189,6 +189,12 @@ func (r reply) into(t *testing.T, v any) {
 }
 
 func (h *harness) send(method, url string, header map[string]string, body []byte) (reply, error) {
+	return h.sendWith(h.client, method, url, header, body)
+}
+
+// sendWith is send through another client, for a call that outlasts the
+// shared client's timeout.
+func (h *harness) sendWith(client *http.Client, method, url string, header map[string]string, body []byte) (reply, error) {
 	var rd io.Reader
 	if body != nil {
 		rd = bytes.NewReader(body)
@@ -203,7 +209,7 @@ func (h *harness) send(method, url string, header map[string]string, body []byte
 	if body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	resp, err := h.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return reply{}, err
 	}
@@ -268,6 +274,17 @@ func (s *session) do(method, path string, body any) (reply, error) {
 		b, _ = json.Marshal(body)
 	}
 	return s.h.send(method, s.n.url(path), map[string]string{"Authorization": "Bearer " + s.token}, b)
+}
+
+// doWithin is do with its own deadline instead of the shared client's.
+func (s *session) doWithin(timeout time.Duration, method, path string, body any) (reply, error) {
+	var b []byte
+	if body != nil {
+		b, _ = json.Marshal(body)
+	}
+	client := &http.Client{Timeout: timeout, Transport: &http.Transport{Proxy: nil}}
+	defer client.CloseIdleConnections()
+	return s.h.sendWith(client, method, s.n.url(path), map[string]string{"Authorization": "Bearer " + s.token}, b)
 }
 
 func (s *session) call(t *testing.T, method, path string, body any) reply {

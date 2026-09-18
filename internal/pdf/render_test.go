@@ -40,7 +40,7 @@ func TestRenderPDFs(t *testing.T) {
 
 	exp := store.ExpensesReport{
 		Rows: []store.ExpenseRow{
-			{Date: store.Date("2026-05-10"), Supplier: "MedSupply Co", Description: "Botox stock", Quantity: 4, Amount: 840, RemainingBalance: 0},
+			{Date: store.Date("2026-05-10"), Supplier: "Cobalt Clinical Supplies", Description: "Botox stock", Quantity: 4, Amount: 840, RemainingBalance: 0},
 		},
 		Totals: store.ExpensesTotals{Amount: 840},
 	}

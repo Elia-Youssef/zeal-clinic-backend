@@ -2,7 +2,9 @@
 tmp/
 build/local/output/
 build/cloud/output/
-client/dist/
+# Dashboard build (make frontend); only the .gitkeep placeholder is tracked
+client/dist/*
+!client/dist/.gitkeep
 *.exe
 *.db
 *.db-*
@@ -14,3 +16,16 @@ internal/config/*.env
 internal/config/*.env.*
 !internal/config/*.env.defaults
 !internal/config/*.env.example
+
+# Local artifacts: the old software exports, importer runs, rotated logs, archives, IDE and OS files
+old_data/
+*.csv
+!internal/legacyimport/testdata/**
+migration_report.txt
+*.log.*
+*.bak
+*.zip
+*.sha256
+.idea/
+.DS_Store
+coverage.out

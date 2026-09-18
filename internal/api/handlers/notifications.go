@@ -74,7 +74,7 @@ func MarkAllNotificationsRead(c echo.Context) error {
 
 // SendTestNotification creates a notification for the current user and pushes
 // it over SSE. Intended for manually verifying the realtime pipeline from the
-// frontend.
+// frontend; registered only in development runs (routes.SetupDebugRoutes).
 func SendTestNotification(c echo.Context) error {
 	userID := currentUserID(c)
 	if userID == "" {

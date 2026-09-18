@@ -252,7 +252,7 @@ func runServer(cfg *config.Config, opts appOptions) {
 		go browser.WaitAndOpen()
 	}
 
-	e := server.CreateServer()
+	e := server.CreateServerWithOptions(server.Options{Dev: opts.dev, DebugRoutes: opts.dev})
 
 	if opts.dev || buildmode.Cloud {
 		go server.Start(e, cfg)

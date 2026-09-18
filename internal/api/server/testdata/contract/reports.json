@@ -852,6 +852,36 @@
       }
     },
     {
+      "name": "GET /api/reports/revenue?from=2025&to=2025-05-31",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue?from=2025&to=2025-05-31"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date range",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "GET /api/reports/expenses?to=bogus",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/expenses?to=bogus"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date range",
+          "Success": false
+        }
+      }
+    },
+    {
       "name": "revenue report PDF",
       "request": {
         "method": "GET",
@@ -944,6 +974,68 @@
           "contentType": "application/pdf",
           "pdfHeader": true,
           "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "revenue report PDF between clinic midnights",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue/pdf?from=<day-1> 00:00 clinic&to=<day+2> 00:00 clinic"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "url": "/files/revenue-report-<day-1>-<day+1>-<ms>.pdf"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "download: revenue report PDF between clinic midnights",
+      "request": {
+        "method": "GET",
+        "path": "/files/revenue-report-<day-1>-<day+1>-<ms>.pdf"
+      },
+      "response": {
+        "status": 200,
+        "file": {
+          "contentType": "application/pdf",
+          "pdfHeader": true,
+          "nonEmpty": true
+        }
+      }
+    },
+    {
+      "name": "revenue report PDF with a malformed range",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/revenue/pdf?from=2025&to=2025-05-31"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date range",
+          "Success": false
+        }
+      }
+    },
+    {
+      "name": "expenses report PDF with a malformed range",
+      "request": {
+        "method": "GET",
+        "path": "/api/reports/expenses/pdf?from=2025-05-01&to=2025-05"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date range",
+          "Success": false
         }
       }
     }

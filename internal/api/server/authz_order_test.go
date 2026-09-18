@@ -37,7 +37,8 @@ func TestAuthzOrder_UnknownAPIRoutesNeedSignInFirst(t *testing.T) {
 // Routes are matched on the raw path, so an encoded slash or letter never
 // reaches a protected route by another spelling: /files and /api paths
 // written that way fall through to the page handler, which serves only the
-// dashboard build, or to the sign-in check.
+// dashboard build (a file it doesn't hold gets its 404, never the PDF), or
+// to the sign-in check.
 func TestAuthzOrder_EncodedPathsDoNotBypassSignIn(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
@@ -55,11 +56,13 @@ func TestAuthzOrder_EncodedPathsDoNotBypassSignIn(t *testing.T) {
 		t.Fatalf("report url = %q", data.URL)
 	}
 
+	// The files route would answer 401 without a token; the page handler
+	// answers 404 for a file-looking path the build doesn't hold.
 	for _, path := range []string{"/files%2F" + name, "/files%2f" + name, "/%66iles/" + name} {
 		rec := doRequest(t, e, http.MethodGet, path, nil, "")
-		if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/html") ||
-			strings.HasPrefix(rec.Body.String(), "%PDF-") {
-			t.Errorf("GET %s without a token: %d %q, want the dashboard page", path, rec.Code, rec.Header().Get("Content-Type"))
+		if rec.Code != http.StatusNotFound || strings.HasPrefix(rec.Body.String(), "%PDF-") ||
+			strings.HasPrefix(rec.Header().Get("Content-Type"), "application/pdf") {
+			t.Errorf("GET %s without a token: %d %q, want the page handler's 404", path, rec.Code, rec.Header().Get("Content-Type"))
 		}
 	}
 	for _, c := range []struct {

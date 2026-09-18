@@ -92,11 +92,12 @@ func sampleAppointments(n int) store.AppointmentList {
 	return list
 }
 
-// Each generator writes <name>-<unix milliseconds>.pdf into the PDF cache
-// folder and returns that path.
+// Each generator writes <name>-<unix milliseconds>-<random suffix>.pdf into
+// the PDF cache folder and returns that path.
 func TestGenerators_WriteNamedPDFsIntoTheCache(t *testing.T) {
 	t.Chdir(t.TempDir())
 	rooms := map[string]string{"r1": "Room 1"}
+	const stamp = `-\d{13}-[0-9a-f]{6}\.pdf$`
 	cases := []struct {
 		name    string
 		render  func() (string, error)
@@ -104,22 +105,23 @@ func TestGenerators_WriteNamedPDFsIntoTheCache(t *testing.T) {
 		pages   int
 	}{
 		{"invoice", func() (string, error) { return GenerateInvoice(sampleInvoice()) },
-			`^invoice-42-\d{13}\.pdf$`, 1},
+			`^invoice-42` + stamp, 1},
 		{"revenue report", func() (string, error) { return GenerateRevenueReport(sampleRevenue(), "2026-05-01", "2026-05-31") },
-			`^revenue-report-2026-05-01-2026-05-31-\d{13}\.pdf$`, 1},
-		// RFC3339 bounds are cut to their first ten characters: the UTC date.
+			`^revenue-report-2026-05-01-2026-05-31` + stamp, 1},
+		// RFC3339 bounds name the clinic-local days they cover: these are the
+		// clinic midnights of May 1 and June 1, so the file says May 1 to 31.
 		{"revenue report, clinic-local bounds", func() (string, error) {
 			return GenerateRevenueReport(sampleRevenue(), "2026-04-30T21:00:00Z", "2026-05-31T21:00:00Z")
-		}, `^revenue-report-2026-04-30-2026-05-31-\d{13}\.pdf$`, 1},
+		}, `^revenue-report-2026-05-01-2026-05-31` + stamp, 1},
 		{"expenses report", func() (string, error) { return GenerateExpensesReport(sampleExpenses(), "2026-05-01", "2026-05-31") },
-			`^expenses-report-2026-05-01-2026-05-31-\d{13}\.pdf$`, 1},
+			`^expenses-report-2026-05-01-2026-05-31` + stamp, 1},
 		{"appointments", func() (string, error) { return GenerateAppointments(sampleAppointments(2), rooms, "2026-05-20") },
-			`^appointments-2026-05-20-\d{13}\.pdf$`, 1},
+			`^appointments-2026-05-20` + stamp, 1},
 		{"appointments, many rows", func() (string, error) { return GenerateAppointments(sampleAppointments(120), rooms, "2026-05-20") },
-			`^appointments-2026-05-20-\d{13}\.pdf$`, 6},
+			`^appointments-2026-05-20` + stamp, 6},
 		{"analytics report", func() (string, error) {
 			return GenerateAnalyticsReport(&store.AnalyticsReport{}, "2026-05-01T00:00:00Z", "2026-05-31T00:00:00Z")
-		}, `^analytics-report-2026-05-01-2026-05-31-\d{13}\.pdf$`, 3},
+		}, `^analytics-report-2026-05-01-2026-05-31` + stamp, 3},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -157,26 +159,60 @@ func TestGenerators_RejectEmptyInput(t *testing.T) {
 	}
 }
 
-// Report bounds shorter than a date make the generators panic while naming
-// the file.
-func TestGenerators_PanicOnShortRangeBounds(t *testing.T) {
+// A bound that is neither a calendar day nor an RFC3339 instant is refused
+// before anything is written.
+func TestGenerators_RejectMalformedBounds(t *testing.T) {
 	t.Chdir(t.TempDir())
-	for name, render := range map[string]func(){
-		"revenue":   func() { _, _ = GenerateRevenueReport(sampleRevenue(), "2026-05", "2026-05-31") },
-		"expenses":  func() { _, _ = GenerateExpensesReport(sampleExpenses(), "2026-05-01", "2026-05") },
-		"analytics": func() { _, _ = GenerateAnalyticsReport(&store.AnalyticsReport{}, "", "2026-05-31") },
+	rooms := map[string]string{"r1": "Room 1"}
+	for name, render := range map[string]func() (string, error){
+		"revenue":      func() (string, error) { return GenerateRevenueReport(sampleRevenue(), "2026-05", "2026-05-31") },
+		"expenses":     func() (string, error) { return GenerateExpensesReport(sampleExpenses(), "2026-05-01", "2026-05") },
+		"analytics":    func() (string, error) { return GenerateAnalyticsReport(&store.AnalyticsReport{}, "", "2026-05-31") },
+		"appointments": func() (string, error) { return GenerateAppointments(sampleAppointments(1), rooms, "20-05-2026") },
+		"traversal":    func() (string, error) { return GenerateAppointments(sampleAppointments(1), rooms, "../2026-05-20") },
 	} {
-		func() {
-			defer func() {
-				if recover() == nil {
-					t.Errorf("%s: no panic on a short bound", name)
-				}
-			}()
-			render()
-		}()
+		if path, err := render(); err == nil {
+			t.Errorf("%s: no error on a malformed bound, wrote %s", name, path)
+		}
 	}
 	if entries, _ := os.ReadDir(TmpDir()); len(entries) != 0 {
-		t.Errorf("files written before the panic: %d", len(entries))
+		t.Errorf("files written for malformed bounds: %d", len(entries))
+	}
+}
+
+func TestRangeFileDates(t *testing.T) {
+	for _, tc := range []struct {
+		from, to    string
+		first, last string
+		bad         bool
+	}{
+		{from: "2026-05-01", to: "2026-05-31", first: "2026-05-01", last: "2026-05-31"},
+		// The clinic's midnights, UTC+3 in May: the exclusive end is the last day's end.
+		{from: "2026-04-30T21:00:00Z", to: "2026-05-31T21:00:00Z", first: "2026-05-01", last: "2026-05-31"},
+		// The clinic's midnights in winter, UTC+2.
+		{from: "2025-12-31T22:00:00Z", to: "2026-01-31T22:00:00Z", first: "2026-01-01", last: "2026-01-31"},
+		// UTC midnights fall inside the clinic's days.
+		{from: "2026-05-01T00:00:00Z", to: "2026-05-31T00:00:00Z", first: "2026-05-01", last: "2026-05-31"},
+		{from: "2026-05", to: "2026-05-31", bad: true},
+		{from: "2026-05-01", to: "", bad: true},
+		{from: "2026-05-01", to: "2026-05-31T25:00:00Z", bad: true},
+	} {
+		first, last, err := rangeFileDates(tc.from, tc.to)
+		if (err != nil) != tc.bad || first != tc.first || last != tc.last {
+			t.Errorf("rangeFileDates(%q, %q) = %q, %q, %v; want %q, %q, error %v", tc.from, tc.to, first, last, err, tc.first, tc.last, tc.bad)
+		}
+	}
+}
+
+func TestTmpPathIsUniqueWithinAMillisecond(t *testing.T) {
+	t.Chdir(t.TempDir())
+	seen := map[string]bool{}
+	for i := 0; i < 50; i++ {
+		p := tmpPath("x")
+		if seen[p] {
+			t.Fatalf("path %s came up twice", p)
+		}
+		seen[p] = true
 	}
 }
 

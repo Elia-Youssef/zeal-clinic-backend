@@ -86,7 +86,7 @@ func assertShifts(t *testing.T, day EmployeeScheduleDay, want ...ScheduleShift) 
 
 func TestEmployeeScheduleVersion_MultipleShiftsInOneDay(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Ivy", "Nassar")
+	emp := makeEmployee(t, "Ivy", "Ashgrove")
 
 	// Split day: mornings and late afternoons, with the break as the gap.
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "13:00"), shift("15:00", "18:00"))
@@ -116,7 +116,7 @@ func TestEmployeeScheduleVersion_MultipleShiftsInOneDay(t *testing.T) {
 
 func TestEmployeeScheduleVersion_ShiftsAreSortedRegardlessOfInputOrder(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Jad", "Haddad")
+	emp := makeEmployee(t, "Jad", "Brightwater")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("15:00", "18:00"), shift("09:00", "13:00"))
 
@@ -126,7 +126,7 @@ func TestEmployeeScheduleVersion_ShiftsAreSortedRegardlessOfInputOrder(t *testin
 
 func TestEmployeeScheduleVersion_RejectsOverlappingShifts(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Karim", "Aoun")
+	emp := makeEmployee(t, "Karim", "Coldbrook")
 
 	v := EmployeeScheduleVersion{
 		EmployeeID: emp.ID,
@@ -145,7 +145,7 @@ func TestEmployeeScheduleVersion_RejectsOverlappingShifts(t *testing.T) {
 
 func TestEmployeeScheduleVersion_RejectsOvernightAndInvalidTimes(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Lara", "Fares")
+	emp := makeEmployee(t, "Lara", "Dunmore")
 
 	cases := []struct {
 		name  string
@@ -173,7 +173,7 @@ func TestEmployeeScheduleVersion_RejectsOvernightAndInvalidTimes(t *testing.T) {
 
 func TestEmployeeScheduleVersion_EmptyShiftsTurnsWeekdayOff(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Maya", "Chidiac")
+	emp := makeEmployee(t, "Maya", "Elmsley")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "17:00"))
 	setSchedule(t, emp.ID, 3, "2026-11-04")
@@ -195,7 +195,7 @@ func TestEmployeeScheduleVersion_EmptyShiftsTurnsWeekdayOff(t *testing.T) {
 
 func TestEmployeeScheduleVersion_SupersedesPreviousVersion(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Nadia", "Barakat")
+	emp := makeEmployee(t, "Nadia", "Fairweather")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "17:00"))
 	setSchedule(t, emp.ID, 3, "2026-11-04", shift("10:00", "13:00"), shift("14:00", "16:00"))
@@ -210,7 +210,7 @@ func TestEmployeeScheduleVersion_SupersedesPreviousVersion(t *testing.T) {
 
 func TestEmployeeScheduleVersion_SameStartDateReplaces(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Omar", "Zeidan")
+	emp := makeEmployee(t, "Omar", "Glenholm")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "13:00"), shift("15:00", "18:00"))
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("10:00", "16:00"))
@@ -229,7 +229,7 @@ func TestEmployeeScheduleVersion_SameStartDateReplaces(t *testing.T) {
 
 func TestEmployeeScheduleVersion_SlotsInBetweenExistingVersions(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Pia", "Mansour")
+	emp := makeEmployee(t, "Pia", "Hollowell")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "17:00"))
 	setSchedule(t, emp.ID, 3, "2026-12-01", shift("08:00", "12:00"))
@@ -248,7 +248,7 @@ func TestEmployeeScheduleVersion_SlotsInBetweenExistingVersions(t *testing.T) {
 
 func TestEmployeeScheduleVersion_DefaultsStartDateToToday(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Uma", "Rizk")
+	emp := makeEmployee(t, "Uma", "Ironside")
 
 	// Today is read on both sides of the save, so a run that crosses the
 	// clinic's midnight still has a fixed expectation.
@@ -271,7 +271,7 @@ func TestEmployeeScheduleVersion_DefaultsStartDateToToday(t *testing.T) {
 
 func TestEmployeeScheduleVersion_NormalizesTimestampStartDate(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Rami", "Ghosn")
+	emp := makeEmployee(t, "Rami", "Kestrel")
 
 	// A timestamp start date normalizes to its calendar day so it does not
 	// sort after the plain work date and skip the version's first day.
@@ -283,7 +283,7 @@ func TestEmployeeScheduleVersion_NormalizesTimestampStartDate(t *testing.T) {
 
 func TestEmployeeSchedule_DeleteRemovesWholeVersion(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Sara", "Daou")
+	emp := makeEmployee(t, "Sara", "Larkspur")
 
 	rows := setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "13:00"), shift("15:00", "18:00"))
 	if len(rows) != 2 {
@@ -533,7 +533,7 @@ func TestEmployeeSchedule_PartialTimeoffCarvesMiddle(t *testing.T) {
 
 func TestEmployeeSchedule_TimeoffAcrossSplitDay(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Tarek", "Sleiman")
+	emp := makeEmployee(t, "Tarek", "Marchbank")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "13:00"), shift("15:00", "18:00"))
 
@@ -618,7 +618,7 @@ func TestEmployeeSchedule_OvertimeAddsHours(t *testing.T) {
 
 func TestEmployeeSchedule_OvertimeOverlappingShiftIsNotDoubleCounted(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Ziad", "Kassem")
+	emp := makeEmployee(t, "Ziad", "Oakhurst")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "13:00"))
 
@@ -648,7 +648,7 @@ func TestEmployeeSchedule_OvertimeOverlappingShiftIsNotDoubleCounted(t *testing.
 
 func TestEmployeeSchedule_OverlappingOvertimeWindowsMerge(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Wael", "Turk")
+	emp := makeEmployee(t, "Wael", "Pemberly")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "17:00"))
 
@@ -676,7 +676,7 @@ func TestEmployeeSchedule_OverlappingOvertimeWindowsMerge(t *testing.T) {
 
 func TestEmployeeSchedule_OvertimeAppliesToEveryDayInRange(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Faye", "Khoury")
+	emp := makeEmployee(t, "Faye", "Ravenscroft")
 
 	// Schedule Mon-Fri (dayOfWeek 1-5).
 	for day := 1; day <= 5; day++ {
@@ -720,7 +720,7 @@ func TestEmployeeSchedule_OvertimeAppliesToEveryDayInRange(t *testing.T) {
 
 func TestEmployeeSchedule_TimeoffClipsOvertime(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Gus", "Rahme")
+	emp := makeEmployee(t, "Gus", "Stonebridge")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "17:00"))
 
@@ -761,7 +761,7 @@ func TestEmployeeSchedule_TimeoffClipsOvertime(t *testing.T) {
 
 func TestEmployeeSchedule_HolidayDoesNotCancelOvertime(t *testing.T) {
 	setupTestDB(t)
-	emp := makeEmployee(t, "Hala", "Saad")
+	emp := makeEmployee(t, "Hala", "Thornfield")
 
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "17:00"))
 

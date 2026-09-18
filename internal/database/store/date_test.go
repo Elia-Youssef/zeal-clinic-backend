@@ -27,6 +27,69 @@ func TestPreviousPeriod_BadInput(t *testing.T) {
 	}
 }
 
+// Whole calendar months shift by months, so March's previous period is
+// February whatever their lengths; any other span shifts by its number of
+// days. Bare dates are UTC days, instants are read on the clinic calendar.
+func TestPreviousPeriod_CalendarSpans(t *testing.T) {
+	cases := []struct {
+		name, from, to, wantFrom, wantTo string
+	}{
+		{"a month", "2025-03-01", "2025-03-31", "2025-02-01T00:00:00Z", "2025-03-01T00:00:00Z"},
+		{"two months", "2025-02-01", "2025-03-31", "2024-12-01T00:00:00Z", "2025-02-01T00:00:00Z"},
+		{"31 days off the month bounds", "2025-03-15", "2025-04-14", "2025-02-12T00:00:00Z", "2025-03-15T00:00:00Z"},
+		{"a single day", "2025-03-01", "2025-03-01", "2025-02-28T00:00:00Z", "2025-03-01T00:00:00Z"},
+		// Clinic midnights of 1 March and 1 April 2026 (EET, then EEST).
+		{"a clinic month", "2026-02-28T22:00:00Z", "2026-03-31T21:00:00Z", "2026-01-31T22:00:00Z", "2026-02-28T22:00:00Z"},
+		// Partial days keep their duration.
+		{"twelve hours", "2025-03-01T06:00:00Z", "2025-03-01T18:00:00Z", "2025-02-28T18:00:00Z", "2025-03-01T06:00:00Z"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			from, to := PreviousPeriod(tc.from, tc.to)
+			if from != tc.wantFrom || to != tc.wantTo {
+				t.Errorf("PreviousPeriod(%s, %s) = [%s, %s), want [%s, %s)", tc.from, tc.to, from, to, tc.wantFrom, tc.wantTo)
+			}
+		})
+	}
+}
+
+// The In variants take the clock and the calendar, so the clinic-local day
+// can be checked around midnight and across the DST switch.
+func TestDateHelpers_ClinicLocalDays(t *testing.T) {
+	loc := ClinicLocation()
+	// 21:30 UTC on 29 March 2026 is already 00:30 on 30 March in Beirut.
+	now := mustInstant(t, "2026-03-29T21:30:00Z")
+	if got := DateTodayIn(now, loc); got != "2026-03-30" {
+		t.Errorf("DateTodayIn(clinic) = %s, want 2026-03-30", got)
+	}
+	if got := DateTodayIn(now, time.UTC); got != "2026-03-29" {
+		t.Errorf("DateTodayIn(UTC) = %s, want 2026-03-29", got)
+	}
+	if got := DateOffsetDaysIn(now, loc, -1); got != "2026-03-29" {
+		t.Errorf("DateOffsetDaysIn(-1) = %s, want 2026-03-29", got)
+	}
+	if got := DateOffsetDaysIn(now, loc, 2); got != "2026-04-01" {
+		t.Errorf("DateOffsetDaysIn(2) = %s, want 2026-04-01", got)
+	}
+	// The last two clinic days: from the first instant of the 23-hour day
+	// (01:00 EEST) to the end of 30 March.
+	if s, e := ClinicRangeLastNDaysIn(now, loc, 1); s != "2026-03-28T22:00:00Z" || e != "2026-03-30T21:00:00Z" {
+		t.Errorf("ClinicRangeLastNDaysIn(clinic, 1) = [%s, %s)", s, e)
+	}
+	if s, e := ClinicRangeLastNDaysIn(now, time.UTC, 1); s != "2026-03-28T00:00:00Z" || e != "2026-03-30T00:00:00Z" {
+		t.Errorf("ClinicRangeLastNDaysIn(UTC, 1) = [%s, %s)", s, e)
+	}
+	if s, e := ClinicDayBoundsIn(now, time.UTC); s != "2026-03-29T00:00:00Z" || e != "2026-03-30T00:00:00Z" {
+		t.Errorf("ClinicDayBoundsIn(UTC) = [%s, %s)", s, e)
+	}
+	if s, e := ClinicWeekBoundsIn(now, loc); s != "2026-03-28T22:00:00Z" || e != "2026-04-04T21:00:00Z" {
+		t.Errorf("ClinicWeekBoundsIn(clinic) = [%s, %s)", s, e)
+	}
+	if s, e := ClinicMonthBoundsIn(now, loc); s != "2026-02-28T22:00:00Z" || e != "2026-03-31T21:00:00Z" {
+		t.Errorf("ClinicMonthBoundsIn(clinic) = [%s, %s)", s, e)
+	}
+}
+
 // newMetric computes the fractional change and guards divide-by-zero.
 func TestNewMetric(t *testing.T) {
 	if m := newMetric(120, 100); m.Change < 0.1999 || m.Change > 0.2001 {
@@ -61,8 +124,8 @@ func TestDate_TimeParsing(t *testing.T) {
 // Before/After drive SQL-independent sorting. They must handle mixed formats and
 // fall back to lexical comparison when a value can't be parsed.
 func TestDate_Ordering(t *testing.T) {
-	a := Date("2024-01-01")               // date-only
-	b := Date("2024-01-02T00:00:00Z")     // RFC3339
+	a := Date("2024-01-01")           // date-only
+	b := Date("2024-01-02T00:00:00Z") // RFC3339
 	if !a.Before(b) || !b.After(a) {
 		t.Errorf("mixed-format comparison wrong: a<b should hold")
 	}

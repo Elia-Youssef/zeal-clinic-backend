@@ -130,6 +130,69 @@ func TestAudit_DoesNotLogFailedMutation(t *testing.T) {
 	}
 }
 
+// PATCH is audited like the other writes: a successful salary adjustment
+// writes one update row, a refused one writes none.
+func TestAudit_LogsPatch(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	empID := createEmployee(t, e, tok, "Patch", "Audit")
+	curID := firstSeededCurrencyID(t)
+	if rec := doRequest(t, e, http.MethodPost, "/api/employees/"+empID+"/salaries",
+		asJSON(t, map[string]any{"amount": 800.0, "currencyId": curID, "effectiveDate": "2026-01-01"}), tok); rec.Code != http.StatusCreated {
+		t.Fatalf("seed salary: %d %s", rec.Code, rec.Body.String())
+	}
+	rec := doRequest(t, e, http.MethodPost, "/api/employee-salaries/prepare",
+		asJSON(t, map[string]any{"periodStart": "2026-03-01", "periodEnd": "2026-03-31"}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("prepare: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var preps []struct {
+		ID string `json:"id"`
+	}
+	decodeEnvelope(t, rec.Body, &preps)
+	if len(preps) != 1 {
+		t.Fatalf("expected 1 preparation, got %d", len(preps))
+	}
+	prepPath := "/api/employee-salary-preparations/" + preps[0].ID
+	before := len(auditEntries(t))
+
+	rec = doRequest(t, e, http.MethodPatch, prepPath, asJSON(t, map[string]any{"adjustment": -100.0}), tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("adjust: %d body=%s", rec.Code, rec.Body.String())
+	}
+	entries := auditEntries(t)
+	if len(entries) != before+1 {
+		t.Fatalf("2xx PATCH: %d new audit rows, want 1", len(entries)-before)
+	}
+	last := entries[len(entries)-1]
+	if last.Action != "update" || last.EntityType != "employee-salary-preparations" || last.EntityID != preps[0].ID {
+		t.Errorf("2xx PATCH row = %s %s %s, want update employee-salary-preparations %s",
+			last.Action, last.EntityType, last.EntityID, preps[0].ID)
+	}
+	if last.UserRole != "super-admin" || !strings.Contains(last.Details, "adjustment") {
+		t.Errorf("2xx PATCH row: role %q, details %q", last.UserRole, last.Details)
+	}
+
+	// A refused adjustment (below zero) and an unknown preparation are not audited.
+	for _, bad := range []struct {
+		path string
+		want int
+	}{
+		{prepPath, http.StatusBadRequest},
+		{"/api/employee-salary-preparations/missing", http.StatusNotFound},
+	} {
+		rec = doRequest(t, e, http.MethodPatch, bad.path, asJSON(t, map[string]any{"adjustment": -5000.0}), tok)
+		if rec.Code != bad.want {
+			t.Fatalf("PATCH %s: %d body=%s, want %d", bad.path, rec.Code, rec.Body.String(), bad.want)
+		}
+	}
+	if n := len(auditEntries(t)); n != before+1 {
+		t.Errorf("4xx PATCH: %d new audit rows, want 0", n-before-1)
+	}
+}
+
 func TestAudit_DoesNotLogAuthOrHealth(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

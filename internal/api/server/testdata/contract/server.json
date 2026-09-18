@@ -12,6 +12,9 @@
         "status": 200,
         "header": {
           "Content-Type": "application/json",
+          "Referrer-Policy": "same-origin",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
           "X-Robots-Tag": "noindex, nofollow"
         },
         "body": {
@@ -46,6 +49,10 @@
       "response": {
         "status": 200,
         "header": {
+          "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; object-src 'self' blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'",
+          "Referrer-Policy": "same-origin",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
           "X-Robots-Tag": "noindex, nofollow"
         },
         "page": {
@@ -94,7 +101,9 @@
       "response": {
         "status": 404,
         "body": {
-          "message": "Not Found"
+          "Data": null,
+          "Error": "Not Found",
+          "Success": false
         }
       }
     },
@@ -107,7 +116,9 @@
       "response": {
         "status": 404,
         "body": {
-          "message": "Not Found"
+          "Data": null,
+          "Error": "Not Found",
+          "Success": false
         }
       }
     },
@@ -121,7 +132,9 @@
       "response": {
         "status": 404,
         "body": {
-          "message": "Not Found"
+          "Data": null,
+          "Error": "Not Found",
+          "Success": false
         }
       }
     },

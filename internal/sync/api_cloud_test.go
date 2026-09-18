@@ -130,17 +130,18 @@ func TestSyncAPI_RefusesAnotherVersionExceptOnStatus(t *testing.T) {
 	}
 }
 
-// The secret may also come as a sync_secret query parameter.
-func TestSyncAPI_AcceptsTheSecretAsQueryParameter(t *testing.T) {
+// The secret is read from the X-Sync-Secret header only: a sync_secret query
+// parameter is ignored, whatever it carries.
+func TestSyncAPI_IgnoresTheSecretInTheQuery(t *testing.T) {
 	m := newMachineServer(t)
-	if status, body := m.call(t, http.MethodGet, "/api/sync/pull?sync_secret="+machineSecret, "", "", buildmode.Version); status != http.StatusOK {
-		t.Errorf("pull with the query secret = %d %s, want 200", status, body)
+	for _, path := range []string{"/api/sync/pull", "/api/sync/status"} {
+		status, body := m.call(t, http.MethodGet, path+"?sync_secret="+machineSecret, "", "", buildmode.Version)
+		if status != http.StatusUnauthorized || body != `{"error":"unauthorized"}` {
+			t.Errorf("%s with the query secret = %d %s, want 401 unauthorized", path, status, body)
+		}
 	}
-	if status, body := m.call(t, http.MethodGet, "/api/sync/status?sync_secret="+machineSecret, "", "", ""); status != http.StatusOK {
-		t.Errorf("status with the query secret = %d %s, want 200", status, body)
-	}
-	if status, _ := m.call(t, http.MethodGet, "/api/sync/pull?sync_secret=wrong", "", "", buildmode.Version); status != http.StatusUnauthorized {
-		t.Errorf("pull with a wrong query secret = %d, want 401", status)
+	if status, body := m.call(t, http.MethodGet, "/api/sync/status?sync_secret=wrong", "", machineSecret, ""); status != http.StatusOK {
+		t.Errorf("status with the header secret and a wrong query value = %d %s, want 200", status, body)
 	}
 }
 

@@ -46,6 +46,10 @@ func GenerateAnalyticsReport(data *store.AnalyticsReport, from, to string) (stri
 	if data == nil {
 		return "", fmt.Errorf("report is empty")
 	}
+	firstDay, lastDay, err := rangeFileDates(from, to)
+	if err != nil {
+		return "", err
+	}
 
 	cfg := config.NewBuilder().
 		WithMaxGridSize(100).
@@ -92,7 +96,7 @@ func GenerateAnalyticsReport(data *store.AnalyticsReport, from, to string) (stri
 	keep(m, func(s rowSink) { addTodaysAppointments(s, data.TodaysAppointments) })
 	keep(m, func(s rowSink) { addRecentTransactions(s, data.RecentTransactions) })
 
-	return save(m, fmt.Sprintf("analytics-report-%s-%s", from[:10], to[:10]))
+	return save(m, fmt.Sprintf("analytics-report-%s-%s", firstDay, lastDay))
 }
 
 // keep-together pagination

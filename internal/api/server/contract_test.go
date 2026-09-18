@@ -181,6 +181,8 @@ func (r *contractRun) getList(s *contractScenario) []contractCall {
 	g.add(now("/api/analytics/series"))
 	g.add(now("/api/analytics/series", "metric", "profit"))
 	g.add(now("/api/analytics/series", "metric", "revenue", "groupBy", "year"))
+	g.add("/api/analytics/money?from=yesterday")
+	g.add("/api/analytics/series?metric=revenue&from=2025-05")
 
 	g.add("/api/appointments?date=2025-03-29")
 	g.add("/api/appointments?date=2025-03-31")
@@ -357,6 +359,8 @@ func (r *contractRun) getList(s *contractScenario) []contractCall {
 	g.add(now("/api/reports/revenue", "level", "bogus"))
 	g.add(now("/api/reports/expenses"))
 	g.add("/api/reports/expenses", caseNamed("GET /api/reports/expenses for the last 30 days"))
+	g.add("/api/reports/revenue?from=2025&to=2025-05-31")
+	g.add("/api/reports/expenses?to=bogus")
 
 	g.add("/api/roles", orderedCase)
 	g.add("/api/roles/dropdown", orderedCase)
@@ -706,20 +710,23 @@ func (r *contractRun) authCases(s *contractScenario) {
 
 func (r *contractRun) serverCases(s *contractScenario) {
 	origin := "http://clinic.example"
+	// The built server serves the dashboard itself and answers no cross-origin
+	// caller; every response carries the hardening headers.
+	hardening := []string{"X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "X-Robots-Tag"}
 	r.run(contractCall{file: "headers", name: "a GET with an Origin", path: "/api/rooms/dropdown", header: map[string]string{"Origin": origin},
-		capture: []string{"Access-Control-Allow-Origin", "Vary", "X-Robots-Tag", "Content-Type"}, orderedCase: true})
+		capture: append([]string{"Access-Control-Allow-Origin", "Vary", "Content-Type"}, hardening...), orderedCase: true})
 	r.run(contractCall{file: "headers", name: "a CORS preflight", method: http.MethodOptions, path: "/api/patients", asCaller: anonymousActor,
 		header: map[string]string{"Origin": origin, "Access-Control-Request-Method": "PUT", "Access-Control-Request-Headers": "authorization,content-type"},
-		capture: []string{"Access-Control-Allow-Origin", "Access-Control-Allow-Methods", "Access-Control-Allow-Headers",
-			"Access-Control-Max-Age", "Vary", "X-Robots-Tag"}})
+		capture: append([]string{"Access-Control-Allow-Origin", "Access-Control-Allow-Methods", "Access-Control-Allow-Headers",
+			"Access-Control-Max-Age", "Vary"}, hardening...)})
 	r.run(contractCall{file: "headers", name: "an unauthenticated API call", path: "/api/patients", asCaller: anonymousActor,
-		capture: []string{"X-Robots-Tag", "Content-Type", "WWW-Authenticate"}})
+		capture: append([]string{"Content-Type", "WWW-Authenticate"}, hardening...)})
 	r.run(contractCall{file: "headers", name: "a validation error", method: http.MethodPost, path: "/api/rooms", body: jsonObject{},
-		capture: []string{"X-Robots-Tag", "Content-Type"}})
+		capture: append([]string{"Content-Type"}, hardening...)})
 
-	r.run(contractCall{name: "health", path: "/health", asCaller: anonymousActor, capture: []string{"Content-Type", "X-Robots-Tag"}})
+	r.run(contractCall{name: "health", path: "/health", asCaller: anonymousActor, capture: append([]string{"Content-Type"}, hardening...)})
 	r.run(contractCall{name: "robots.txt", path: "/robots.txt", asCaller: anonymousActor, capture: []string{"Content-Type", "X-Robots-Tag"}})
-	r.run(contractCall{name: "the app root", path: "/", asCaller: anonymousActor, capture: []string{"X-Robots-Tag"}})
+	r.run(contractCall{name: "the app root", path: "/", asCaller: anonymousActor, capture: append([]string{"Content-Security-Policy"}, hardening...)})
 	r.run(contractCall{name: "a deep link into the app", path: "/patients/" + s.ada + "/details", asCaller: anonymousActor})
 	r.run(contractCall{name: "an unknown API path without a token", path: "/api/no-such-route", asCaller: anonymousActor})
 	r.run(contractCall{name: "an unknown API path with a token", path: "/api/no-such-route"})
@@ -784,6 +791,13 @@ func (r *contractRun) pdfCases(s *contractScenario) {
 	r.pdf("revenue report PDF by procedure", withQuery("/api/reports/revenue/pdf", "from", w.nowFrom, "to", w.nowTo, "level", "procedure"))
 	r.pdf("expenses report PDF", withQuery("/api/reports/expenses/pdf", "from", w.nowFrom, "to", w.nowTo))
 	r.pdf("analytics report PDF", withQuery("/api/analytics/report/pdf", "from", w.nowFrom, "to", w.nowTo))
+	// Instant bounds name the file by the clinic-local days they cover.
+	r.pdf("revenue report PDF between clinic midnights", withQuery("/api/reports/revenue/pdf", "from", w.rfcFrom, "to", w.rfcTo))
+	r.pdf("analytics report PDF between clinic midnights", withQuery("/api/analytics/report/pdf", "from", w.rfcFrom, "to", w.rfcTo))
+	r.run(contractCall{name: "schedule PDF with a malformed date", path: "/api/appointments/pdf?date=31-03-2025"})
+	r.run(contractCall{name: "revenue report PDF with a malformed range", path: "/api/reports/revenue/pdf?from=2025&to=2025-05-31"})
+	r.run(contractCall{name: "expenses report PDF with a malformed range", path: "/api/reports/expenses/pdf?from=2025-05-01&to=2025-05"})
+	r.run(contractCall{name: "analytics report PDF with a malformed range", path: "/api/analytics/report/pdf?to=yesterday"})
 	r.run(contractCall{name: "staff asks for an invoice PDF", path: "/api/invoices/" + s.invoice1 + "/pdf", asCaller: s.staff})
 	r.run(contractCall{name: "the nurse asks for an invoice PDF", path: "/api/invoices/" + s.invoice1 + "/pdf", asCaller: s.nurse})
 }

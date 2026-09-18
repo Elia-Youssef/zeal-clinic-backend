@@ -9,6 +9,7 @@ ifeq ($(OS),Windows_NT)
     RMDIR_IF     = if exist $(subst /,\,$(1)) rmdir /S /Q $(subst /,\,$(1))
     MKDIR_P      = if not exist $(subst /,\,$(1)) mkdir $(subst /,\,$(1))
     COPY_DIST    = xcopy /E /I /Y "$(subst /,\,$(FRONTEND))\dist" client\dist
+    KEEP_DIST    = echo The dashboard build is copied here by make frontend.>client\dist\.gitkeep
     CLOUD_ENV   := set CGO_ENABLED=0&& set GOOS=linux&& set GOARCH=amd64&&
 else
     EXE         :=
@@ -18,6 +19,7 @@ else
     RMDIR_IF     = rm -rf $(1)
     MKDIR_P      = mkdir -p $(1)
     COPY_DIST    = cp -r $(FRONTEND)/dist client/dist
+    KEEP_DIST    = echo 'The dashboard build is copied here by make frontend.' >client/dist/.gitkeep
     CLOUD_ENV   := CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 endif
 
@@ -75,10 +77,13 @@ legacyimport:
 	$(call MKDIR_P,tmp)
 	go build -ldflags "$(DEV_LDFLAGS)" -o $(LEGACYIMPORT_BINARY) $(LEGACYIMPORT_PKG)
 
+# client/dist is tracked only through its .gitkeep placeholder, so a fresh clone builds
+# before the dashboard exists; the copy replaces the folder, so the placeholder is written back.
 frontend:
 	cd $(FRONTEND) && npm run build
 	$(call RMDIR_IF,client/dist)
 	$(COPY_DIST)
+	$(KEEP_DIST)
 
 # Pre-build check of a release: the node's git-ignored config override
 # (internal/config/local.env or cloud.env, see the .example files) must exist
@@ -134,7 +139,7 @@ help:
 	@echo "build          - debug build to $(DEV_BINARY)"
 	@echo "build-cloud    - cloud debug build to $(DEV_CLOUD_BINARY)"
 	@echo "legacyimport   - build the old-data CSV importer to $(LEGACYIMPORT_BINARY)"
-	@echo "frontend       - npm build the frontend and copy dist into client/dist"
+	@echo "frontend       - npm build $(FRONTEND) (override: FRONTEND=<path>) and copy dist into client/dist"
 	@echo "release-check  - pre-build check of internal/config/local.env (run by release)"
 	@echo "release-check-cloud - pre-build check of internal/config/cloud.env (run by release-cloud)"
 	@echo "release        - prod build (app + updater) to build/local/output (needs client/dist)"

@@ -42,7 +42,7 @@ type principal struct {
 	Employee string            // own employee id, sent on scope-or-self routes
 	User     string            // own user id, sent on scope-or-self routes
 	Headers  map[string]string // machine headers
-	Query    string            // sync secret sent as the sync_secret query parameter
+	Query    string            // sync secret sent as the sync_secret query parameter, which no route accepts
 }
 
 func (p principal) selfID(kind string) string {
@@ -85,15 +85,7 @@ func expectOutcome(r routeRule, p principal, gateOpen bool) string {
 			if buildmode.Cloud && !gateOpen {
 				return outcomeGate
 			}
-		case guardSyncSecret:
-			secret := p.Headers["X-Sync-Secret"]
-			if secret == "" {
-				secret = p.Query
-			}
-			if secret != testSyncSecret {
-				return outcomeNoAuth
-			}
-		case guardSyncHeader:
+		case guardSyncSecret, guardSyncHeader:
 			if p.Headers["X-Sync-Secret"] != testSyncSecret {
 				return outcomeNoAuth
 			}
@@ -312,7 +304,9 @@ func checkOrderings(t *testing.T, principals []principal, rows []matrixRow) {
 func TestAuthzMatrix(t *testing.T) {
 	setupTestEnv(t)
 	quietServerLogs(t)
-	e := CreateServer()
+	// The matrix covers every declared route, including the development-only test
+	// notification, which must require a sign-in like the rest.
+	e := CreateServerWithOptions(Options{DebugRoutes: true})
 	principals := newAuthzPrincipals(t, e)
 	rules := expectedRules(t)
 	checkRulesCoverRoutes(t, rules, routeInventory(e))

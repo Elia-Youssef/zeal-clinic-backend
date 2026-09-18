@@ -56,8 +56,8 @@ func TestSession_DeactivationRevokesTokensAndNotifies(t *testing.T) {
 	}
 	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
 		asJSON(t, map[string]string{"username": "leaving-user", "password": "leaving-pw"}), "")
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("sign-in after deactivation: %d, want 403", rec.Code)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("sign-in after deactivation: %d, want 401 (the wrong-password answer)", rec.Code)
 	}
 }
 

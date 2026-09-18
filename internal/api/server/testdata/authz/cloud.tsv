@@ -233,12 +233,12 @@ PUT /api/suppliers/:id	jwt scope(suppliers:write)	401	pass	pass	pass	403-scope	p
 GET /api/suppliers/:id/invoices	jwt scope(invoices:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
 GET /api/suppliers/:id/payments	jwt scope(payments:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
 GET /api/suppliers/dropdown	jwt scope(suppliers:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401
-GET /api/sync/events	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
-POST /api/sync/failed	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
-GET /api/sync/pull	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
-POST /api/sync/push	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
-POST /api/sync/ready	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	pass	401
-GET /api/sync/status	sync-secret	401	401	401	401	401	401	401	401	401	pass	pass	pass	401
+GET /api/sync/events	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	401	401
+POST /api/sync/failed	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	401	401
+GET /api/sync/pull	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	401	401
+POST /api/sync/push	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	401	401
+POST /api/sync/ready	sync-secret version	401	401	401	401	401	401	401	401	401	409-version	pass	401	401
+GET /api/sync/status	sync-secret	401	401	401	401	401	401	401	401	401	pass	pass	401	401
 POST /api/update/peer	sync-header	401	401	401	401	401	401	401	401	401	pass	pass	401	401
 POST /api/update/start	jwt scope(update:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope	401	401	401	401	401	401
 GET /api/update/status	jwt scope(update:read)	401	pass	pass	pass	403-scope	pass	403-scope	401	401	401	401	401	401

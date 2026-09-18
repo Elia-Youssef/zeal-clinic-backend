@@ -2,12 +2,15 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"clinic-api/internal/buildmode"
 	"clinic-api/internal/config/envfile"
 )
 
@@ -152,6 +155,72 @@ func TestCheck_ClinicTimezone(t *testing.T) {
 	cfg.ClinicTimezone = "Invalid/Zone_Name"
 	if err := cfg.Check(false); err == nil {
 		t.Error("Check with invalid timezone accepted")
+	}
+}
+
+// installedDataDir points LOCALAPPDATA at a temporary folder that holds the
+// installed app's data folder and returns that folder.
+func installedDataDir(t *testing.T) string {
+	t.Helper()
+	local := t.TempDir()
+	dir := filepath.Join(local, appDataDirName, "Data")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("LOCALAPPDATA", local)
+	return dir
+}
+
+// stampVersion sets the build version for the test.
+func stampVersion(t *testing.T, version string) {
+	t.Helper()
+	previous := buildmode.Version
+	buildmode.Version = version
+	t.Cleanup(func() { buildmode.Version = previous })
+}
+
+// A dev build, unstamped or stamped "<version>-dev" by make build, uses the
+// dev data folder of its build tag even when the installed data folder
+// exists, so make dev and make dev-cloud never open an installed database.
+func TestDataDir_DevBuildsNeverOpenTheInstalledFolder(t *testing.T) {
+	installed := installedDataDir(t)
+	want := "./tmp"
+	if buildmode.Cloud {
+		want = "./data"
+	}
+	for _, version := range []string{"dev", "1.0.3-dev"} {
+		stampVersion(t, version)
+		if got := DataDir(); got != want {
+			t.Errorf("DataDir() with version %q = %q, want %q (installed folder %s)", version, got, want, installed)
+		}
+		if got := BackupDir(); got != filepath.Join(filepath.Dir(want), "backup") {
+			t.Errorf("BackupDir() with version %q = %q", version, got)
+		}
+	}
+}
+
+// A release build uses the installed data folder when it exists, and the dev
+// folder of its build tag otherwise.
+func TestDataDir_ReleaseBuildUsesTheInstalledFolder(t *testing.T) {
+	stampVersion(t, "1.0.3")
+	installed := installedDataDir(t)
+	if runtime.GOOS != "windows" {
+		if got := DataDir(); got != devDataDir() {
+			t.Errorf("DataDir() = %q, want %q: the installed folder exists on Windows only", got, devDataDir())
+		}
+		return
+	}
+	if got := DataDir(); got != installed {
+		t.Errorf("DataDir() = %q, want the installed folder %q", got, installed)
+	}
+	if got := BackupDir(); got != filepath.Join(filepath.Dir(installed), "backup") {
+		t.Errorf("BackupDir() = %q, want the backup folder next to %q", got, installed)
+	}
+	if err := os.RemoveAll(installed); err != nil {
+		t.Fatal(err)
+	}
+	if got := DataDir(); got != devDataDir() {
+		t.Errorf("DataDir() without the installed folder = %q, want %q", got, devDataDir())
 	}
 }
 

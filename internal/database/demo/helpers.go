@@ -19,11 +19,12 @@ func todayStr() string { return string(store.DateToday()) }
 func dateOffset(days int) string { return string(store.DateOffsetDays(days)) }
 
 // timeAt returns an RFC3339 UTC timestamp at `days` from today, at the given
-// hour and minute.
+// clinic-local hour and minute; "today" is the clinic's calendar day.
 func timeAt(days, hour, minute int) string {
-	now := time.Now().UTC()
-	return time.Date(now.Year(), now.Month(), now.Day()+days, hour, minute, 0, 0, time.UTC).
-		Format(time.RFC3339)
+	loc := store.ClinicLocation()
+	now := time.Now().In(loc)
+	return time.Date(now.Year(), now.Month(), now.Day()+days, hour, minute, 0, 0, loc).
+		UTC().Format(time.RFC3339)
 }
 
 // bulkPatient tracks a generated patient and when (days before today) they were
@@ -193,7 +194,7 @@ func (c *demoCtx) between(lo, hi int) int {
 	return lo + c.rng.Intn(hi-lo+1)
 }
 
-// weekdayOf returns the weekday of the day `off` days from today (UTC).
+// weekdayOf returns the weekday of the clinic day `off` days from today.
 func weekdayOf(off int) time.Weekday {
-	return time.Now().UTC().AddDate(0, 0, off).Weekday()
+	return store.ClinicNow().AddDate(0, 0, off).Weekday()
 }

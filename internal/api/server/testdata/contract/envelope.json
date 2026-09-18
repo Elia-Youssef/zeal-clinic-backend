@@ -206,7 +206,9 @@
         "status": 404,
         "body": {
           "keys": [
-            "message"
+            "Error",
+            "Success",
+            "Data"
           ]
         }
       }

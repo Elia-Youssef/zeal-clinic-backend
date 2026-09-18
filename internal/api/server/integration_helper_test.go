@@ -131,7 +131,7 @@ func setupTestEnv(t *testing.T) {
 // gate for the test, as a connected and synced clinic would.
 func newTestServer(t *testing.T) *echo.Echo {
 	t.Helper()
-	e := CreateServer()
+	e := CreateServerWithOptions(Options{DebugRoutes: true})
 	openCriticalSyncGate(t)
 	return e
 }

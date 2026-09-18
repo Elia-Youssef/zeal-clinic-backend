@@ -33,7 +33,7 @@ var (
 	serverStampRe  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`)
 	jwtTextRe      = regexp.MustCompile(`eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+`)
 	passwordHashRe = regexp.MustCompile(`\$argon2id\$[^"\s]+`)
-	pdfStampRe     = regexp.MustCompile(`-\d{13}\.pdf`)
+	pdfStampRe     = regexp.MustCompile(`-\d{13}-[0-9a-f]{6}\.pdf`)
 	clockTextRe    = regexp.MustCompile(`Sent at \d{2}:\d{2}:\d{2}`)
 	sessionTokenRe = regexp.MustCompile(`"session_token":"[0-9a-f]+"`)
 )

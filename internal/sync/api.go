@@ -55,12 +55,11 @@ func (a *API) RegisterRoutes(e *echo.Echo) {
 	log.Printf("[sync] API mounted under /api/sync (self=%s)", nodeLabel())
 }
 
+// requireSecret reads the shared secret from the X-Sync-Secret header only: a
+// query parameter would end up in request logs.
 func (a *API) requireSecret(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		got := c.Request().Header.Get("X-Sync-Secret")
-		if got == "" {
-			got = c.QueryParam("sync_secret")
-		}
 		if subtle.ConstantTimeCompare([]byte(got), []byte(a.Secret)) != 1 {
 			log.Printf("[sync] unauthorized %s %s from %s", c.Request().Method, c.Path(), c.RealIP())
 			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})

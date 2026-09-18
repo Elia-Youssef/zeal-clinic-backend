@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/fs"
 	"net/http"
+	"path"
 	"regexp"
 	"strings"
 
@@ -40,6 +41,13 @@ func injectClinicTimezone(rawHTML []byte, tz string) []byte {
 	return rawHTML
 }
 
+// looksLikeAsset reports whether a request path (without its leading slash)
+// names a build asset rather than an app route: anything under assets/, or
+// any path whose last element has a file extension.
+func looksLikeAsset(rel string) bool {
+	return strings.HasPrefix(rel, "assets/") || path.Ext(rel) != ""
+}
+
 func spaHandler() echo.HandlerFunc {
 	spaFS := client.DistFS()
 	indexHTML, err := fs.ReadFile(spaFS, "index.html")
@@ -50,11 +58,11 @@ func spaHandler() echo.HandlerFunc {
 
 	return func(c echo.Context) error {
 		req := c.Request()
-		path := req.URL.Path
-		if path == "/api" || strings.HasPrefix(path, "/api/") || path == "/health" {
+		reqPath := req.URL.Path
+		if reqPath == "/api" || strings.HasPrefix(reqPath, "/api/") || reqPath == "/health" {
 			return echo.ErrNotFound
 		}
-		rel := strings.TrimPrefix(path, "/")
+		rel := strings.TrimPrefix(reqPath, "/")
 		if rel != "" {
 			if f, err := spaFS.Open(rel); err == nil {
 				stat, statErr := f.Stat()
@@ -64,8 +72,15 @@ func spaHandler() echo.HandlerFunc {
 					return nil
 				}
 			}
+			// An asset the embedded build doesn't hold, typically a chunk of
+			// an older build that a stale page still asks for, fails fast
+			// instead of receiving the shell as its script.
+			if looksLikeAsset(rel) {
+				return echo.ErrNotFound
+			}
 		}
 		page := injectClinicTimezone(indexHTML, store.ClinicTimezoneName())
+		c.Response().Header().Set("Content-Security-Policy", appShellCSP)
 		return c.HTMLBlob(http.StatusOK, page)
 	}
 }
