@@ -14,7 +14,7 @@ import (
 func newID() string { return uuid.Must(uuid.NewV7()).String() }
 
 func nowStr() string   { return string(store.DateNow()) }
-func todayStr() string { return string(store.DateToday()) }
+func todayStr() string { return string(store.ClinicToday()) }
 
 func dateOffset(days int) string { return string(store.DateOffsetDays(days)) }
 

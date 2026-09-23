@@ -11,6 +11,9 @@ ifeq ($(OS),Windows_NT)
     COPY_DIST    = xcopy /E /I /Y "$(subst /,\,$(FRONTEND))\dist" client\dist
     KEEP_DIST    = echo The dashboard build is copied here by make frontend.>client\dist\.gitkeep
     CLOUD_ENV   := set CGO_ENABLED=0&& set GOOS=linux&& set GOARCH=amd64&&
+    DEMO_CMD     = pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/demo.ps1
+    DEMO_TWO_NODE_CMD = pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/demo-two-node.ps1 $(DEMO_FRONTEND) $(DEMO_ARGS)
+    DEMO_FRONTEND_FLAG := -Frontend
 else
     EXE         :=
     LDFLAGS     := -s -w -X clinic-api/internal/buildmode.Version=$(VERSION)
@@ -21,6 +24,9 @@ else
     COPY_DIST    = cp -r $(FRONTEND)/dist client/dist
     KEEP_DIST    = echo 'The dashboard build is copied here by make frontend.' >client/dist/.gitkeep
     CLOUD_ENV   := CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+    DEMO_CMD     = sh scripts/demo-cloud.sh
+    DEMO_TWO_NODE_CMD = @echo 'The two-node demo needs the clinic node, which runs on Windows only; make demo runs the cloud node here.' >&2; exit 1
+    DEMO_FRONTEND_FLAG := --frontend
 endif
 
 # Cloud ldflags mirror LDFLAGS but never set -H=windowsgui (cloud is a server).
@@ -43,8 +49,14 @@ UPDATE_ZIP        := build/local/output/ZealClinicUpdate-$(VERSION).zip
 UPDATE_ZIP_CLOUD  := build/cloud/output/ZealClinicUpdate-$(VERSION)-linux-amd64.zip
 ISCC              ?= ISCC.exe
 FRONTEND          := ../zeal-clinic-frontend
+DEMO_ARGS         ?=
+# The demo scripts default to the same dashboard folder; a FRONTEND given on the
+# make command line is handed to them.
+ifeq ($(origin FRONTEND),command line)
+    DEMO_FRONTEND := $(DEMO_FRONTEND_FLAG) "$(FRONTEND)"
+endif
 
-.PHONY: dev dev-seed dev-demo dev-cloud build build-cloud legacyimport frontend release-check release-check-cloud release release-cloud update-zip update-zip-cloud installer deploy clean help
+.PHONY: dev dev-seed dev-demo dev-cloud demo demo-two-node build build-cloud legacyimport frontend release-check release-check-cloud release release-cloud update-zip update-zip-cloud installer deploy clean help
 
 dev: build
 	$(DEV_BINARY) --dev
@@ -57,6 +69,20 @@ dev-demo: build
 
 dev-cloud: build-cloud
 	$(DEV_CLOUD_BINARY) --dev
+
+# The demo in one command, on demo data, with the dashboard checkout next to this
+# one (../zeal-clinic-frontend): the clinic node on Windows (scripts/demo.ps1),
+# the cloud node elsewhere (scripts/demo-cloud.sh). FRONTEND=<path> picks another
+# dashboard checkout; DEMO_ARGS passes options, e.g. DEMO_ARGS=-NoBrowser on
+# Windows, DEMO_ARGS=--no-browser elsewhere.
+demo:
+	$(DEMO_CMD) $(DEMO_FRONTEND) $(DEMO_ARGS)
+
+# Clinic and cloud nodes side by side, syncing over loopback (Windows only,
+# like the clinic node).
+# DEMO_TWO_NODE_CMD carries its own arguments: elsewhere it is only a message.
+demo-two-node:
+	$(DEMO_TWO_NODE_CMD)
 
 build:
 	$(call MKDIR_P,tmp)
@@ -136,6 +162,8 @@ help:
 	@echo "dev-seed       - build and run as --dev --seed-only"
 	@echo "dev-demo       - build and run as --dev --seed-only --demo"
 	@echo "dev-cloud      - cloud build and run as --dev (binary in tmp/)"
+	@echo "demo           - demo data in one command: clinic node on Windows, cloud node elsewhere (options: FRONTEND=<path>, DEMO_ARGS=...)"
+	@echo "demo-two-node  - clinic and cloud nodes side by side, syncing (Windows only)"
 	@echo "build          - debug build to $(DEV_BINARY)"
 	@echo "build-cloud    - cloud debug build to $(DEV_CLOUD_BINARY)"
 	@echo "legacyimport   - build the old-data CSV importer to $(LEGACYIMPORT_BINARY)"

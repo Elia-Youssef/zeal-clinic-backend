@@ -27,7 +27,7 @@ import (
 // closes again when the returned func or the test cleanup ends the stream.
 func openCriticalSyncGate(t *testing.T) (closeGate func()) {
 	t.Helper()
-	srv := httptest.NewServer(CreateServer())
+	srv := httptest.NewServer(CreateServerWithOptions(Options{}))
 	ctx, cancel := context.WithCancel(context.Background())
 	tokens := make(chan string, 1)
 	failed := make(chan error, 1)
@@ -143,7 +143,7 @@ func readHelloToken(r *bufio.Reader) (string, error) {
 // connected and confirmed a sync cycle, and close again when it disconnects.
 func TestCriticalSync_FinancialWritesWaitForSyncedClinic(t *testing.T) {
 	setupTestEnv(t)
-	e := CreateServer() // no clinic connected yet
+	e := CreateServerWithOptions(Options{}) // no clinic connected yet
 	tok := adminToken(t, e)
 
 	post := func() *httptest.ResponseRecorder {

@@ -69,7 +69,7 @@ func ClinicNow() time.Time { return time.Now().In(ClinicLocation()) }
 
 // ClinicToday returns today's clinic-local calendar date as YYYY-MM-DD.
 func ClinicToday() Date {
-	return Date(ClinicNow().Format(DateFormat))
+	return dateTodayIn(time.Now(), ClinicLocation())
 }
 
 // dayStart is the first instant of the calendar day (y, m, d) in loc. The day
@@ -86,11 +86,11 @@ func dayStart(y int, m time.Month, d int, loc *time.Location) time.Time {
 // next calendar day, so the day of a DST switch is 23 or 25 hours long and
 // never overlaps its neighbours.
 func ClinicDayBounds(t time.Time) (Date, Date) {
-	return ClinicDayBoundsIn(t, ClinicLocation())
+	return clinicDayBoundsIn(t, ClinicLocation())
 }
 
-// ClinicDayBoundsIn is ClinicDayBounds on the calendar of loc.
-func ClinicDayBoundsIn(t time.Time, loc *time.Location) (Date, Date) {
+// clinicDayBoundsIn is ClinicDayBounds on the calendar of loc.
+func clinicDayBoundsIn(t time.Time, loc *time.Location) (Date, Date) {
 	y, m, d := t.In(loc).Date()
 	return DateFrom(dayStart(y, m, d, loc)), DateFrom(dayStart(y, m, d+1, loc))
 }
@@ -99,31 +99,21 @@ func ClinicDayBoundsIn(t time.Time, loc *time.Location) (Date, Date) {
 // timezone.
 func ClinicTodayBounds() (Date, Date) { return ClinicDayBounds(time.Now()) }
 
-// ClinicWeekBounds returns the [start, end) UTC instants of the Sunday-Saturday
-// week containing t, anchored in the clinic's timezone: from the first instant
-// of that Sunday to the first instant of the next one.
-func ClinicWeekBounds(t time.Time) (Date, Date) {
-	return ClinicWeekBoundsIn(t, ClinicLocation())
-}
-
-// ClinicWeekBoundsIn is ClinicWeekBounds on the calendar of loc.
-func ClinicWeekBoundsIn(t time.Time, loc *time.Location) (Date, Date) {
+// clinicWeekBounds returns the [start, end) instants of the week containing t
+// on the calendar of loc: from the first instant of its firstWeekday to the
+// first instant of the next one.
+func clinicWeekBounds(t time.Time, loc *time.Location, firstWeekday time.Weekday) (time.Time, time.Time) {
 	local := t.In(loc)
 	y, m, d := local.Date()
-	sunday := d - int(local.Weekday())
-	return DateFrom(dayStart(y, m, sunday, loc)), DateFrom(dayStart(y, m, sunday+7, loc))
+	first := d - (int(local.Weekday())-int(firstWeekday)+7)%7
+	return dayStart(y, m, first, loc), dayStart(y, m, first+7, loc)
 }
 
-// ClinicMonthBounds returns the [start, end) UTC instants of the calendar
-// month containing t, anchored in the clinic's timezone.
-func ClinicMonthBounds(t time.Time) (Date, Date) {
-	return ClinicMonthBoundsIn(t, ClinicLocation())
-}
-
-// ClinicMonthBoundsIn is ClinicMonthBounds on the calendar of loc.
-func ClinicMonthBoundsIn(t time.Time, loc *time.Location) (Date, Date) {
+// clinicMonthBounds returns the [start, end) instants of the calendar month
+// containing t on the calendar of loc.
+func clinicMonthBounds(t time.Time, loc *time.Location) (time.Time, time.Time) {
 	y, m, _ := t.In(loc).Date()
-	return DateFrom(dayStart(y, m, 1, loc)), DateFrom(dayStart(y, m+1, 1, loc))
+	return dayStart(y, m, 1, loc), dayStart(y, m+1, 1, loc)
 }
 
 // ClinicRangeLastNDays returns the [start, end) UTC instants of a window
@@ -131,12 +121,12 @@ func ClinicMonthBoundsIn(t time.Time, loc *time.Location) (Date, Date) {
 // to build default report ranges so the user's "last 30 days" matches their
 // clinic calendar, not UTC.
 func ClinicRangeLastNDays(n int) (Date, Date) {
-	return ClinicRangeLastNDaysIn(time.Now(), ClinicLocation(), n)
+	return clinicRangeLastNDaysIn(time.Now(), ClinicLocation(), n)
 }
 
-// ClinicRangeLastNDaysIn is ClinicRangeLastNDays for the day of now on the
+// clinicRangeLastNDaysIn is ClinicRangeLastNDays for the day of now on the
 // calendar of loc.
-func ClinicRangeLastNDaysIn(now time.Time, loc *time.Location, n int) (Date, Date) {
+func clinicRangeLastNDaysIn(now time.Time, loc *time.Location, n int) (Date, Date) {
 	y, m, d := now.In(loc).Date()
 	return DateFrom(dayStart(y, m, d-n, loc)), DateFrom(dayStart(y, m, d+1, loc))
 }
@@ -145,13 +135,8 @@ func DateNow() Date {
 	return Date(time.Now().UTC().Format(DateTimeFormat))
 }
 
-// DateToday returns today's clinic-local calendar date as YYYY-MM-DD.
-func DateToday() Date {
-	return DateTodayIn(time.Now(), ClinicLocation())
-}
-
-// DateTodayIn returns the calendar date of now on the calendar of loc.
-func DateTodayIn(now time.Time, loc *time.Location) Date {
+// dateTodayIn returns the calendar date of now on the calendar of loc.
+func dateTodayIn(now time.Time, loc *time.Location) Date {
 	return Date(now.In(loc).Format(DateFormat))
 }
 
@@ -162,45 +147,87 @@ func DateFrom(t time.Time) Date {
 // DateOffsetDays returns today's clinic-local calendar date shifted by n
 // calendar days as a YYYY-MM-DD Date. Negative n is in the past.
 func DateOffsetDays(n int) Date {
-	return DateOffsetDaysIn(time.Now(), ClinicLocation(), n)
+	return dateOffsetDaysIn(time.Now(), ClinicLocation(), n)
 }
 
-// DateOffsetDaysIn returns the calendar date of now on the calendar of loc,
+// dateOffsetDaysIn returns the calendar date of now on the calendar of loc,
 // shifted by n calendar days.
-func DateOffsetDaysIn(now time.Time, loc *time.Location, n int) Date {
+func dateOffsetDaysIn(now time.Time, loc *time.Location, n int) Date {
 	return Date(now.In(loc).AddDate(0, 0, n).Format(DateFormat))
 }
 
-// RangeStart normalizes a range lower bound to an inclusive RFC3339 UTC
-// instant for half-open `[from, to)` filtering. A bare YYYY-MM-DD is treated
-// as UTC start-of-day; an RFC3339 input is passed through unchanged (the
-// frontend is responsible for converting clinic-local boundaries to UTC).
-func RangeStart(s string) string {
-	if s == "" {
-		return ""
+// clinicDay reads a bare YYYY-MM-DD date as a calendar day of the clinic's
+// timezone. An empty or invalid date falls back to now.
+func clinicDay(date string) time.Time {
+	t, err := time.ParseInLocation(DateFormat, date, ClinicLocation())
+	if err != nil {
+		return ClinicNow()
 	}
-	if len(s) == 10 {
-		if t, err := time.Parse(DateFormat, s); err == nil {
-			return t.UTC().Format(DateTimeFormat)
-		}
-	}
-	return s
+	return t
 }
 
-// RangeEnd normalizes a range upper bound to an exclusive RFC3339 UTC instant
-// for half-open `[from, to)` filtering. A bare YYYY-MM-DD is expanded to the
-// next day's UTC start-of-day so the calendar day itself is included; an
-// RFC3339 input is passed through unchanged and treated as already exclusive.
-func RangeEnd(s string) string {
+// ParseRangeStart reads a range lower bound — a bare YYYY-MM-DD date or an
+// RFC3339 instant — and returns the inclusive bound as a normalized RFC3339
+// UTC instant for half-open `[from, to)` filtering. A bare date means the
+// clinic-local calendar day it names. An empty value stays empty for the
+// caller's default.
+func ParseRangeStart(s string) (string, error) {
+	return parseRangeBound(s, false)
+}
+
+// ParseRangeEnd reads a range upper bound — a bare YYYY-MM-DD date or an
+// RFC3339 instant — and returns the exclusive bound as a normalized RFC3339
+// UTC instant for half-open `[from, to)` filtering: a bare date expands to
+// the end of the clinic-local calendar day it names, and an RFC3339 instant
+// is taken as already exclusive. An empty value stays empty for the caller's
+// default.
+func ParseRangeEnd(s string) (string, error) {
+	return parseRangeBound(s, true)
+}
+
+// parseRangeBound reads one range bound for ParseRangeStart and ParseRangeEnd:
+// a bare YYYY-MM-DD date means the clinic-local calendar day it names — its
+// first instant, or the first instant after it when end — and an RFC3339
+// instant names the moment itself. An empty value stays empty for the
+// caller's default.
+func parseRangeBound(s string, end bool) (string, error) {
 	if s == "" {
-		return ""
+		return "", nil
 	}
-	if len(s) == 10 {
-		if t, err := time.Parse(DateFormat, s); err == nil {
-			return t.UTC().AddDate(0, 0, 1).Format(DateTimeFormat)
+	if isBareDate(s) {
+		start, endOfDay := ClinicDayBounds(clinicDay(s))
+		if end {
+			return string(endOfDay), nil
 		}
+		return string(start), nil
 	}
-	return s
+	t, err := time.Parse(DateTimeFormat, s)
+	if err != nil {
+		return "", fmt.Errorf("range bound %q is neither a date nor an instant", s)
+	}
+	return t.UTC().Format(DateTimeFormat), nil
+}
+
+// RangeStart normalizes a range lower bound for a query argument, like
+// ParseRangeStart. A value that parses nowhere reaches the query as given,
+// and the SQL compares it as a plain string.
+func RangeStart(s string) string {
+	v, err := ParseRangeStart(s)
+	if err != nil {
+		return s
+	}
+	return v
+}
+
+// RangeEnd normalizes a range upper bound for a query argument, like
+// ParseRangeEnd. A value that parses nowhere reaches the query as given, and
+// the SQL compares it as a plain string.
+func RangeEnd(s string) string {
+	v, err := ParseRangeEnd(s)
+	if err != nil {
+		return s
+	}
+	return v
 }
 
 // isBareDate reports whether s is a YYYY-MM-DD date.
@@ -217,24 +244,16 @@ func isBareDate(s string) bool {
 // previous months (April's previous period is March, however many days each
 // has), anything else the same number of calendar days, so a window that
 // crosses a DST switch shifts by whole clinic days, not by its duration.
-// RFC3339 instants are read on the clinic calendar; bare YYYY-MM-DD dates are
-// UTC days, as in RangeStart and RangeEnd. The result is returned as RFC3339
-// UTC instants (which pass through RangeStart/RangeEnd unchanged). Returns
-// empty strings if the bounds cannot be parsed.
+// Bare dates and instants alike are read on the clinic calendar. The result
+// is returned as RFC3339 UTC instants (which pass through RangeStart/RangeEnd
+// unchanged). Returns empty strings if the bounds cannot be parsed.
 func PreviousPeriod(from, to string) (string, string) {
-	return PreviousPeriodIn(from, to, ClinicLocation())
-}
-
-// PreviousPeriodIn is PreviousPeriod with instants read on the calendar of loc.
-func PreviousPeriodIn(from, to string, loc *time.Location) (string, string) {
 	s, err1 := time.Parse(DateTimeFormat, RangeStart(from))
 	e, err2 := time.Parse(DateTimeFormat, RangeEnd(to))
 	if err1 != nil || err2 != nil || !e.After(s) {
 		return "", ""
 	}
-	if isBareDate(from) && isBareDate(to) {
-		loc = time.UTC
-	}
+	loc := ClinicLocation()
 	prev := shiftBackBySpan(s.In(loc), e.In(loc))
 	return string(DateFrom(prev)), string(DateFrom(s))
 }
@@ -314,29 +333,31 @@ func (d Date) After(other Date) bool {
 	return d.DateOnly() > other.DateOnly()
 }
 
-// WeekRange returns the Sunday–Saturday week containing d as YYYY-MM-DD strings.
-// Falls back to the clinic-local current week if d is empty or unparseable.
+// WeekRange returns the Sunday–Saturday week containing d as YYYY-MM-DD
+// strings, read on the calendar d carries (a bare date is a UTC day). Falls
+// back to the clinic-local current week if d is empty or unparseable.
 func WeekRange(d Date) (Date, Date) {
 	t, err := d.Time()
 	if err != nil || t.IsZero() {
 		t = ClinicNow()
 	}
-	start := t.AddDate(0, 0, -int(t.Weekday()))
-	end := start.AddDate(0, 0, 6)
-	return Date(start.Format(DateFormat)), Date(end.Format(DateFormat))
+	loc := t.Location()
+	start, end := clinicWeekBounds(t, loc, time.Sunday)
+	return Date(start.In(loc).Format(DateFormat)), Date(end.AddDate(0, 0, -1).In(loc).Format(DateFormat))
 }
 
-// MonthRange returns the first and last day of the calendar month containing d
-// as YYYY-MM-DD strings. Falls back to the clinic-local current month if d is
-// empty or invalid.
+// MonthRange returns the first and last day of the calendar month containing
+// d as YYYY-MM-DD strings, read on the calendar d carries (a bare date is a
+// UTC day). Falls back to the clinic-local current month if d is empty or
+// invalid.
 func MonthRange(d Date) (Date, Date) {
 	t, err := d.Time()
 	if err != nil || t.IsZero() {
 		t = ClinicNow()
 	}
-	start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
-	end := start.AddDate(0, 1, -1)
-	return Date(start.Format(DateFormat)), Date(end.Format(DateFormat))
+	loc := t.Location()
+	start, end := clinicMonthBounds(t, loc)
+	return Date(start.Format(DateFormat)), Date(end.AddDate(0, 0, -1).Format(DateFormat))
 }
 
 func (d Date) DateOnly() string {

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 
@@ -180,6 +181,36 @@ func TestComparePassword_MatchesArgon2idKDF(t *testing.T) {
 	}
 	if ok2, _ := ComparePassword("not-it", encoded); ok2 {
 		t.Errorf("wrong password should not match manual hash")
+	}
+}
+
+// The argon2 reference vector for argon2id (password "password", salt
+// "somesalt", t=1, m=64, p=1, 24-byte key) in the stored format, so hashes
+// written by earlier builds keep verifying after a library upgrade.
+func TestComparePassword_KnownAnswerVector(t *testing.T) {
+	const vector = "$argon2id$v=19$m=64,t=1,p=1$c29tZXNhbHQ$ZVrRXqxlLcWfcXCnMyv0m4Rpvh/bnCi7"
+	if ok, err := ComparePassword("password", vector); err != nil || !ok {
+		t.Errorf("reference vector: ok=%v err=%v, want a match", ok, err)
+	}
+	if ok, _ := ComparePassword("Password", vector); ok {
+		t.Error("a near-miss password matched the reference vector")
+	}
+}
+
+// New hashes use exactly these parameters, a 16-byte salt and a 32-byte key.
+func TestHashPassword_PinnedParameters(t *testing.T) {
+	h, err := HashPassword("hunter2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := strings.Split(h, "$")
+	if len(parts) != 6 || parts[2] != "v=19" || parts[3] != "m=32768,t=5,p=2" {
+		t.Fatalf("hash %q, want v=19 and m=32768,t=5,p=2", h)
+	}
+	salt, errSalt := base64.RawStdEncoding.DecodeString(parts[4])
+	key, errKey := base64.RawStdEncoding.DecodeString(parts[5])
+	if errSalt != nil || errKey != nil || len(salt) != 16 || len(key) != 32 {
+		t.Errorf("salt %d bytes (%v), key %d bytes (%v), want 16 and 32", len(salt), errSalt, len(key), errKey)
 	}
 }
 

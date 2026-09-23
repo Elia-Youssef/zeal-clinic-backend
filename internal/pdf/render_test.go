@@ -34,7 +34,7 @@ func TestRenderPDFs(t *testing.T) {
 			{EntityName: "Lips", Quantity: 1, Amount: 330, Percentage: 42.9},
 		},
 	}
-	if p, err := GenerateRevenueReport(rev, "2026-05-01", "2026-05-31"); err != nil || p == "" {
+	if p, err := GenerateRevenueReport(rev, "2026-05-01T00:00:00Z", "2026-05-31T00:00:00Z"); err != nil || p == "" {
 		t.Fatalf("revenue: path=%q err=%v", p, err)
 	}
 
@@ -44,7 +44,7 @@ func TestRenderPDFs(t *testing.T) {
 		},
 		Totals: store.ExpensesTotals{Amount: 840},
 	}
-	if p, err := GenerateExpensesReport(exp, "2026-05-01", "2026-05-31"); err != nil || p == "" {
+	if p, err := GenerateExpensesReport(exp, "2026-05-01T00:00:00Z", "2026-05-31T00:00:00Z"); err != nil || p == "" {
 		t.Fatalf("expenses: path=%q err=%v", p, err)
 	}
 

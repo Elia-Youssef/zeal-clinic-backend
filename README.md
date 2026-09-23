@@ -6,7 +6,7 @@ frontend — all served from one executable.
 
 ## Requirements
 
-- Go 1.26.1 or newer (a dependency requires it; with the default `GOTOOLCHAIN=auto`, the go command fetches the matching toolchain on its own when yours is older)
+- Go 1.26.8 or newer (the standard library security fixes need it; with the default `GOTOOLCHAIN=auto`, the go command fetches the matching toolchain on its own when yours is older)
 - Frontend built into `client/dist` before any release build (`make frontend`, from the sibling `../zeal-clinic-frontend` checkout; `FRONTEND=<path>` overrides)
 - Inno Setup 6 — only for the Windows installer
 
@@ -16,6 +16,10 @@ frontend — all served from one executable.
 make dev         # build + run in dev mode (no tray/browser, DB in ./tmp)
 make dev-demo    # same, seeded with a large demo dataset
 go run ./cmd/server --dev        # without the Makefile
+make demo        # one node with demo data, Windows (or: pwsh scripts/demo.ps1)
+pwsh scripts/demo-two-node.ps1   # clinic and cloud side by side, Windows
+scripts/demo-cloud.sh            # cloud node on Linux (make demo runs it there); money is read-only without its clinic
+# demo sign-in: jvance (admin), tmercer (staff), lhayes and mowens (nurses); password demo123
 ```
 
 Listens on `:55555` (local) / `:8080` (cloud). The seeded `admin` user has no

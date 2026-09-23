@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 
@@ -40,14 +41,16 @@ func TestCreateUser_Success(t *testing.T) {
 	}
 }
 
-func TestCreateUser_TrimsPassword(t *testing.T) {
+// A password set at creation works typed back exactly as it was given; the
+// trimmed spelling is a wrong password. A password of spaces only is refused.
+func TestCreateUser_PasswordUsedAsTyped(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
 	rec := doRequest(t, e, http.MethodPost, "/api/users",
 		asJSON(t, map[string]any{
-			"username": "trimmed-create", "displayName": "Trimmed Create",
+			"username": "as-typed-create", "displayName": "As Typed Create",
 			"role": "staff", "password": "  pw-12345  ",
 		}), tok)
 	if rec.Code != http.StatusCreated {
@@ -55,9 +58,14 @@ func TestCreateUser_TrimsPassword(t *testing.T) {
 	}
 
 	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
-		asJSON(t, map[string]string{"username": "trimmed-create", "password": "pw-12345"}), "")
+		asJSON(t, map[string]string{"username": "as-typed-create", "password": "  pw-12345  "}), "")
 	if rec.Code != http.StatusOK {
-		t.Fatalf("login with trimmed password expected 200, got %d body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("login with the password as typed expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
+		asJSON(t, map[string]string{"username": "as-typed-create", "password": "pw-12345"}), "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("login with the trimmed password expected 401, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
 	rec = doRequest(t, e, http.MethodPost, "/api/users",
@@ -65,26 +73,27 @@ func TestCreateUser_TrimsPassword(t *testing.T) {
 			"username": "blank-password", "displayName": "Blank Password",
 			"role": "staff", "password": "   ",
 		}), tok)
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("blank-password create expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("blank-password create expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
 	var blankPasswordUser store.User
-	if err := blankPasswordUser.GetByUsername("blank-password"); err != nil {
+	if err := blankPasswordUser.GetByUsername("blank-password"); err == nil {
+		t.Error("a refused blank-password create left a user behind")
+	} else if !errors.Is(err, store.ErrNotFound) {
 		t.Fatal(err)
-	}
-	if blankPasswordUser.PasswordHash != "" {
-		t.Error("whitespace-only password should be treated as empty")
 	}
 }
 
-func TestUpdateUser_TrimsPassword(t *testing.T) {
+// A password set by an update works typed back exactly as it was given; a
+// password of spaces only is refused and changes nothing.
+func TestUpdateUser_PasswordUsedAsTyped(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
 	tok := adminToken(t, e)
 
 	rec := doRequest(t, e, http.MethodPost, "/api/users",
 		asJSON(t, map[string]any{
-			"username": "trimmed-update", "displayName": "Trimmed Update",
+			"username": "as-typed-update", "displayName": "As Typed Update",
 			"role": "staff", "password": "old-pw",
 		}), tok)
 	if rec.Code != http.StatusCreated {
@@ -99,15 +108,15 @@ func TestUpdateUser_TrimsPassword(t *testing.T) {
 	}
 	rec = doRequest(t, e, http.MethodPut, "/api/users/"+created.ID,
 		asJSON(t, map[string]any{"password": "   "}), tok)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("whitespace-only update expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("whitespace-only update expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
 	var after store.User
 	if err := after.GetByID(created.ID); err != nil {
 		t.Fatal(err)
 	}
 	if after.PasswordHash != before.PasswordHash {
-		t.Error("whitespace-only password update should leave the password unchanged")
+		t.Error("a refused password update changed the password")
 	}
 
 	rec = doRequest(t, e, http.MethodPut, "/api/users/"+created.ID,
@@ -116,9 +125,14 @@ func TestUpdateUser_TrimsPassword(t *testing.T) {
 		t.Fatalf("password update expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
-		asJSON(t, map[string]string{"username": "trimmed-update", "password": "new-pw"}), "")
+		asJSON(t, map[string]string{"username": "as-typed-update", "password": "  new-pw  "}), "")
 	if rec.Code != http.StatusOK {
-		t.Fatalf("login with trimmed updated password expected 200, got %d body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("login with the password as typed expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	rec = doRequest(t, e, http.MethodPost, "/api/auth/login",
+		asJSON(t, map[string]string{"username": "as-typed-update", "password": "new-pw"}), "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("login with the trimmed password expected 401, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

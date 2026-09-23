@@ -46,7 +46,7 @@ func GenerateAnalyticsReport(data *store.AnalyticsReport, from, to string) (stri
 	if data == nil {
 		return "", fmt.Errorf("report is empty")
 	}
-	firstDay, lastDay, err := rangeFileDates(from, to)
+	firstDay, lastDay, err := rangeDays(from, to)
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +67,7 @@ func GenerateAnalyticsReport(data *store.AnalyticsReport, from, to string) (stri
 		Build()
 	m := maroto.New(cfg)
 
-	addMasthead(m, from, to)
+	addMasthead(m, firstDay, lastDay)
 	keep(m, func(s rowSink) { addMoneySection(s, data.Money) })
 	keep(m, func(s rowSink) { addPatientsSection(s, data.Patients) })
 	keep(m, func(s rowSink) { addOperationsSection(s, data.Operations) })
@@ -145,13 +145,13 @@ func keep(m core.Maroto, build func(rowSink)) {
 
 // masthead
 
-func addMasthead(m core.Maroto, from, to string) {
+func addMasthead(m core.Maroto, firstDay, lastDay string) {
 	brand := []core.Component{
 		text.New("Zeal Clinic", props.Text{Size: 16, Style: fontstyle.Bold, Color: clrInk, Top: 2}),
 		text.New("Analytics Report", props.Text{Size: 9.5, Color: clrMutedFg, Top: 9}),
 	}
 	meta := []core.Component{
-		text.New(fmt.Sprintf("%s  —  %s", reportRangeStart(from), reportRangeEnd(to)),
+		text.New(fmt.Sprintf("%s  —  %s", dayHeader(firstDay), dayHeader(lastDay)),
 			props.Text{Size: 9.5, Style: fontstyle.Bold, Color: clrInk, Align: align.Right, Right: 1, Top: 3}),
 		text.New(fmt.Sprintf("Generated %s", clinicDate(store.DateNow())),
 			props.Text{Size: 8, Color: clrMutedFg, Align: align.Right, Right: 1, Top: 9}),

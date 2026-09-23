@@ -35,15 +35,11 @@ func GetInvoicePDF(c echo.Context) error {
 // Monday-Sunday week containing date instead of the single day. Cancelled
 // appointments are listed too, marked as such.
 func GetAllAppointmentsPDF(c echo.Context) error {
-	if c.QueryParam("date") == "" {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Date is required"})
-	}
-	day, err := parseDate(c.QueryParam("date"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid date"})
-	}
 	// The file is named after the parsed day, never after the raw parameter.
-	date := day.Format(store.DateFormat)
+	date, err := requiredDate(c)
+	if err != nil {
+		return invalidDate(c, err)
+	}
 	params := parseListParams(c)
 	apts := store.AppointmentList{}
 	if c.QueryParam("range") == "week" {

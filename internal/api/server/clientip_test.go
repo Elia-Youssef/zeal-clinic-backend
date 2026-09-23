@@ -1,4 +1,4 @@
-package middleware
+package server
 
 import (
 	"net/http"
@@ -20,7 +20,7 @@ func forwardedRequest(remoteAddr, forwardedFor string) *http.Request {
 }
 
 func TestDirectClientIPIgnoresForwardingHeaders(t *testing.T) {
-	extract := DirectClientIP()
+	extract := directClientIP()
 	for _, tc := range []struct{ remote, forwarded, want string }{
 		{"203.0.113.9:4321", "", "203.0.113.9"},
 		{"203.0.113.9:4321", "198.51.100.7", "203.0.113.9"},
@@ -34,7 +34,7 @@ func TestDirectClientIPIgnoresForwardingHeaders(t *testing.T) {
 }
 
 func TestProxiedClientIPTrustsOnlyLocalProxies(t *testing.T) {
-	extract := ProxiedClientIP()
+	extract := proxiedClientIP()
 	for _, tc := range []struct{ remote, forwarded, want string }{
 		{"127.0.0.1:4321", "198.51.100.7", "198.51.100.7"},           // a proxy on the same host
 		{"10.1.2.3:4321", "198.51.100.7", "198.51.100.7"},            // a proxy on the private network
@@ -52,7 +52,7 @@ func TestProxiedClientIPTrustsOnlyLocalProxies(t *testing.T) {
 // A forwarded address sent through a loopback peer is ignored by the clinic
 // build and honored by the cloud build.
 func TestClientIPExtractorPerBuild(t *testing.T) {
-	got := ClientIPExtractor()(forwardedRequest("127.0.0.1:4321", "198.51.100.7"))
+	got := clientIPExtractor()(forwardedRequest("127.0.0.1:4321", "198.51.100.7"))
 	want := "127.0.0.1"
 	if buildmode.Cloud {
 		want = "198.51.100.7"

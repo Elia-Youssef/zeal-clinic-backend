@@ -107,6 +107,19 @@ func TestBodyLimitSkipsTheLargeBodyRoutes(t *testing.T) {
 	}
 }
 
+// The built server bounds both the headers of a request and the quiet time of
+// a kept-alive connection.
+func TestServerTimeouts(t *testing.T) {
+	setupTestEnv(t)
+	e := CreateServerWithOptions(Options{})
+	if e.Server.ReadHeaderTimeout != readHeaderTimeout {
+		t.Errorf("ReadHeaderTimeout = %s, want %s", e.Server.ReadHeaderTimeout, readHeaderTimeout)
+	}
+	if e.Server.IdleTimeout != idleTimeout {
+		t.Errorf("IdleTimeout = %s, want %s", e.Server.IdleTimeout, idleTimeout)
+	}
+}
+
 func TestCORSOnlyInDevForTheViteOrigins(t *testing.T) {
 	setupTestEnv(t)
 	preflight := func(e *echo.Echo, origin string) *httptest.ResponseRecorder {
@@ -118,7 +131,7 @@ func TestCORSOnlyInDevForTheViteOrigins(t *testing.T) {
 		e.ServeHTTP(rec, req)
 		return rec
 	}
-	dev := CreateServerWithOptions(Options{Dev: true})
+	dev := CreateServerWithOptions(Options{DevCORS: true})
 	for _, origin := range devOrigins {
 		rec := preflight(dev, origin)
 		if rec.Code != http.StatusNoContent || rec.Header().Get("Access-Control-Allow-Origin") != origin {
@@ -134,7 +147,7 @@ func TestCORSOnlyInDevForTheViteOrigins(t *testing.T) {
 		t.Errorf("dev preflight from another origin was allowed: %v", rec.Header())
 	}
 
-	built := CreateServer()
+	built := CreateServerWithOptions(Options{})
 	if rec := preflight(built, devOrigins[0]); rec.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Errorf("the built server answers a preflight with CORS headers: %v", rec.Header())
 	}

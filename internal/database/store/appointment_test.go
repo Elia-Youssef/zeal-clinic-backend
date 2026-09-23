@@ -40,9 +40,16 @@ func TestGetAppointmentCountPerRoom_ClinicDays(t *testing.T) {
 	book("a5", "2025-04-01", 9, 0, "Cancelled")
 	book("a6", "2025-03-30", 23, 30, "Scheduled") // the Sunday before the week
 
-	items, err := GetAppointmentCountPerRoom("2025-03-31", "2025-04-06")
+	items, weekStart, weekEnd, err := GetAppointmentCountPerRoom("2025-03-31")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if weekStart != "2025-03-31" || weekEnd != "2025-04-06" {
+		t.Errorf("week = [%s, %s], want the Monday 2025-03-31 to the Sunday 2025-04-06", weekStart, weekEnd)
+	}
+	// The week's Sunday reads back to the Monday before it.
+	if _, ws, we, err := GetAppointmentCountPerRoom("2025-04-06"); err != nil || ws != "2025-03-31" || we != "2025-04-06" {
+		t.Errorf("week of the Sunday 2025-04-06 = [%s, %s], %v, want the same Monday week", ws, we, err)
 	}
 	var got map[string]int
 	for _, it := range items {

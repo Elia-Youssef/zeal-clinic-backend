@@ -131,6 +131,9 @@ type dynamicCall struct {
 var dynamicCalls = map[string]dynamicCall{
 	// List pages pass their endpoint to the list component.
 	"get src/components/data/data-list.tsx: `${endpoint}${sep}${params}`": {source: regexp.MustCompile(`\bendpoint="(/[^"?]*)`)},
+	// The analytics panels and cards name the endpoint the analytics hook
+	// loads: an /analytics/ path literal, bare, in withRange or as a prop.
+	"get src/components/analytics/use-analytics.ts: endpoint": {source: regexp.MustCompile(`"(/analytics/[^"?]*)`)},
 	// A line's price comes from its product or procedure.
 	"get src/components/forms/client-invoice-form.tsx: endpoint": {endpoints: []string{"/products/:param", "/procedures/:param"}},
 	// The adjustment and write-off routes of each balance type.

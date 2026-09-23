@@ -8,15 +8,14 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
 
 func GetAllAppointments(c echo.Context) error {
-	date := c.QueryParam("date")
-	if date == "" {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Date is required"})
+	date, err := requiredDate(c)
+	if err != nil {
+		return invalidDate(c, err)
 	}
 	params := parseListParams(c)
 	apts := store.AppointmentList{}
@@ -41,22 +40,12 @@ func GetAllAppointments(c echo.Context) error {
 }
 
 func GetAppointmentCountPerRoom(c echo.Context) error {
-	date := c.QueryParam("date")
-	if date == "" {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Date is required"})
-	}
-	t, err := time.Parse(store.DateFormat, date)
+	date, err := requiredDate(c)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid date"})
+		return invalidDate(c, err)
 	}
-	offset := int(t.Weekday() - time.Monday)
-	if offset < 0 {
-		offset = 6
-	}
-	weekStart := store.Date(t.AddDate(0, 0, -offset).Format(store.DateFormat))
-	weekEnd := store.Date(t.AddDate(0, 0, -offset+6).Format(store.DateFormat))
 
-	items, err := store.GetAppointmentCountPerRoom(weekStart, weekEnd)
+	items, weekStart, weekEnd, err := store.GetAppointmentCountPerRoom(date)
 	if err != nil {
 		log.Println("Error: [GetAppointmentCountPerRoom] failed to fetch counts:", err)
 		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load appointment counts"})

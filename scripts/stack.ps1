@@ -248,196 +248,10 @@ function Exit-GoJail {
     $script:SavedEnv = $null
 }
 
-# Process control (Windows): new process group, own environment, output to a file
+# Process control (Windows): new process group, own environment, output to a file (scripts/native-process.cs)
 
-if ($IsWindows -and -not ('StackTools.Native' -as [type])) {
-    Add-Type -TypeDefinition @'
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using System.Text;
-
-namespace StackTools
-{
-    public sealed class Child : IDisposable
-    {
-        [DllImport("kernel32.dll", SetLastError = true)] static extern uint WaitForSingleObject(IntPtr h, uint ms);
-        [DllImport("kernel32.dll", SetLastError = true)] static extern bool GetExitCodeProcess(IntPtr h, out uint code);
-        [DllImport("kernel32.dll", SetLastError = true)] static extern bool CloseHandle(IntPtr h);
-        IntPtr handle;
-        public int Pid { get; private set; }
-        internal Child(int pid, IntPtr h) { Pid = pid; handle = h; }
-        public bool WaitForExit(int milliseconds) { return WaitForSingleObject(handle, (uint)milliseconds) == 0; }
-        public bool HasExited { get { return WaitForSingleObject(handle, 0) == 0; } }
-        public int ExitCode { get { uint c; GetExitCodeProcess(handle, out c); return unchecked((int)c); } }
-        public void Dispose() { if (handle != IntPtr.Zero) { CloseHandle(handle); handle = IntPtr.Zero; } }
-    }
-
-    public static class Native
-    {
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        struct STARTUPINFO
-        {
-            public int cb; public IntPtr lpReserved; public IntPtr lpDesktop; public IntPtr lpTitle;
-            public int dwX; public int dwY; public int dwXSize; public int dwYSize;
-            public int dwXCountChars; public int dwYCountChars; public int dwFillAttribute; public int dwFlags;
-            public short wShowWindow; public short cbReserved2; public IntPtr lpReserved2;
-            public IntPtr hStdInput; public IntPtr hStdOutput; public IntPtr hStdError;
-        }
-        [StructLayout(LayoutKind.Sequential)]
-        struct STARTUPINFOEX { public STARTUPINFO StartupInfo; public IntPtr lpAttributeList; }
-        [StructLayout(LayoutKind.Sequential)]
-        struct PROCESS_INFORMATION { public IntPtr hProcess; public IntPtr hThread; public int dwProcessId; public int dwThreadId; }
-        [StructLayout(LayoutKind.Sequential)]
-        struct SECURITY_ATTRIBUTES { public int nLength; public IntPtr lpSecurityDescriptor; public int bInheritHandle; }
-
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern bool CreateProcessW(string app, StringBuilder cmd, IntPtr pa, IntPtr ta, bool inherit, uint flags,
-                                          IntPtr env, string cwd, ref STARTUPINFOEX si, out PROCESS_INFORMATION pi);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern bool InitializeProcThreadAttributeList(IntPtr list, int count, int flags, ref IntPtr size);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern bool UpdateProcThreadAttribute(IntPtr list, uint flags, IntPtr attr, IntPtr value, IntPtr size, IntPtr prev, IntPtr ret);
-        [DllImport("kernel32.dll")]
-        static extern void DeleteProcThreadAttributeList(IntPtr list);
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern IntPtr CreateFileW(string name, uint access, uint share, ref SECURITY_ATTRIBUTES sa, uint disposition, uint flags, IntPtr template);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern bool CloseHandle(IntPtr h);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern bool GenerateConsoleCtrlEvent(uint ev, uint group);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern uint GetConsoleProcessList(uint[] list, uint count);
-
-        const uint CREATE_NEW_PROCESS_GROUP = 0x00000200;
-        const uint CREATE_UNICODE_ENVIRONMENT = 0x00000400;
-        const uint CREATE_NO_WINDOW = 0x08000000;
-        const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
-        const int STARTF_USESTDHANDLES = 0x00000100;
-        const uint GENERIC_READ = 0x80000000;
-        const uint GENERIC_WRITE = 0x40000000;
-        const uint FILE_SHARE_ALL = 0x7;
-        const uint OPEN_EXISTING = 3;
-        const uint CREATE_ALWAYS = 2;
-        const uint FILE_ATTRIBUTE_NORMAL = 0x80;
-        static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
-        static readonly IntPtr PROC_THREAD_ATTRIBUTE_HANDLE_LIST = new IntPtr(0x00020002);
-
-        public static bool HasConsole()
-        {
-            var buf = new uint[1];
-            return GetConsoleProcessList(buf, 1) > 0;
-        }
-
-        public static bool SharesConsoleWith(int pid)
-        {
-            var buf = new uint[4096];
-            uint n = GetConsoleProcessList(buf, (uint)buf.Length);
-            if (n == 0 || n > buf.Length) return false;
-            for (int i = 0; i < n; i++) if (buf[i] == (uint)pid) return true;
-            return false;
-        }
-
-        // CTRL_BREAK_EVENT to the process group whose id is pid.
-        public static bool SendCtrlBreak(int pid) { return GenerateConsoleCtrlEvent(1, (uint)pid); }
-
-        // Starts exe in a new process group (so Ctrl+Break can reach it alone) with the given environment.
-        // stdout and stderr go to logPath, stdin is NUL, and only those two handles are inherited, so the
-        // caller's own pipes never stay open because of the child.
-        public static Child Start(string exe, string[] args, string workDir, IDictionary env, string logPath)
-        {
-            var cmd = new StringBuilder(Quote(exe));
-            foreach (var a in args) cmd.Append(' ').Append(Quote(a));
-
-            var names = new List<string>();
-            foreach (DictionaryEntry e in env) names.Add(e.Key.ToString());
-            names.Sort(StringComparer.OrdinalIgnoreCase);
-            var block = new StringBuilder();
-            foreach (var n in names)
-            {
-                var v = env[n];
-                if (v == null || n.Length == 0 || n[0] == '=') continue;
-                block.Append(n).Append('=').Append(v.ToString()).Append('\0');
-            }
-            block.Append('\0');
-
-            var sa = new SECURITY_ATTRIBUTES { nLength = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES)), bInheritHandle = 1 };
-            IntPtr hLog = CreateFileW(logPath, GENERIC_WRITE, FILE_SHARE_ALL, ref sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, IntPtr.Zero);
-            if (hLog == INVALID_HANDLE_VALUE) throw new Win32Exception(Marshal.GetLastWin32Error(), "open " + logPath);
-            IntPtr hNul = CreateFileW("NUL", GENERIC_READ, FILE_SHARE_ALL, ref sa, OPEN_EXISTING, 0, IntPtr.Zero);
-            if (hNul == INVALID_HANDLE_VALUE)
-            {
-                int err = Marshal.GetLastWin32Error();
-                CloseHandle(hLog);
-                throw new Win32Exception(err, "open NUL");
-            }
-
-            IntPtr envPtr = IntPtr.Zero, attrList = IntPtr.Zero, handles = IntPtr.Zero;
-            bool attrInit = false;
-            try
-            {
-                envPtr = Marshal.StringToHGlobalUni(block.ToString());
-                IntPtr size = IntPtr.Zero;
-                InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
-                attrList = Marshal.AllocHGlobal(size);
-                if (!InitializeProcThreadAttributeList(attrList, 1, 0, ref size))
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "InitializeProcThreadAttributeList");
-                attrInit = true;
-                handles = Marshal.AllocHGlobal(IntPtr.Size * 2);
-                Marshal.WriteIntPtr(handles, 0, hLog);
-                Marshal.WriteIntPtr(handles, IntPtr.Size, hNul);
-                if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles,
-                                               (IntPtr)(IntPtr.Size * 2), IntPtr.Zero, IntPtr.Zero))
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "UpdateProcThreadAttribute");
-
-                var si = new STARTUPINFOEX();
-                si.StartupInfo.cb = Marshal.SizeOf(typeof(STARTUPINFOEX));
-                si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
-                si.StartupInfo.hStdInput = hNul;
-                si.StartupInfo.hStdOutput = hLog;
-                si.StartupInfo.hStdError = hLog;
-                si.lpAttributeList = attrList;
-
-                uint flags = CREATE_NEW_PROCESS_GROUP | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT;
-                if (!HasConsole()) flags |= CREATE_NO_WINDOW;
-                PROCESS_INFORMATION pi;
-                if (!CreateProcessW(exe, cmd, IntPtr.Zero, IntPtr.Zero, true, flags, envPtr, workDir, ref si, out pi))
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "CreateProcess " + exe);
-                CloseHandle(pi.hThread);
-                return new Child(pi.dwProcessId, pi.hProcess);
-            }
-            finally
-            {
-                if (attrInit) DeleteProcThreadAttributeList(attrList);
-                if (attrList != IntPtr.Zero) Marshal.FreeHGlobal(attrList);
-                if (handles != IntPtr.Zero) Marshal.FreeHGlobal(handles);
-                if (envPtr != IntPtr.Zero) Marshal.FreeHGlobal(envPtr);
-                CloseHandle(hLog);
-                CloseHandle(hNul);
-            }
-        }
-
-        static string Quote(string s)
-        {
-            if (s.Length > 0 && s.IndexOfAny(new[] { ' ', '\t', '"' }) < 0) return s;
-            var sb = new StringBuilder("\"");
-            int backslashes = 0;
-            foreach (char c in s)
-            {
-                if (c == '\\') { backslashes++; continue; }
-                if (c == '"') { sb.Append('\\', backslashes * 2 + 1).Append('"'); backslashes = 0; continue; }
-                sb.Append('\\', backslashes).Append(c);
-                backslashes = 0;
-            }
-            sb.Append('\\', backslashes * 2).Append('"');
-            return sb.ToString();
-        }
-    }
-}
-'@
-}
+$NativeProcessSource = Join-Path $PSScriptRoot 'native-process.cs'
+if ($IsWindows -and -not ('ZealScripts.ConsoleProcess' -as [type])) { Add-Type -Path $NativeProcessSource }
 
 # Stack helpers
 
@@ -542,7 +356,7 @@ function New-NodeEnvironment([string]$Root) {
 function Start-Node([string]$Exe, [string[]]$Arguments, [string]$Root, [hashtable]$NodeEnv, [string]$LogPath) {
     <# Returns an object with Pid, WaitForExit(ms), HasExited, ExitCode, Dispose(). #>
     if ($IsWindows) {
-        return [StackTools.Native]::Start($Exe, [string[]]$Arguments, $Root, $NodeEnv, $LogPath)
+        return [ZealScripts.ConsoleProcess]::Start($Exe, [string[]]$Arguments, $Root, $NodeEnv, $LogPath, $false)
     }
     # Other systems: sh redirects the output to the log and execs the server (same pid).
     $saved = @{}
@@ -576,31 +390,6 @@ function Wait-Health([int]$ServerPort, $Child, [int]$Seconds) {
         Start-Sleep -Milliseconds 300
     }
     return [pscustomobject]@{ Ok = $false; Reason = "no healthy answer within $Seconds s"; Version = $null }
-}
-
-function Send-BreakFromHelper([int]$TargetPid) {
-    # A short-lived helper attaches to the server's console and sends Ctrl+Break to the server's group only.
-    $code = @"
-`$sig = @'
-[DllImport("kernel32.dll", SetLastError = true)] public static extern bool FreeConsole();
-[DllImport("kernel32.dll", SetLastError = true)] public static extern bool AttachConsole(uint p);
-[DllImport("kernel32.dll", SetLastError = true)] public static extern bool SetConsoleCtrlHandler(System.IntPtr h, bool a);
-[DllImport("kernel32.dll", SetLastError = true)] public static extern bool GenerateConsoleCtrlEvent(uint e, uint g);
-'@
-`$k = Add-Type -MemberDefinition `$sig -Name BreakSender -Namespace StackBreak -PassThru
-`$null = `$k::FreeConsole()
-if (-not `$k::AttachConsole($TargetPid)) { exit 2 }
-`$null = `$k::SetConsoleCtrlHandler([System.IntPtr]::Zero, `$true)
-if (`$k::GenerateConsoleCtrlEvent(1, $TargetPid)) { exit 0 } else { exit 3 }
-"@
-    $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($code))
-    $psi = [System.Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
-    foreach ($a in '-NoProfile', '-NonInteractive', '-EncodedCommand', $enc) { $psi.ArgumentList.Add($a) }
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $p = [System.Diagnostics.Process]::Start($psi)
-    if (-not $p.WaitForExit(30000)) { try { $p.Kill() } catch { }; return $false }
-    return ($p.ExitCode -eq 0)
 }
 
 # Modes
@@ -702,12 +491,12 @@ function Invoke-StopMode {
     $sent = $false
     $method = ''
     if ($IsWindows) {
-        if ([StackTools.Native]::SharesConsoleWith($ServerPid)) {
+        if ([ZealScripts.ConsoleProcess]::SharesConsoleWith($ServerPid)) {
             $method = 'ctrl-break'
-            $sent = [StackTools.Native]::SendCtrlBreak($ServerPid)
+            $sent = [ZealScripts.ConsoleProcess]::SendCtrlBreak($ServerPid)
         } else {
             $method = 'ctrl-break via helper'
-            $sent = Send-BreakFromHelper -TargetPid $ServerPid
+            $sent = [ZealScripts.ConsoleProcess]::SendCtrlBreakThroughHelper($ServerPid, $NativeProcessSource, 30000)
         }
     } else {
         $method = 'SIGINT'

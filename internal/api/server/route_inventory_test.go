@@ -32,7 +32,7 @@ func routeInventory(e *echo.Echo) []string {
 // publish and peer-update routes are mounted.
 func TestRouteInventory(t *testing.T) {
 	setupTestEnv(t)
-	e := CreateServer()
+	e := CreateServerWithOptions(Options{})
 	lines := routeInventory(e)
 	t.Logf("%s build: %d routes", buildName(), len(lines))
 	checkGolden(t, "testdata/routes/"+buildName()+".txt", strings.Join(lines, "\n")+"\n")

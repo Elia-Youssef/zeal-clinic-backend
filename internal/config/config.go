@@ -129,7 +129,7 @@ func SharedDataDir() string {
 // DataDir is the folder holding the database, logs and generated files. A
 // release build (buildmode.Release) uses the installed data folder when it
 // exists; a dev build, whether unstamped ("dev") or stamped "<version>-dev"
-// by make build, never opens it, on any OS and build tag, and uses the dev
+// by make build, never opens it, on any OS and build tag, and uses the
 // folder under the working directory instead.
 func DataDir() string {
 	if buildmode.Release() {
@@ -139,12 +139,13 @@ func DataDir() string {
 			}
 		}
 	}
-	return devDataDir()
+	return workingDirDataDir()
 }
 
-// devDataDir is the data folder of a dev build, relative to the working
-// directory: ./data for the cloud build, ./tmp for the clinic build.
-func devDataDir() string {
+// workingDirDataDir is the data folder relative to the working directory:
+// ./data for the cloud build, which is its production layout when it runs
+// uninstalled, ./tmp for the clinic build's development runs.
+func workingDirDataDir() string {
 	if buildmode.Cloud {
 		return "./data"
 	}

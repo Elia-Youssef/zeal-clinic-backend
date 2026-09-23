@@ -199,14 +199,14 @@ func TestDataDir_DevBuildsNeverOpenTheInstalledFolder(t *testing.T) {
 	}
 }
 
-// A release build uses the installed data folder when it exists, and the dev
-// folder of its build tag otherwise.
+// A release build uses the installed data folder when it exists, and the
+// working-directory folder of its build tag otherwise.
 func TestDataDir_ReleaseBuildUsesTheInstalledFolder(t *testing.T) {
 	stampVersion(t, "1.0.3")
 	installed := installedDataDir(t)
 	if runtime.GOOS != "windows" {
-		if got := DataDir(); got != devDataDir() {
-			t.Errorf("DataDir() = %q, want %q: the installed folder exists on Windows only", got, devDataDir())
+		if got := DataDir(); got != workingDirDataDir() {
+			t.Errorf("DataDir() = %q, want %q: the installed folder exists on Windows only", got, workingDirDataDir())
 		}
 		return
 	}
@@ -219,8 +219,8 @@ func TestDataDir_ReleaseBuildUsesTheInstalledFolder(t *testing.T) {
 	if err := os.RemoveAll(installed); err != nil {
 		t.Fatal(err)
 	}
-	if got := DataDir(); got != devDataDir() {
-		t.Errorf("DataDir() without the installed folder = %q, want %q", got, devDataDir())
+	if got := DataDir(); got != workingDirDataDir() {
+		t.Errorf("DataDir() without the installed folder = %q, want %q", got, workingDirDataDir())
 	}
 }
 

@@ -40,6 +40,7 @@
     "/api/appointments?date=<day+2>",
     "/api/appointments?date=2025-03-31&sort=startTime&order=desc",
     "/api/appointments",
+    "/api/appointments?date=31-03-2025",
     "/api/appointments/count-per-room?date=2025-03-31",
     "/api/appointments/count-per-room?date=2025-10-27",
     "/api/appointments/count-per-room",

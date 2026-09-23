@@ -65,7 +65,6 @@ func CreateEmployee(c echo.Context) error {
 
 	// Optionally create a user account for this employee
 	username := strings.TrimSpace(body.Username)
-	password := strings.TrimSpace(body.Password)
 	if username != "" {
 		heldScopes, _ := c.Get("scopes").([]string)
 		if !slices.Contains(heldScopes, "users:write") {
@@ -79,14 +78,13 @@ func CreateEmployee(c echo.Context) error {
 		if !slices.Contains(assignableRoles, userRole) {
 			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid role"})
 		}
-		var hash string
-		if password != "" {
-			h, err := auth.HashPassword(password)
-			if err != nil {
-				log.Println("Error: [CreateEmployee] failed to hash password:", err)
-				return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user"})
-			}
-			hash = h
+		hash, err := auth.HashNewPassword(body.Password)
+		if errors.Is(err, auth.ErrBlankPassword) {
+			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Password can't be blank"})
+		}
+		if err != nil {
+			log.Println("Error: [CreateEmployee] failed to hash password:", err)
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user"})
 		}
 		user := store.User{
 			Username:    username,

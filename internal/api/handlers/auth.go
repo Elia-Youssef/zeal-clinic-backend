@@ -25,7 +25,7 @@ func (r *LoginRequest) IsValid() error {
 	if strings.TrimSpace(r.Username) == "" {
 		e["username"] = "username is required"
 	}
-	if strings.TrimSpace(r.Password) == "" {
+	if auth.BlankPassword(r.Password) {
 		e["password"] = "password is required"
 	}
 	if len(e) > 0 {
@@ -33,10 +33,6 @@ func (r *LoginRequest) IsValid() error {
 	}
 	return nil
 }
-
-// comparePassword is the password comparison a sign-in runs. Tests replace it
-// to see which hash each attempt is checked against.
-var comparePassword = auth.ComparePassword
 
 // loginDummyHash is the hash an unknown username or a disabled account is
 // checked against, so those refusals run the same argon2id work as a wrong
@@ -69,32 +65,19 @@ func Login(c echo.Context) error {
 	// The password is compared as typed: it is never trimmed.
 	password := req.Password
 
-	// An unknown username, a disabled account and a wrong password get the
-	// same status and body, and each runs one argon2id comparison: a wrong
-	// password against the stored hash, the other two against loginDummyHash
-	// (the parameters of a freshly stored hash). So neither the answer nor the
-	// hashing time tells them apart while the stored hash uses the current
-	// parameters; only the first unknown-username or disabled-account refusal
-	// of a process also builds the dummy hash. Failed attempts are logged
-	// without the username, at debug level.
 	user := store.User{}
+	found := true
 	if err := user.GetByUsername(username); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			_, _ = comparePassword(password, loginDummyHash())
-			tracking.Debug(c, "[Login] unknown username")
-			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Invalid username or password"})
+		if !errors.Is(err, store.ErrNotFound) {
+			log.Println("Error: [Login] db error:", err)
+			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't sign you in"})
 		}
-		log.Println("Error: [Login] db error:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't sign you in"})
+		found = false
 	}
+	known := found && user.IsActive
 
-	if !user.IsActive {
-		_, _ = comparePassword(password, loginDummyHash())
-		tracking.Debug(c, "[Login] disabled account")
-		return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Invalid username or password"})
-	}
-
-	if user.PasswordHash == "" {
+	if known && user.PasswordHash == "" {
+		// The first sign-in of an account without a password sets it.
 		hash, err := auth.HashPassword(password)
 		if err != nil {
 			log.Println("Error: [Login] failed to hash initial password:", err)
@@ -106,9 +89,26 @@ func Login(c echo.Context) error {
 		}
 		user.PasswordHash = hash
 	} else {
-		match, err := comparePassword(password, user.PasswordHash)
-		if err != nil || !match {
-			tracking.Debug(c, "[Login] wrong password")
+		// An unknown username, a disabled account and a wrong password get
+		// the same status and body, and each runs one argon2id comparison: a
+		// wrong password against the stored hash, the other two against
+		// loginDummyHash (the parameters of a freshly stored hash). So neither
+		// the answer nor the hashing time tells them apart while the stored
+		// hash uses the current parameters; only the first unknown-username or
+		// disabled-account refusal of a process also builds the dummy hash.
+		// Failed attempts are logged without the username, at debug level.
+		hash := user.PasswordHash
+		reason := "wrong password"
+		if !found {
+			reason = "unknown username"
+		} else if !user.IsActive {
+			reason = "disabled account"
+		}
+		if !known {
+			hash = loginDummyHash()
+		}
+		if match, err := auth.ComparePassword(password, hash); err != nil || !match || !known {
+			tracking.Debug(c, "[Login] "+reason)
 			return c.JSON(http.StatusUnauthorized, httpx.Response{Error: "Invalid username or password"})
 		}
 	}

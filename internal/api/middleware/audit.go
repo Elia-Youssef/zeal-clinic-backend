@@ -18,7 +18,8 @@ func AuditLogger() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			method := c.Request().Method
 
-			if method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE" {
+			action := mapMethodToAction(method)
+			if action == "unknown" {
 				return next(c)
 			}
 
@@ -45,7 +46,6 @@ func AuditLogger() echo.MiddlewareFunc {
 
 			status := c.Response().Status
 			if status >= 200 && status < 300 {
-				action := mapMethodToAction(method)
 				entityType, entityID := parseEntityFromPath(path)
 
 				userID := ""

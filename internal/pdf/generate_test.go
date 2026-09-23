@@ -106,15 +106,17 @@ func TestGenerators_WriteNamedPDFsIntoTheCache(t *testing.T) {
 	}{
 		{"invoice", func() (string, error) { return GenerateInvoice(sampleInvoice()) },
 			`^invoice-42` + stamp, 1},
-		{"revenue report", func() (string, error) { return GenerateRevenueReport(sampleRevenue(), "2026-05-01", "2026-05-31") },
-			`^revenue-report-2026-05-01-2026-05-31` + stamp, 1},
+		{"revenue report", func() (string, error) {
+			return GenerateRevenueReport(sampleRevenue(), "2026-05-01T00:00:00Z", "2026-05-31T00:00:00Z")
+		}, `^revenue-report-2026-05-01-2026-05-31` + stamp, 1},
 		// RFC3339 bounds name the clinic-local days they cover: these are the
 		// clinic midnights of May 1 and June 1, so the file says May 1 to 31.
 		{"revenue report, clinic-local bounds", func() (string, error) {
 			return GenerateRevenueReport(sampleRevenue(), "2026-04-30T21:00:00Z", "2026-05-31T21:00:00Z")
 		}, `^revenue-report-2026-05-01-2026-05-31` + stamp, 1},
-		{"expenses report", func() (string, error) { return GenerateExpensesReport(sampleExpenses(), "2026-05-01", "2026-05-31") },
-			`^expenses-report-2026-05-01-2026-05-31` + stamp, 1},
+		{"expenses report", func() (string, error) {
+			return GenerateExpensesReport(sampleExpenses(), "2026-05-01T00:00:00Z", "2026-05-31T00:00:00Z")
+		}, `^expenses-report-2026-05-01-2026-05-31` + stamp, 1},
 		{"appointments", func() (string, error) { return GenerateAppointments(sampleAppointments(2), rooms, "2026-05-20") },
 			`^appointments-2026-05-20` + stamp, 1},
 		{"appointments, many rows", func() (string, error) { return GenerateAppointments(sampleAppointments(120), rooms, "2026-05-20") },
@@ -154,18 +156,20 @@ func TestGenerators_RejectEmptyInput(t *testing.T) {
 	if _, err := GenerateInvoice(&store.Invoice{}); err == nil || err.Error() != "invoice is empty" {
 		t.Errorf("invoice without id: %v", err)
 	}
-	if _, err := GenerateAnalyticsReport(nil, "2026-05-01", "2026-05-31"); err == nil || err.Error() != "report is empty" {
+	if _, err := GenerateAnalyticsReport(nil, "2026-05-01T00:00:00Z", "2026-05-31T00:00:00Z"); err == nil || err.Error() != "report is empty" {
 		t.Errorf("nil analytics report: %v", err)
 	}
 }
 
-// A bound that is neither a calendar day nor an RFC3339 instant is refused
-// before anything is written.
+// A bound that is not an RFC3339 instant — malformed, or a bare date the
+// request parsing would have normalized — is refused before anything is
+// written.
 func TestGenerators_RejectMalformedBounds(t *testing.T) {
 	t.Chdir(t.TempDir())
 	rooms := map[string]string{"r1": "Room 1"}
 	for name, render := range map[string]func() (string, error){
 		"revenue":      func() (string, error) { return GenerateRevenueReport(sampleRevenue(), "2026-05", "2026-05-31") },
+		"revenue bare": func() (string, error) { return GenerateRevenueReport(sampleRevenue(), "2026-05-01", "2026-05-31") },
 		"expenses":     func() (string, error) { return GenerateExpensesReport(sampleExpenses(), "2026-05-01", "2026-05") },
 		"analytics":    func() (string, error) { return GenerateAnalyticsReport(&store.AnalyticsReport{}, "", "2026-05-31") },
 		"appointments": func() (string, error) { return GenerateAppointments(sampleAppointments(1), rooms, "20-05-2026") },
@@ -180,13 +184,12 @@ func TestGenerators_RejectMalformedBounds(t *testing.T) {
 	}
 }
 
-func TestRangeFileDates(t *testing.T) {
+func TestRangeDays(t *testing.T) {
 	for _, tc := range []struct {
 		from, to    string
 		first, last string
 		bad         bool
 	}{
-		{from: "2026-05-01", to: "2026-05-31", first: "2026-05-01", last: "2026-05-31"},
 		// The clinic's midnights, UTC+3 in May: the exclusive end is the last day's end.
 		{from: "2026-04-30T21:00:00Z", to: "2026-05-31T21:00:00Z", first: "2026-05-01", last: "2026-05-31"},
 		// The clinic's midnights in winter, UTC+2.
@@ -194,12 +197,14 @@ func TestRangeFileDates(t *testing.T) {
 		// UTC midnights fall inside the clinic's days.
 		{from: "2026-05-01T00:00:00Z", to: "2026-05-31T00:00:00Z", first: "2026-05-01", last: "2026-05-31"},
 		{from: "2026-05", to: "2026-05-31", bad: true},
-		{from: "2026-05-01", to: "", bad: true},
-		{from: "2026-05-01", to: "2026-05-31T25:00:00Z", bad: true},
+		{from: "2026-05-01T00:00:00Z", to: "", bad: true},
+		{from: "2026-05-01T00:00:00Z", to: "2026-05-31T25:00:00Z", bad: true},
+		// A bare date reaches no query: the request parsing normalizes it.
+		{from: "2026-05-01", to: "2026-05-31T21:00:00Z", bad: true},
 	} {
-		first, last, err := rangeFileDates(tc.from, tc.to)
+		first, last, err := rangeDays(tc.from, tc.to)
 		if (err != nil) != tc.bad || first != tc.first || last != tc.last {
-			t.Errorf("rangeFileDates(%q, %q) = %q, %q, %v; want %q, %q, error %v", tc.from, tc.to, first, last, err, tc.first, tc.last, tc.bad)
+			t.Errorf("rangeDays(%q, %q) = %q, %q, %v; want %q, %q, error %v", tc.from, tc.to, first, last, err, tc.first, tc.last, tc.bad)
 		}
 	}
 }

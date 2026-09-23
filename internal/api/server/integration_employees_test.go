@@ -88,6 +88,30 @@ func TestCreateEmployee_WithUserAccount(t *testing.T) {
 	}
 }
 
+// An account password of spaces only is refused on the employee set path too.
+func TestCreateEmployee_WithBlankPassword(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	body := employeePayload("Blank", "Password")
+	body["username"] = "blank-password-employee"
+	body["password"] = "   "
+	rec := doRequest(t, e, http.MethodPost, "/api/employees", asJSON(t, body), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if errMsg, _ := decodeEnvelope(t, rec.Body, nil); errMsg != "Password can't be blank" {
+		t.Errorf("error = %q, want %q", errMsg, "Password can't be blank")
+	}
+	if n := countTableRows(t, "users", "username = ?", "blank-password-employee"); n != 0 {
+		t.Errorf("a refused password created the account anyway: %d rows", n)
+	}
+	if n := countTableRows(t, "employees", "first_name = ? AND last_name = ?", "Blank", "Password"); n != 0 {
+		t.Errorf("a refused password created the employee anyway: %d rows", n)
+	}
+}
+
 func TestCreateEmployee_WithUserAccountRequiresUsersWrite(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

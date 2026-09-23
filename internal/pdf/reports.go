@@ -3,7 +3,6 @@ package pdf
 import (
 	"clinic-api/internal/database/store"
 	"fmt"
-	"time"
 
 	"github.com/johnfercher/maroto/v2"
 	"github.com/johnfercher/maroto/v2/pkg/config"
@@ -18,7 +17,7 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to string) (string
 	if report == nil {
 		return "", fmt.Errorf("report is empty")
 	}
-	firstDay, lastDay, err := rangeFileDates(from, to)
+	firstDay, lastDay, err := rangeDays(from, to)
 	if err != nil {
 		return "", err
 	}
@@ -27,7 +26,7 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to string) (string
 
 	hdr := &rowBuf{}
 	masthead(hdr, 100, "Revenue Report", []string{
-		fmt.Sprintf("%s — %s", reportRangeStart(from), reportRangeEnd(to)),
+		fmt.Sprintf("%s — %s", dayHeader(firstDay), dayHeader(lastDay)),
 		"Currency: USD",
 	})
 	titleBar(hdr, 100, revenueReportSheet(report.Level)+" — by "+revenueReportAccumulate(report.Level))
@@ -64,7 +63,7 @@ func GenerateRevenueReport(report *store.RevenueReport, from, to string) (string
 
 // GenerateExpensesReport writes an expenses report PDF and returns its path.
 func GenerateExpensesReport(report store.ExpensesReport, from, to string) (string, error) {
-	firstDay, lastDay, err := rangeFileDates(from, to)
+	firstDay, lastDay, err := rangeDays(from, to)
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +71,7 @@ func GenerateExpensesReport(report store.ExpensesReport, from, to string) (strin
 
 	hdr := &rowBuf{}
 	masthead(hdr, 100, "Expenses Report", []string{
-		fmt.Sprintf("%s — %s", reportRangeStart(from), reportRangeEnd(to)),
+		fmt.Sprintf("%s — %s", dayHeader(firstDay), dayHeader(lastDay)),
 		"Currency: USD",
 	})
 	titleBar(hdr, 100, "Clinic Expenses")
@@ -180,23 +179,6 @@ func reportNameHeader(level string) string {
 	default:
 		return "Procedure Name"
 	}
-}
-
-// reportRangeStart formats an inclusive lower range bound in clinic-local
-// (Beirut) time as DD/MM/YYYY. Bounds arrive as either RFC3339 UTC instants or
-// bare YYYY-MM-DD dates.
-func reportRangeStart(v string) string {
-	return clinicDate(store.Date(v))
-}
-
-// reportRangeEnd formats a range upper bound. RFC3339 bounds are exclusive
-// half-open instants, so step back one second to land on the last included
-// clinic-local day; bare YYYY-MM-DD bounds are already inclusive.
-func reportRangeEnd(v string) string {
-	if t, err := time.Parse(time.RFC3339, v); err == nil {
-		return t.Add(-time.Second).In(store.ClinicLocation()).Format("02/01/2006")
-	}
-	return clinicDate(store.Date(v))
 }
 
 func reportQuantity(v int) string {

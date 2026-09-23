@@ -307,8 +307,6 @@ func TestEmployeeSchedule_DeleteRemovesWholeVersion(t *testing.T) {
 	}
 }
 
-// Legacy schedule fixtures
-//
 // Legacy single-row-per-weekday schedule rows, inserted directly, bypassing
 // Save, so the resolver is tested against the stored shape it must still read.
 
@@ -413,7 +411,6 @@ func TestLegacySchedule_TimestampStartDateAppliesOnItsFirstDay(t *testing.T) {
 	setupTestDB(t)
 	emp := makeEmployee(t, "Legacy", "Timestamp")
 
-	// The legacy row below starts at a timestamp, not a plain date.
 	// A timestamp start_date resolves on the calendar day it names so it
 	// does not sort after the plain work date and skip the version's first day.
 	insertLegacySchedule(t, emp.ID, 3, "09:00", "17:00", "2026-11-04T08:30:00Z", "", true)

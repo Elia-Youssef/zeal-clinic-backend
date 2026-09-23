@@ -21,7 +21,7 @@ func registersRoute(e *echo.Echo, method, path string) bool {
 func TestDebugRoutes_OnlyInDevelopmentRuns(t *testing.T) {
 	setupTestEnv(t)
 	const route = "/api/notifications/test"
-	if registersRoute(CreateServer(), http.MethodPost, route) {
+	if registersRoute(CreateServerWithOptions(Options{}), http.MethodPost, route) {
 		t.Fatal("the built server registers the test notification route")
 	}
 	if !registersRoute(CreateServerWithOptions(Options{DebugRoutes: true}), http.MethodPost, route) {

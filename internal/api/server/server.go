@@ -3,6 +3,7 @@ package server
 import (
 	"database/sql"
 	"net/http"
+	"os"
 
 	mw "clinic-api/internal/api/middleware"
 	"clinic-api/internal/api/routes"
@@ -20,23 +21,22 @@ import (
 
 // Options are the few things a development run changes about the server.
 type Options struct {
-	// Dev allows cross-origin calls from the dashboard's Vite dev server. The
-	// built binary serves the dashboard itself, so it needs no CORS.
-	Dev bool
+	// DevCORS allows cross-origin calls from the dashboard's Vite dev
+	// server. The built binary serves the dashboard itself, so it needs no
+	// CORS.
+	DevCORS bool
 	// DebugRoutes registers the routes that only serve development runs and
-	// the automated tests (the test notification). A development run sets it;
-	// the built server never does.
+	// the automated tests (the test notification). A --dev run or the tests
+	// set it; an ordinary built run never does.
 	DebugRoutes bool
-}
-
-func CreateServer() *echo.Echo {
-	return CreateServerWithOptions(Options{})
 }
 
 func CreateServerWithOptions(opts Options) *echo.Echo {
 	e := echo.New()
-	e.IPExtractor = mw.ClientIPExtractor()
+	e.IPExtractor = clientIPExtractor()
 	e.HTTPErrorHandler = apiErrorHandler(e)
+	e.Server.ReadHeaderTimeout = readHeaderTimeout
+	e.Server.IdleTimeout = idleTimeout
 	cfg := config.Current()
 	restoreAPI := cloudrestore.New(cloudrestore.Config{
 		PeerURL:    cfg.PeerURL,
@@ -44,14 +44,11 @@ func CreateServerWithOptions(opts Options) *echo.Echo {
 		Invalidate: mw.InvalidateCacheAll,
 	})
 
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format:        "${time_rfc3339} | ${status} | ${latency_human} | ${method} ${custom}\n",
-		CustomTagFunc: logRequestTarget,
-	}))
+	e.Use(requestLogger(os.Stdout))
 	e.Use(middleware.Recover())
 	e.Use(tracking.Middleware())
 	e.Use(securityHeaders())
-	if opts.Dev {
+	if opts.DevCORS {
 		e.Use(devCORS())
 	}
 	e.Use(bodyLimitMiddleware())
@@ -156,7 +153,6 @@ var protectedRouteRegistrars = []func(*echo.Group){
 }
 
 func Start(e *echo.Echo, cfg *config.Config) {
-	e.Server.ReadHeaderTimeout = readHeaderTimeout
 	if err := e.Start(":" + cfg.Port); err != nil && err != http.ErrServerClosed {
 		e.Logger.Fatal(err)
 	}

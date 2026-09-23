@@ -7,17 +7,18 @@ import (
 )
 
 // PreviousPeriod must return the equal-length window ending exactly where the
-// current one begins (half-open, no gap or overlap).
+// current one begins (half-open, no gap or overlap). A bare date is the
+// clinic-local day it names, so the window's bounds are clinic midnights.
 func TestPreviousPeriod(t *testing.T) {
 	// For a 30-day window in May, the previous window is the 30 days ending May 1.
 	pf, pt := PreviousPeriod("2026-05-01", "2026-05-30")
-	// RangeEnd("2026-05-30") is exclusive next-day (2026-05-31), so the window is
-	// 30 days; previous ends at the current start.
-	if pt != "2026-05-01T00:00:00Z" {
-		t.Errorf("previous end = %q, want current start 2026-05-01T00:00:00Z", pt)
+	// RangeEnd("2026-05-30") is the exclusive end of that clinic day, so the
+	// window is 30 days; previous ends at the current start.
+	if pt != "2026-04-30T21:00:00Z" {
+		t.Errorf("previous end = %q, want current start 2026-04-30T21:00:00Z", pt)
 	}
-	if pf != "2026-04-01T00:00:00Z" {
-		t.Errorf("previous start = %q, want 2026-04-01T00:00:00Z", pf)
+	if pf != "2026-03-31T21:00:00Z" {
+		t.Errorf("previous start = %q, want 2026-03-31T21:00:00Z", pf)
 	}
 }
 
@@ -29,15 +30,16 @@ func TestPreviousPeriod_BadInput(t *testing.T) {
 
 // Whole calendar months shift by months, so March's previous period is
 // February whatever their lengths; any other span shifts by its number of
-// days. Bare dates are UTC days, instants are read on the clinic calendar.
+// days. Bare dates and instants alike are read on the clinic calendar.
 func TestPreviousPeriod_CalendarSpans(t *testing.T) {
 	cases := []struct {
 		name, from, to, wantFrom, wantTo string
 	}{
-		{"a month", "2025-03-01", "2025-03-31", "2025-02-01T00:00:00Z", "2025-03-01T00:00:00Z"},
-		{"two months", "2025-02-01", "2025-03-31", "2024-12-01T00:00:00Z", "2025-02-01T00:00:00Z"},
-		{"31 days off the month bounds", "2025-03-15", "2025-04-14", "2025-02-12T00:00:00Z", "2025-03-15T00:00:00Z"},
-		{"a single day", "2025-03-01", "2025-03-01", "2025-02-28T00:00:00Z", "2025-03-01T00:00:00Z"},
+		// 2025's clinic midnights: EET (+2) until 29 March, EEST (+3) after.
+		{"a month", "2025-03-01", "2025-03-31", "2025-01-31T22:00:00Z", "2025-02-28T22:00:00Z"},
+		{"two months", "2025-02-01", "2025-03-31", "2024-11-30T22:00:00Z", "2025-01-31T22:00:00Z"},
+		{"31 days off the month bounds", "2025-03-15", "2025-04-14", "2025-02-11T22:00:00Z", "2025-03-14T22:00:00Z"},
+		{"a single day", "2025-03-01", "2025-03-01", "2025-02-27T22:00:00Z", "2025-02-28T22:00:00Z"},
 		// Clinic midnights of 1 March and 1 April 2026 (EET, then EEST).
 		{"a clinic month", "2026-02-28T22:00:00Z", "2026-03-31T21:00:00Z", "2026-01-31T22:00:00Z", "2026-02-28T22:00:00Z"},
 		// Partial days keep their duration.
@@ -59,34 +61,34 @@ func TestDateHelpers_ClinicLocalDays(t *testing.T) {
 	loc := ClinicLocation()
 	// 21:30 UTC on 29 March 2026 is already 00:30 on 30 March in Beirut.
 	now := mustInstant(t, "2026-03-29T21:30:00Z")
-	if got := DateTodayIn(now, loc); got != "2026-03-30" {
-		t.Errorf("DateTodayIn(clinic) = %s, want 2026-03-30", got)
+	if got := dateTodayIn(now, loc); got != "2026-03-30" {
+		t.Errorf("dateTodayIn(clinic) = %s, want 2026-03-30", got)
 	}
-	if got := DateTodayIn(now, time.UTC); got != "2026-03-29" {
-		t.Errorf("DateTodayIn(UTC) = %s, want 2026-03-29", got)
+	if got := dateTodayIn(now, time.UTC); got != "2026-03-29" {
+		t.Errorf("dateTodayIn(UTC) = %s, want 2026-03-29", got)
 	}
-	if got := DateOffsetDaysIn(now, loc, -1); got != "2026-03-29" {
-		t.Errorf("DateOffsetDaysIn(-1) = %s, want 2026-03-29", got)
+	if got := dateOffsetDaysIn(now, loc, -1); got != "2026-03-29" {
+		t.Errorf("dateOffsetDaysIn(-1) = %s, want 2026-03-29", got)
 	}
-	if got := DateOffsetDaysIn(now, loc, 2); got != "2026-04-01" {
-		t.Errorf("DateOffsetDaysIn(2) = %s, want 2026-04-01", got)
+	if got := dateOffsetDaysIn(now, loc, 2); got != "2026-04-01" {
+		t.Errorf("dateOffsetDaysIn(2) = %s, want 2026-04-01", got)
 	}
 	// The last two clinic days: from the first instant of the 23-hour day
 	// (01:00 EEST) to the end of 30 March.
-	if s, e := ClinicRangeLastNDaysIn(now, loc, 1); s != "2026-03-28T22:00:00Z" || e != "2026-03-30T21:00:00Z" {
-		t.Errorf("ClinicRangeLastNDaysIn(clinic, 1) = [%s, %s)", s, e)
+	if s, e := clinicRangeLastNDaysIn(now, loc, 1); s != "2026-03-28T22:00:00Z" || e != "2026-03-30T21:00:00Z" {
+		t.Errorf("clinicRangeLastNDaysIn(clinic, 1) = [%s, %s)", s, e)
 	}
-	if s, e := ClinicRangeLastNDaysIn(now, time.UTC, 1); s != "2026-03-28T00:00:00Z" || e != "2026-03-30T00:00:00Z" {
-		t.Errorf("ClinicRangeLastNDaysIn(UTC, 1) = [%s, %s)", s, e)
+	if s, e := clinicRangeLastNDaysIn(now, time.UTC, 1); s != "2026-03-28T00:00:00Z" || e != "2026-03-30T00:00:00Z" {
+		t.Errorf("clinicRangeLastNDaysIn(UTC, 1) = [%s, %s)", s, e)
 	}
-	if s, e := ClinicDayBoundsIn(now, time.UTC); s != "2026-03-29T00:00:00Z" || e != "2026-03-30T00:00:00Z" {
-		t.Errorf("ClinicDayBoundsIn(UTC) = [%s, %s)", s, e)
+	if s, e := clinicDayBoundsIn(now, time.UTC); s != "2026-03-29T00:00:00Z" || e != "2026-03-30T00:00:00Z" {
+		t.Errorf("clinicDayBoundsIn(UTC) = [%s, %s)", s, e)
 	}
-	if s, e := ClinicWeekBoundsIn(now, loc); s != "2026-03-28T22:00:00Z" || e != "2026-04-04T21:00:00Z" {
-		t.Errorf("ClinicWeekBoundsIn(clinic) = [%s, %s)", s, e)
+	if s, e := clinicWeekBounds(now, loc, time.Sunday); DateFrom(s) != "2026-03-28T22:00:00Z" || DateFrom(e) != "2026-04-04T21:00:00Z" {
+		t.Errorf("clinicWeekBounds(clinic, Sunday) = [%s, %s)", DateFrom(s), DateFrom(e))
 	}
-	if s, e := ClinicMonthBoundsIn(now, loc); s != "2026-02-28T22:00:00Z" || e != "2026-03-31T21:00:00Z" {
-		t.Errorf("ClinicMonthBoundsIn(clinic) = [%s, %s)", s, e)
+	if s, e := clinicMonthBounds(now, loc); DateFrom(s) != "2026-02-28T22:00:00Z" || DateFrom(e) != "2026-03-31T21:00:00Z" {
+		t.Errorf("clinicMonthBounds(clinic) = [%s, %s)", DateFrom(s), DateFrom(e))
 	}
 }
 

@@ -59,7 +59,7 @@ func spaHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		req := c.Request()
 		reqPath := req.URL.Path
-		if reqPath == "/api" || strings.HasPrefix(reqPath, "/api/") || reqPath == "/health" {
+		if isAPIPath(reqPath) || reqPath == "/health" {
 			return echo.ErrNotFound
 		}
 		rel := strings.TrimPrefix(reqPath, "/")

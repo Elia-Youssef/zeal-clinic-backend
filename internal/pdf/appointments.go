@@ -41,9 +41,10 @@ func GenerateAppointments(apts store.AppointmentList, rooms map[string]string, d
 		Build()
 	m := maroto.New(cfg)
 
-	// Masthead + column header repeat on every page.
+	// Masthead + column header repeat on every page. The date names a
+	// clinic-local calendar day, shown in the staff's day form.
 	hdr := &rowBuf{}
-	masthead(hdr, 100, "Appointments", []string{"Date: " + clinicDate(store.Date(date))})
+	masthead(hdr, 100, "Appointments", []string{"Date: " + dayHeader(date)})
 	titleBar(hdr, 100, "Schedule")
 	hdr.AddRow(8,
 		headerCell(9, "Date", align.Left),

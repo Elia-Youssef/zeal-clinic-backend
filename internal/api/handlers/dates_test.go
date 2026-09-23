@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"clinic-api/internal/database/store"
+
 	"github.com/labstack/echo/v4"
 )
 
@@ -27,31 +29,39 @@ func TestParseDate(t *testing.T) {
 	}
 }
 
-func TestRangeBound(t *testing.T) {
-	for value, ok := range map[string]bool{
-		"":                          true,
-		"2026-05-01":                true,
-		"2026-05-01T00:00:00Z":      true,
-		"2026-04-30T21:00:00.000Z":  true,
-		"2026-04-30T21:00:00+03:00": true,
-		"2026":                      false,
-		"2026-05":                   false,
-		"20-05-2026":                false,
-		"2026-05-01 00:00:00":       false,
-		"2026-05-01T00:00:00":       false,
-		"2026-05-01T25:00:00Z":      false,
-		"bogus":                     false,
-		"2026-05-01/../x":           false,
+// parseRange normalizes both accepted forms to RFC3339 UTC instants and
+// answers the default clinic-local window when a bound is missing.
+func TestParseRange(t *testing.T) {
+	rangeOf := func(query string) (string, string, error) {
+		req := httptest.NewRequest(http.MethodGet, "/?"+query, nil)
+		return parseRange(echo.New().NewContext(req, httptest.NewRecorder()))
+	}
+	for _, tc := range []struct{ name, query, wantFrom, wantTo string }{
+		// Bare dates mean the clinic-local calendar days (UTC+3 in May 2026).
+		{"bare dates", "from=2026-05-01&to=2026-05-31", "2026-04-30T21:00:00Z", "2026-05-31T21:00:00Z"},
+		{"UTC instants kept as given", "from=2026-04-30T21:00:00Z&to=2026-05-31T21:00:00Z", "2026-04-30T21:00:00Z", "2026-05-31T21:00:00Z"},
+		{"an offset instant normalizes to UTC", "from=2026-05-01T00:00:00%2B03:00&to=2026-06-01T00:00:00%2B03:00", "2026-04-30T21:00:00Z", "2026-05-31T21:00:00Z"},
 	} {
-		got, err := rangeBound(value)
-		if (err == nil) != ok || (ok && got != value) {
-			t.Errorf("rangeBound(%q) = %q, %v; want accepted %v", value, got, err, ok)
+		from, to, err := rangeOf(tc.query)
+		if err != nil || from != tc.wantFrom || to != tc.wantTo {
+			t.Errorf("%s: parseRange(%q) = %q, %q, %v; want %q, %q, no error", tc.name, tc.query, from, to, err, tc.wantFrom, tc.wantTo)
 		}
+	}
+	for _, query := range []string{"from=yesterday", "to=2026-05", "from=2026-05-01T00:00:00", "to=2026-05-01%2000:00:00"} {
+		if _, _, err := rangeOf(query); err == nil {
+			t.Errorf("parseRange(%q) accepted a malformed bound", query)
+		}
+	}
+	// A missing bound defaults to the clinic-local window of the last 30 days.
+	wantFrom, wantTo := store.ClinicRangeLastNDays(29)
+	if from, to, err := rangeOf(""); err != nil || from != string(wantFrom) || to != string(wantTo) {
+		t.Errorf("parseRange() = %q, %q, %v; want the default window %q, %q", from, to, err, wantFrom, wantTo)
 	}
 }
 
-// Every handler with a date parameter refuses a malformed value with 400
-// before it touches the database (none is open here).
+// The handlers whose date is required or whose range is strictly parsed
+// refuse a malformed value with 400 before they touch the database (none is
+// open here).
 func TestHandlersRefuseMalformedDates(t *testing.T) {
 	for _, tc := range []struct {
 		name, query string
@@ -69,6 +79,10 @@ func TestHandlersRefuseMalformedDates(t *testing.T) {
 		{"analytics money", "from=2026", GetAnalyticsMoney, "Invalid date range"},
 		{"analytics patients", "to=yesterday", GetAnalyticsPatients, "Invalid date range"},
 		{"analytics series", "metric=revenue&from=yesterday", GetAnalyticsSeries, "Invalid date range"},
+		{"appointment list", "date=31-03-2025", GetAllAppointments, "Invalid date"},
+		{"appointment list without a date", "", GetAllAppointments, "Date is required"},
+		{"count per room", "date=31-03-2025", GetAppointmentCountPerRoom, "Invalid date"},
+		{"count per room without a date", "", GetAppointmentCountPerRoom, "Date is required"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/?"+tc.query, nil)

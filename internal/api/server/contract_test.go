@@ -191,6 +191,7 @@ func (r *contractRun) getList(s *contractScenario) []contractCall {
 	g.add(withQuery("/api/appointments", "date", r.day(2)))
 	g.add("/api/appointments?date=2025-03-31&sort=startTime&order=desc", orderedCase)
 	g.add("/api/appointments")
+	g.add("/api/appointments?date=31-03-2025")
 	g.add("/api/appointments/count-per-room?date=2025-03-31", keepOrder(".Data.rooms"))
 	g.add("/api/appointments/count-per-room?date=2025-10-27", keepOrder(".Data.rooms"))
 	g.add("/api/appointments/count-per-room")

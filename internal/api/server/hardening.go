@@ -11,9 +11,10 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// Request and response hardening: a body limit for the JSON routes, the
-// headers every answer carries, the content security policy of the app shell,
-// and the CORS setup only a Vite dev server needs.
+// Request and response hardening: the server's header and idle timeouts, a
+// body limit for the JSON routes, the headers every answer carries, the
+// content security policy of the app shell, the CORS setup only a Vite dev
+// server needs, and where a request's client address comes from.
 
 const (
 	// bodyLimit caps the request bodies of the JSON routes. The sync push and
@@ -26,6 +27,12 @@ const (
 	// request headers. Bodies and responses stay unbounded on purpose: the
 	// event streams stay open for hours and a restore uploads a whole database.
 	readHeaderTimeout = 10 * time.Second
+
+	// idleTimeout closes a kept-alive connection that sends no further
+	// request, so quiet connections don't hold a goroutine and a socket
+	// forever. An active request, an event stream or an upload is not idle
+	// and is unaffected.
+	idleTimeout = 120 * time.Second
 
 	// appShellCSP is the content security policy of the app shell. The built
 	// dashboard loads scripts, styles and fonts from its own origin, sets a few
@@ -78,4 +85,29 @@ func devCORS() echo.MiddlewareFunc {
 		AllowHeaders: []string{echo.HeaderAuthorization, echo.HeaderContentType},
 		MaxAge:       600,
 	})
+}
+
+// clientIPExtractor tells echo where a request's client address comes from;
+// the login rate limit, the audit log and the sync log read it through
+// c.RealIP(). The clinic build is reached directly on the LAN, so it takes
+// the peer address and ignores forwarding headers, which any client could
+// set. The cloud build may run behind a reverse proxy on the same host or
+// network, so it reads X-Forwarded-For, but only when the peer is a loopback
+// or private address.
+func clientIPExtractor() echo.IPExtractor {
+	if buildmode.Cloud {
+		return proxiedClientIP()
+	}
+	return directClientIP()
+}
+
+// directClientIP is the peer address of the connection.
+func directClientIP() echo.IPExtractor {
+	return echo.ExtractIPDirect()
+}
+
+// proxiedClientIP reads X-Forwarded-For, trusting loopback and private
+// network hops as proxies and nothing else.
+func proxiedClientIP() echo.IPExtractor {
+	return echo.ExtractIPFromXFFHeader(echo.TrustLoopback(true), echo.TrustLinkLocal(false), echo.TrustPrivateNet(true))
 }

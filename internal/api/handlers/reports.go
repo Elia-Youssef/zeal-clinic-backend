@@ -13,11 +13,12 @@ import (
 //
 // Query params:
 //
-//	from, to:     date-range bounds (default: last 30 UTC days). Accepts
-//	              either RFC3339 UTC instants (from inclusive, to exclusive;
-//	              the frontend converts clinic-local boundaries to UTC) or
-//	              bare YYYY-MM-DD UTC dates (calendar-day inclusive on both
-//	              ends).
+//	from, to:     date-range bounds. Accepts either RFC3339 UTC instants
+//	              (from inclusive, to exclusive; the frontend converts
+//	              clinic-local boundaries to UTC) or bare YYYY-MM-DD dates
+//	              (the clinic-local calendar days they name, inclusive on
+//	              both ends); a missing bound defaults to a clinic-local
+//	              window of the last 30 days.
 //	itemKind:     "" | products | procedures | other | discounts | all
 //	              (root toggle, drill mode). "discounts" reports invoice
 //	              offers as negative amounts (revenue given up rather than

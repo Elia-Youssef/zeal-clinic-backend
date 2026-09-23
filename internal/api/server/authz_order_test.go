@@ -80,3 +80,45 @@ func TestAuthzOrder_EncodedPathsDoNotBypassSignIn(t *testing.T) {
 		}
 	}
 }
+
+// Signed in, the files route serves a file by its plain name only: an
+// encoded slash or backslash in the name is never decoded into a path, so
+// no spelling of a detour reaches a file.
+func TestAuthzOrder_EncodedSeparatorsInFileNamesAreNotFound(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	rec := doRequest(t, e, http.MethodGet, "/api/reports/revenue/pdf?from=2026-05-01&to=2026-05-31", nil, tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("revenue report: %d %s", rec.Code, rec.Body.String())
+	}
+	var data struct {
+		URL string `json:"url"`
+	}
+	decodeEnvelope(t, rec.Body, &data)
+	name := strings.TrimPrefix(data.URL, "/files/")
+	if name == "" || name == data.URL {
+		t.Fatalf("report url = %q", data.URL)
+	}
+
+	// The plain name serves the PDF, so the 404s below come from the
+	// spelling, not from a missing file or a failed sign-in.
+	rec = doRequest(t, e, http.MethodGet, data.URL, nil, tok)
+	if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Body.String(), "%PDF-") {
+		t.Fatalf("GET %s signed in: %d, %d bytes, want 200 and a PDF", data.URL, rec.Code, rec.Body.Len())
+	}
+
+	for _, path := range []string{
+		"/files/..%2F" + name,
+		"/files/a%5C" + name,
+		"/files/%2E%2E%2F" + name,
+		"/files/x%2F..%2F" + name,
+		"/files/x%5C..%5C" + name,
+	} {
+		rec := doRequest(t, e, http.MethodGet, path, nil, tok)
+		if rec.Code != http.StatusNotFound || strings.HasPrefix(rec.Body.String(), "%PDF-") ||
+			strings.HasPrefix(rec.Header().Get("Content-Type"), "application/pdf") {
+			t.Errorf("GET %s signed in: %d %q, want 404 and no PDF", path, rec.Code, rec.Header().Get("Content-Type"))
+		}
+	}
+}

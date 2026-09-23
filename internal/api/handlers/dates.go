@@ -11,7 +11,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var errInvalidDate = errors.New("invalid date")
+var (
+	errDateRequired = errors.New("date is required")
+	errInvalidDate  = errors.New("invalid date")
+)
 
 // parseDate reads a calendar-day parameter: YYYY-MM-DD and nothing else.
 func parseDate(value string) (time.Time, error) {
@@ -22,35 +25,32 @@ func parseDate(value string) (time.Time, error) {
 	return day, nil
 }
 
-// rangeBound checks a from or to parameter: an RFC3339 instant or a bare
-// YYYY-MM-DD, the two forms the store's RangeStart and RangeEnd accept. The
-// value comes back as given; an empty one stays empty for the default.
-func rangeBound(value string) (string, error) {
+// requiredDate reads the date query parameter: a day the caller must be
+// given, a YYYY-MM-DD and nothing else.
+func requiredDate(c echo.Context) (string, error) {
+	value := c.QueryParam("date")
 	if value == "" {
-		return "", nil
+		return "", errDateRequired
 	}
-	if len(value) == len(store.DateFormat) {
-		if _, err := time.Parse(store.DateFormat, value); err == nil {
-			return value, nil
-		}
-		return "", errInvalidDate
+	day, err := parseDate(value)
+	if err != nil {
+		return "", err
 	}
-	if _, err := time.Parse(time.RFC3339, value); err != nil {
-		return "", errInvalidDate
-	}
-	return value, nil
+	return day.Format(store.DateFormat), nil
 }
 
-// parseRange reads the from and to query params. Each one is an RFC3339 UTC
+// parseRange reads the from and to query params. Each one is an RFC3339
 // instant (from inclusive, to exclusive; the frontend converts clinic-local
-// boundaries to UTC) or a bare YYYY-MM-DD (calendar-day inclusive on both
-// ends); a missing one defaults to a clinic-local window of the last 30 days.
+// boundaries to UTC) or a bare YYYY-MM-DD (the clinic-local calendar day it
+// names, inclusive on both ends); the store's parser normalizes both forms
+// to RFC3339 UTC instants. A missing one defaults to a clinic-local window
+// of the last 30 days.
 func parseRange(c echo.Context) (from, to string, err error) {
-	if from, err = rangeBound(c.QueryParam("from")); err != nil {
-		return "", "", err
+	if from, err = store.ParseRangeStart(c.QueryParam("from")); err != nil {
+		return "", "", errInvalidDate
 	}
-	if to, err = rangeBound(c.QueryParam("to")); err != nil {
-		return "", "", err
+	if to, err = store.ParseRangeEnd(c.QueryParam("to")); err != nil {
+		return "", "", errInvalidDate
 	}
 	from, to = defaultDateRange(from, to, 29)
 	return from, to, nil
@@ -58,9 +58,7 @@ func parseRange(c echo.Context) (from, to string, err error) {
 
 // defaultDateRange fills missing from/to bounds with a clinic-local window
 // ending at end-of-today and reaching `daysBack` days into the past, expressed
-// as RFC3339 UTC instants so they pass through RangeStart/RangeEnd unchanged.
-// Non-empty inputs are forwarded untouched and re-normalized at the store
-// layer.
+// as RFC3339 UTC instants like the parsed ones.
 func defaultDateRange(from, to string, daysBack int) (string, string) {
 	if from == "" || to == "" {
 		dStart, dEnd := store.ClinicRangeLastNDays(daysBack)
@@ -72,6 +70,16 @@ func defaultDateRange(from, to string, daysBack int) (string, string) {
 		}
 	}
 	return from, to
+}
+
+// invalidDate answers a missing or malformed date parameter with its own
+// message.
+func invalidDate(c echo.Context, err error) error {
+	message := "Invalid date"
+	if errors.Is(err, errDateRequired) {
+		message = "Date is required"
+	}
+	return c.JSON(http.StatusBadRequest, httpx.Response{Error: message})
 }
 
 // invalidDateRange answers a malformed from or to parameter.

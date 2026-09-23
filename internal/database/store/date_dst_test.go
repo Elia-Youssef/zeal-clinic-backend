@@ -103,11 +103,43 @@ func TestClinicWeekBounds_AcrossDST(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.day, func(t *testing.T) {
-			start, end := ClinicWeekBounds(clinicTime(t, tc.day, 12, 0))
-			if string(start) != tc.start || string(end) != tc.end {
-				t.Fatalf("ClinicWeekBounds(%s) = [%s, %s), want [%s, %s)", tc.day, start, end, tc.start, tc.end)
+			start, end := clinicWeekBounds(clinicTime(t, tc.day, 12, 0), ClinicLocation(), time.Sunday)
+			if s, e := string(DateFrom(start)), string(DateFrom(end)); s != tc.start || e != tc.end {
+				t.Fatalf("clinicWeekBounds(%s, Sunday) = [%s, %s), want [%s, %s)", tc.day, s, e, tc.start, tc.end)
 			}
-			if h := hoursBetween(t, start, end); h != tc.hours {
+			if h := hoursBetween(t, DateFrom(start), DateFrom(end)); h != tc.hours {
+				t.Errorf("window length = %dh, want %dh", h, tc.hours)
+			}
+		})
+	}
+}
+
+// The appointment grid reads Monday-first weeks: a Sunday belongs to the
+// Monday before it, and the weeks holding a DST switch run 167 or 169 hours.
+func TestClinicWeekBounds_MondayFirst(t *testing.T) {
+	cases := []struct {
+		day        string
+		start, end string
+		hours      int
+	}{
+		{"2026-05-04", "2026-05-03T21:00:00Z", "2026-05-10T21:00:00Z", 168},
+		// The Sunday closes its own Monday-first week rather than opening one.
+		{"2026-05-10", "2026-05-03T21:00:00Z", "2026-05-10T21:00:00Z", 168},
+		// The week of the 23-hour Sunday: Monday 23 March to Monday 30 March.
+		{"2026-03-23", "2026-03-22T22:00:00Z", "2026-03-29T21:00:00Z", 167},
+		{"2026-03-29", "2026-03-22T22:00:00Z", "2026-03-29T21:00:00Z", 167},
+		// The week holding the 25-hour Saturday, 24 October: Monday 19 October
+		// to Monday 26 October.
+		{"2026-10-19", "2026-10-18T21:00:00Z", "2026-10-25T22:00:00Z", 169},
+		{"2026-10-25", "2026-10-18T21:00:00Z", "2026-10-25T22:00:00Z", 169},
+	}
+	for _, tc := range cases {
+		t.Run(tc.day, func(t *testing.T) {
+			start, end := clinicWeekBounds(clinicTime(t, tc.day, 12, 0), ClinicLocation(), time.Monday)
+			if s, e := string(DateFrom(start)), string(DateFrom(end)); s != tc.start || e != tc.end {
+				t.Fatalf("clinicWeekBounds(%s, Monday) = [%s, %s), want [%s, %s)", tc.day, s, e, tc.start, tc.end)
+			}
+			if h := hoursBetween(t, DateFrom(start), DateFrom(end)); h != tc.hours {
 				t.Errorf("window length = %dh, want %dh", h, tc.hours)
 			}
 		})
@@ -128,44 +160,34 @@ func TestClinicMonthBounds_AcrossDST(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.day, func(t *testing.T) {
-			start, end := ClinicMonthBounds(clinicTime(t, tc.day, 12, 0))
-			if string(start) != tc.start || string(end) != tc.end {
-				t.Fatalf("ClinicMonthBounds(%s) = [%s, %s), want [%s, %s)", tc.day, start, end, tc.start, tc.end)
+			start, end := clinicMonthBounds(clinicTime(t, tc.day, 12, 0), ClinicLocation())
+			if s, e := string(DateFrom(start)), string(DateFrom(end)); s != tc.start || e != tc.end {
+				t.Fatalf("clinicMonthBounds(%s, clinic) = [%s, %s), want [%s, %s)", tc.day, s, e, tc.start, tc.end)
 			}
-			if h := hoursBetween(t, start, end); h != tc.hours {
+			if h := hoursBetween(t, DateFrom(start), DateFrom(end)); h != tc.hours {
 				t.Errorf("window length = %dh, want %dh", h, tc.hours)
 			}
 		})
 	}
 }
 
-// Bare dates are UTC calendar days, not clinic days; RFC3339 values pass
-// through untouched and an upper bound is already exclusive.
+// A bare date is the clinic-local calendar day it names, across the DST
+// switches; RFC3339 values come back as normalized UTC instants and an upper
+// bound is already exclusive.
 func TestRangeStartEnd_HalfOpenBounds(t *testing.T) {
-	days := []struct{ day, next string }{
-		{"2026-03-29", "2026-03-30"},
-		{"2026-03-31", "2026-04-01"},
-		{"2026-10-24", "2026-10-25"},
-		{"2026-12-31", "2027-01-01"},
-		{"2028-02-28", "2028-02-29"},
-	}
-	for _, d := range days {
-		if got := RangeStart(d.day); got != d.day+"T00:00:00Z" {
-			t.Errorf("RangeStart(%s) = %s", d.day, got)
+	for _, day := range []string{"2026-03-29", "2026-03-31", "2026-10-24", "2026-10-26", "2026-12-31", "2028-02-28"} {
+		start, end := ClinicDayBounds(clinicTime(t, day, 12, 0))
+		if got := RangeStart(day); got != string(start) {
+			t.Errorf("RangeStart(%s) = %s, want the clinic day start %s", day, got, start)
 		}
-		if got, want := RangeEnd(d.day), RangeStart(d.next); got != want {
-			t.Errorf("RangeEnd(%s) = %s, want the start of %s (%s)", d.day, got, d.next, want)
+		if got := RangeEnd(day); got != string(end) {
+			t.Errorf("RangeEnd(%s) = %s, want the clinic day end %s", day, got, end)
 		}
 	}
 
-	if clinicStart, _ := ClinicDayBounds(clinicTime(t, "2026-10-24", 12, 0)); RangeStart("2026-10-24") == string(clinicStart) {
-		t.Errorf("RangeStart of a bare date matched the clinic day start %s", clinicStart)
-	}
-
+	// Values that parse nowhere reach the query as given, and the SQL
+	// compares them as plain strings.
 	for _, s := range []string{
-		"2026-03-28T22:00:00Z",
-		"2026-03-29T21:00:00Z",
-		"2026-03-29T00:00:00+03:00",
 		"2026-02-30",
 		"yesterday",
 		"",
@@ -176,6 +198,49 @@ func TestRangeStartEnd_HalfOpenBounds(t *testing.T) {
 		if got := RangeEnd(s); got != s {
 			t.Errorf("RangeEnd(%q) = %q, want it unchanged", s, got)
 		}
+	}
+	// An instant with an offset names the same moment in UTC.
+	const offset = "2026-03-29T00:00:00+03:00"
+	if got := RangeStart(offset); got != "2026-03-28T21:00:00Z" {
+		t.Errorf("RangeStart(%q) = %q, want the normalized UTC instant", offset, got)
+	}
+	if got := RangeEnd(offset); got != "2026-03-28T21:00:00Z" {
+		t.Errorf("RangeEnd(%q) = %q, want the normalized UTC instant", offset, got)
+	}
+	// The DST switch days, pinned to instants rather than read back from the
+	// day-bounds helper: the 23-hour Sunday 29 March runs from its first
+	// instant (01:00 EEST) to the first instant of the 30th (00:00 EEST), and
+	// the 25-hour Saturday 24 October from 00:00 EEST to the first instant of
+	// the 25th (00:00 EET).
+	for _, p := range []struct{ day, start, end string }{
+		{"2026-03-29", "2026-03-28T22:00:00Z", "2026-03-29T21:00:00Z"},
+		{"2026-10-24", "2026-10-23T21:00:00Z", "2026-10-24T22:00:00Z"},
+	} {
+		if got := RangeStart(p.day); got != p.start {
+			t.Errorf("RangeStart(%s) = %s, want %s", p.day, got, p.start)
+		}
+		if got := RangeEnd(p.day); got != p.end {
+			t.Errorf("RangeEnd(%s) = %s, want %s", p.day, got, p.end)
+		}
+	}
+}
+
+// The strict parser refuses what is neither a date nor an instant, and an
+// empty bound stays empty for the caller's default.
+func TestParseRangeStartEnd_RefusesMalformedBounds(t *testing.T) {
+	for _, s := range []string{"2026-05", "yesterday", "2026-05-01T00:00:00", "2026-05-01 00:00:00"} {
+		if _, err := ParseRangeStart(s); err == nil {
+			t.Errorf("ParseRangeStart(%q) accepted a malformed bound", s)
+		}
+		if _, err := ParseRangeEnd(s); err == nil {
+			t.Errorf("ParseRangeEnd(%q) accepted a malformed bound", s)
+		}
+	}
+	if v, err := ParseRangeStart(""); err != nil || v != "" {
+		t.Errorf(`ParseRangeStart("") = %q, %v, want empty and no error`, v, err)
+	}
+	if v, err := ParseRangeEnd(""); err != nil || v != "" {
+		t.Errorf(`ParseRangeEnd("") = %q, %v, want empty and no error`, v, err)
 	}
 }
 
@@ -188,8 +253,8 @@ func TestPreviousPeriod_AcrossDST(t *testing.T) {
 		return [2]string{string(s), string(e)}
 	}
 	monthOf := func(d string) [2]string {
-		s, e := ClinicMonthBounds(clinicTime(t, d, 12, 0))
-		return [2]string{string(s), string(e)}
+		s, e := clinicMonthBounds(clinicTime(t, d, 12, 0), ClinicLocation())
+		return [2]string{string(DateFrom(s)), string(DateFrom(e))}
 	}
 	cases := []struct {
 		name       string
@@ -224,7 +289,10 @@ func TestPreviousPeriod_AcrossDST(t *testing.T) {
 		})
 	}
 
-	if f, to := PreviousPeriod("2026-10-24", "2026-10-25"); f != "2026-10-22T00:00:00Z" || to != "2026-10-24T00:00:00Z" {
+	// Bare dates read on the clinic calendar: the window of the 24th to the
+	// 25th turns into the previous two clinic days before the 24th, around
+	// the 25-hour Saturday.
+	if f, to := PreviousPeriod("2026-10-24", "2026-10-25"); f != "2026-10-21T21:00:00Z" || to != "2026-10-23T21:00:00Z" {
 		t.Errorf("PreviousPeriod of bare dates = [%s, %s)", f, to)
 	}
 	for _, r := range [][2]string{

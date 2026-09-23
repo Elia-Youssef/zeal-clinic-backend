@@ -39,33 +39,40 @@ func tmpPath(name string) string {
 	return filepath.Join(TmpDir(), fmt.Sprintf("%s-%d-%s.pdf", name, time.Now().UnixMilli(), hex.EncodeToString(suffix)))
 }
 
-// rangeFileDates names the clinic-local calendar days a report range covers,
-// for the file name. A bare YYYY-MM-DD bound is a calendar day already; an
-// RFC3339 instant takes the clinic-local date it falls on, and the exclusive
-// upper instant steps back a second onto the last day it includes.
-func rangeFileDates(from, to string) (string, string, error) {
-	start, err := boundDay(from, 0)
+// rangeDays names the first and last clinic-local calendar days a report
+// range covers, as YYYY-MM-DD: the one answer for the file name and the
+// header. The bounds arrive as RFC3339 instants (the request parsing
+// normalizes them); the exclusive upper bound steps back a second onto the
+// last day it includes.
+func rangeDays(from, to string) (string, string, error) {
+	start, err := rangeDay(from, 0)
 	if err != nil {
 		return "", "", err
 	}
-	end, err := boundDay(to, -time.Second)
+	end, err := rangeDay(to, -time.Second)
 	if err != nil {
 		return "", "", err
 	}
 	return start, end, nil
 }
 
-func boundDay(v string, shift time.Duration) (string, error) {
-	if len(v) == len(store.DateFormat) {
-		if _, err := time.Parse(store.DateFormat, v); err == nil {
-			return v, nil
-		}
-	}
+// rangeDay names the clinic-local calendar day the instant falls on, shifted
+// by shift to land inside the range.
+func rangeDay(v string, shift time.Duration) (string, error) {
 	t, err := time.Parse(time.RFC3339, v)
 	if err != nil {
-		return "", fmt.Errorf("range bound %q is neither a date nor an instant", v)
+		return "", fmt.Errorf("range bound %q is not an instant", v)
 	}
 	return t.Add(shift).In(store.ClinicLocation()).Format(store.DateFormat), nil
+}
+
+// dayHeader formats a YYYY-MM-DD calendar day as DD/MM/YYYY, the form staff
+// read on report headers.
+func dayHeader(day string) string {
+	if t, err := time.Parse(store.DateFormat, day); err == nil {
+		return t.Format("02/01/2006")
+	}
+	return day
 }
 
 func save(m core.Maroto, name string) (string, error) {

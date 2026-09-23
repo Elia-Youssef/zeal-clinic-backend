@@ -1,0 +1,123 @@
+{
+  "resource": "debug",
+  "cases": [
+    {
+      "name": "send a test notification",
+      "request": {
+        "method": "POST",
+        "path": "/api/notifications/test"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "action": "test",
+            "createdAt": "<ts>",
+            "description": "Sent at <time>",
+            "id": "<id:1>",
+            "isRead": false,
+            "title": "Test notification",
+            "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "send another test notification",
+      "request": {
+        "method": "POST",
+        "path": "/api/notifications/test"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "action": "test",
+            "createdAt": "<ts>",
+            "description": "Sent at <time>",
+            "id": "<id:2>",
+            "isRead": false,
+            "title": "Test notification",
+            "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "nurse sends a test notification",
+      "request": {
+        "method": "POST",
+        "path": "/api/notifications/test",
+        "as": "nurse"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "action": "test",
+            "createdAt": "<ts>",
+            "description": "Sent at <time>",
+            "id": "<id:3>",
+            "isRead": false,
+            "title": "Test notification",
+            "userId": "<id:4>"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "POST /api/notifications/test with a malformed body",
+      "request": {
+        "method": "POST",
+        "path": "/api/notifications/test",
+        "body": "{\"broken\""
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "action": "test",
+            "createdAt": "<ts>",
+            "description": "Sent at <time>",
+            "id": "<id:5>",
+            "isRead": false,
+            "title": "Test notification",
+            "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    },
+    {
+      "name": "POST /api/notifications/test with an empty body",
+      "request": {
+        "method": "POST",
+        "path": "/api/notifications/test",
+        "body": {}
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Data": {
+            "action": "test",
+            "createdAt": "<ts>",
+            "description": "Sent at <time>",
+            "id": "<id:6>",
+            "isRead": false,
+            "title": "Test notification",
+            "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
+          },
+          "Error": "",
+          "Success": true
+        }
+      }
+    }
+  ]
+}

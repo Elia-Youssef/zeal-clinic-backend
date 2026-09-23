@@ -965,6 +965,21 @@
       }
     },
     {
+      "name": "GET /api/appointments?date=31-03-2025",
+      "request": {
+        "method": "GET",
+        "path": "/api/appointments?date=31-03-2025"
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "Data": null,
+          "Error": "Invalid date",
+          "Success": false
+        }
+      }
+    },
+    {
       "name": "GET /api/appointments/count-per-room?date=2025-03-31",
       "request": {
         "method": "GET",

@@ -2,52 +2,6 @@
   "resource": "notifications",
   "cases": [
     {
-      "name": "send a test notification",
-      "request": {
-        "method": "POST",
-        "path": "/api/notifications/test"
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "Data": {
-            "action": "test",
-            "createdAt": "<ts>",
-            "description": "Sent at <time>",
-            "id": "<id:1>",
-            "isRead": false,
-            "title": "Test notification",
-            "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
-          },
-          "Error": "",
-          "Success": true
-        }
-      }
-    },
-    {
-      "name": "send another test notification",
-      "request": {
-        "method": "POST",
-        "path": "/api/notifications/test"
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "Data": {
-            "action": "test",
-            "createdAt": "<ts>",
-            "description": "Sent at <time>",
-            "id": "<id:2>",
-            "isRead": false,
-            "title": "Test notification",
-            "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
-          },
-          "Error": "",
-          "Success": true
-        }
-      }
-    },
-    {
       "name": "mark a notification read",
       "request": {
         "method": "PUT",
@@ -93,30 +47,6 @@
       }
     },
     {
-      "name": "nurse sends a test notification",
-      "request": {
-        "method": "POST",
-        "path": "/api/notifications/test",
-        "as": "nurse"
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "Data": {
-            "action": "test",
-            "createdAt": "<ts>",
-            "description": "Sent at <time>",
-            "id": "<id:3>",
-            "isRead": false,
-            "title": "Test notification",
-            "userId": "<id:4>"
-          },
-          "Error": "",
-          "Success": true
-        }
-      }
-    },
-    {
       "name": "GET /api/notifications",
       "request": {
         "method": "GET",
@@ -128,10 +58,10 @@
           "Data": {
             "items": [
               {
-                "action": "low-stock:<id:6>",
+                "action": "low-stock:<id:4>",
                 "createdAt": "<ts>",
                 "description": "Quantity 2 at or below min threshold 3.",
-                "id": "<id:5>",
+                "id": "<id:3>",
                 "isRead": true,
                 "title": "Low stock: Test Serum",
                 "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
@@ -181,22 +111,22 @@
           "Data": {
             "items": [
               {
-                "action": "low-stock:<id:6>",
+                "action": "low-stock:<id:4>",
                 "createdAt": "<ts>",
                 "description": "Quantity 2 at or below min threshold 3.",
-                "id": "<id:7>",
+                "id": "<id:5>",
                 "isRead": false,
                 "title": "Low stock: Test Serum",
-                "userId": "<id:4>"
+                "userId": "<id:6>"
               },
               {
                 "action": "test",
                 "createdAt": "<ts>",
                 "description": "Sent at <time>",
-                "id": "<id:3>",
+                "id": "<id:7>",
                 "isRead": false,
                 "title": "Test notification",
-                "userId": "<id:4>"
+                "userId": "<id:6>"
               }
             ],
             "total": 2
@@ -226,7 +156,7 @@
       "name": "mark another user's notification read",
       "request": {
         "method": "PUT",
-        "path": "/api/notifications/<id:3>/read"
+        "path": "/api/notifications/<id:7>/read"
       },
       "response": {
         "status": 403,
@@ -241,7 +171,7 @@
       "name": "delete another user's notification",
       "request": {
         "method": "DELETE",
-        "path": "/api/notifications/<id:3>"
+        "path": "/api/notifications/<id:7>"
       },
       "response": {
         "status": 403,
@@ -264,54 +194,6 @@
           "Data": null,
           "Error": "Notification not found",
           "Success": false
-        }
-      }
-    },
-    {
-      "name": "POST /api/notifications/test with a malformed body",
-      "request": {
-        "method": "POST",
-        "path": "/api/notifications/test",
-        "body": "{\"broken\""
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "Data": {
-            "action": "test",
-            "createdAt": "<ts>",
-            "description": "Sent at <time>",
-            "id": "<id:8>",
-            "isRead": false,
-            "title": "Test notification",
-            "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
-          },
-          "Error": "",
-          "Success": true
-        }
-      }
-    },
-    {
-      "name": "POST /api/notifications/test with an empty body",
-      "request": {
-        "method": "POST",
-        "path": "/api/notifications/test",
-        "body": {}
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "Data": {
-            "action": "test",
-            "createdAt": "<ts>",
-            "description": "Sent at <time>",
-            "id": "<id:9>",
-            "isRead": false,
-            "title": "Test notification",
-            "userId": "b10829b3-19a0-4813-8e1c-df6f5990737b"
-          },
-          "Error": "",
-          "Success": true
         }
       }
     },

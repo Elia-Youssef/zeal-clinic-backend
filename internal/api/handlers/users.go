@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"slices"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -59,15 +58,13 @@ func CreateUser(c echo.Context) error {
 	if err := body.User.IsValid(); err != nil {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
-	var hash string
-	password := strings.TrimSpace(body.Password)
-	if password != "" {
-		h, err := auth.HashPassword(password)
-		if err != nil {
-			log.Println("Error: [CreateUser] failed to hash password:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user"})
-		}
-		hash = h
+	hash, err := auth.HashNewPassword(body.Password)
+	if errors.Is(err, auth.ErrBlankPassword) {
+		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Password can't be blank"})
+	}
+	if err != nil {
+		log.Println("Error: [CreateUser] failed to hash password:", err)
+		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user"})
 	}
 
 	if err := body.User.Create(hash); err != nil {
@@ -91,15 +88,15 @@ func UpdateUser(c echo.Context) error {
 	if pw, ok := updates["password"]; ok {
 		delete(updates, "password")
 		if pwStr, ok := pw.(string); ok {
-			pwStr = strings.TrimSpace(pwStr)
-			if pwStr != "" {
-				h, err := auth.HashPassword(pwStr)
-				if err != nil {
-					log.Println("Error: [UpdateUser] failed to hash password:", err)
-					return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
-				}
-				passwordHash = h
+			h, err := auth.HashNewPassword(pwStr)
+			if errors.Is(err, auth.ErrBlankPassword) {
+				return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Password can't be blank"})
 			}
+			if err != nil {
+				log.Println("Error: [UpdateUser] failed to hash password:", err)
+				return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
+			}
+			passwordHash = h
 		}
 	}
 
