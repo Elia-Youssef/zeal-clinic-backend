@@ -61,9 +61,9 @@ POST /api/employee-payments	jwt critical scope(employee-payments:write)	401	pass
 DELETE /api/employee-payments/:id	jwt critical scope(employee-payments:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
 DELETE /api/employee-salaries/:id	jwt scope(employee-salaries:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
 PUT /api/employee-salaries/:id	jwt scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
-POST /api/employee-salaries/prepare	jwt scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
-DELETE /api/employee-salary-preparations/:id	jwt scope(employee-salaries:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
-PATCH /api/employee-salary-preparations/:id	jwt scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
+POST /api/employee-salaries/prepare	jwt critical scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
+DELETE /api/employee-salary-preparations/:id	jwt critical scope(employee-salaries:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
+PATCH /api/employee-salary-preparations/:id	jwt critical scope(employee-salaries:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
 POST /api/employee-schedule-changes	jwt scope(hr:read)	401	pass	pass	pass	403-scope	pass	403-scope
 DELETE /api/employee-schedule-changes/:id	jwt scope(hr:delete)	401	pass	pass	403-scope	403-scope	403-scope	403-scope
 PUT /api/employee-schedule-changes/:id	jwt scope(hr:write)	401	pass	pass	403-scope	403-scope	403-scope	403-scope

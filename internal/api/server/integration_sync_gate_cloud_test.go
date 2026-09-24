@@ -146,27 +146,34 @@ func TestCriticalSync_FinancialWritesWaitForSyncedClinic(t *testing.T) {
 	e := CreateServerWithOptions(Options{}) // no clinic connected yet
 	tok := adminToken(t, e)
 
-	post := func() *httptest.ResponseRecorder {
+	paths := []string{"/api/client-payments", "/api/employee-salaries/prepare"}
+	post := func(path string) *httptest.ResponseRecorder {
 		t.Helper()
-		return doRequest(t, e, http.MethodPost, "/api/client-payments", asJSON(t, map[string]any{}), tok)
+		return doRequest(t, e, http.MethodPost, path, asJSON(t, map[string]any{}), tok)
 	}
 
-	rec := post()
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("before the handshake: status = %d, want 503 (body=%s)", rec.Code, rec.Body.String())
+	for _, path := range paths {
+		rec := post(path)
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Fatalf("%s before the handshake: status = %d, want 503 (body=%s)", path, rec.Code, rec.Body.String())
+		}
+		containsString(t, rec.Body.String(), "sync_not_ready")
 	}
-	containsString(t, rec.Body.String(), "sync_not_ready")
 
 	closeGate := openCriticalSyncGate(t)
 	// Past the gate, the empty body fails validation.
-	if rec := post(); rec.Code != http.StatusBadRequest {
-		t.Fatalf("after the handshake: status = %d, want 400 (body=%s)", rec.Code, rec.Body.String())
+	for _, path := range paths {
+		if rec := post(path); rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s after the handshake: status = %d, want 400 (body=%s)", path, rec.Code, rec.Body.String())
+		}
 	}
 
 	closeGate()
-	rec = post()
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("after the clinic disconnected: status = %d, want 503 (body=%s)", rec.Code, rec.Body.String())
+	for _, path := range paths {
+		rec := post(path)
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Fatalf("%s after the clinic disconnected: status = %d, want 503 (body=%s)", path, rec.Code, rec.Body.String())
+		}
+		containsString(t, rec.Body.String(), "sync_not_ready")
 	}
-	containsString(t, rec.Body.String(), "sync_not_ready")
 }
