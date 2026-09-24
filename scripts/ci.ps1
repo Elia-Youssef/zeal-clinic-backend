@@ -1354,8 +1354,8 @@ function Invoke-PackageStage {
     $lines.Add('')
     foreach ($c in $checks) { $lines.Add("$(if ($c.Pass) { 'PASS' } else { 'FAIL' })  $($c.Name): $($c.Detail)") }
     $lines.Add('')
-    $lines.Add('Not checked here: the Linux binary runs only on Linux (--seed-only then /health returns the version: CI job),')
-    $lines.Add('and the Inno Setup installer (CI job).')
+    $lines.Add('Not checked here: the Linux binary, which runs only on Linux (the Linux CI job starts it with --seed-only and checks /health),')
+    $lines.Add('and the Inno Setup installer, which make installer builds only on Windows with Inno Setup installed.')
     [System.IO.File]::WriteAllLines((Join-Path $ArtifactsDir 'package.txt'), $lines)
     foreach ($l in $lines) { Write-Host $l }
 
