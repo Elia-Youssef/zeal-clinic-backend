@@ -37,9 +37,51 @@ func TestCreateDiscount_OfferSuccess(t *testing.T) {
 	if d.ID == "" || d.DiscountType != "offer" {
 		t.Errorf("got %+v", d)
 	}
-	// Create defaults IsActive to 1.
+	// An absent isActive defaults to 1.
 	if d.IsActive != 1 {
 		t.Errorf("isActive = %d want 1", d.IsActive)
+	}
+}
+
+// TestCreateDiscount_ExplicitInactiveStaysInactive confirms a create request
+// carrying isActive 0 stores the discount as inactive instead of falling back
+// to the active default.
+func TestCreateDiscount_ExplicitInactiveStaysInactive(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	payload := offerPayload("Planned Sale")
+	payload["isActive"] = 0
+	rec := doRequest(t, e, http.MethodPost, "/api/discounts", asJSON(t, payload), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var d struct {
+		ID       string `json:"id"`
+		IsActive int    `json:"isActive"`
+	}
+	errMsg, _ := decodeEnvelope(t, rec.Body, &d)
+	if errMsg != "" {
+		t.Fatalf("error: %s", errMsg)
+	}
+	if d.IsActive != 0 {
+		t.Errorf("created isActive = %d want 0", d.IsActive)
+	}
+
+	rec = doRequest(t, e, http.MethodGet, "/api/discounts/"+d.ID, nil, tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		IsActive int `json:"isActive"`
+	}
+	errMsg, _ = decodeEnvelope(t, rec.Body, &got)
+	if errMsg != "" {
+		t.Fatalf("error: %s", errMsg)
+	}
+	if got.IsActive != 0 {
+		t.Errorf("stored isActive = %d want 0", got.IsActive)
 	}
 }
 

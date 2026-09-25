@@ -25,9 +25,15 @@ type Discount struct {
 	RedeemedAt *Date   `json:"redeemedAt,omitempty"`
 	StartDate  *Date   `json:"startDate"`
 	EndDate    *Date   `json:"endDate"`
-	IsActive   int     `json:"isActive"`
-	CreatedAt  Date    `json:"createdAt"`
-	UpdatedAt  Date    `json:"updatedAt"`
+	// Optional on create: nil defaults to active.
+	IsActive  *int `json:"isActive"`
+	CreatedAt Date `json:"createdAt"`
+	UpdatedAt Date `json:"updatedAt"`
+}
+
+// Active reports whether the discount is active (isActive == 1).
+func (d *Discount) Active() bool {
+	return d.IsActive != nil && *d.IsActive == 1
 }
 
 func (d *Discount) IsValid() error {
@@ -210,8 +216,9 @@ func (d *Discount) CreateWithTx(tx *sql.Tx) error {
 	now := DateNow()
 	d.CreatedAt = now
 	d.UpdatedAt = now
-	if d.IsActive == 0 {
-		d.IsActive = 1
+	if d.IsActive == nil {
+		active := 1
+		d.IsActive = &active
 	}
 	d.Value = Round2(d.Value)
 

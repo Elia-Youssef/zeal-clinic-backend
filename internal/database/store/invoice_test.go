@@ -137,7 +137,7 @@ func TestInvoice_Create_InvoiceDiscount_Percentage(t *testing.T) {
 	pat := makePatient(t, "Disc", "P", "9990001")
 	pb := patientBalance(t, pat.ID, cur.ID)
 
-	d := Discount{Name: "10off", DiscountType: "offer", ValueType: "percentage", Value: 10, IsActive: 1}
+	d := Discount{Name: "10off", DiscountType: "offer", ValueType: "percentage", Value: 10}
 	if err := d.Create(); err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestInvoice_Create_RejectsInactiveOffer(t *testing.T) {
 	pat := makePatient(t, "Inactive", "Offer", "9990003")
 	pb := patientBalance(t, pat.ID, cur.ID)
 
-	d := Discount{Name: "inactive", DiscountType: "offer", ValueType: "percentage", Value: 10, IsActive: 1}
+	d := Discount{Name: "inactive", DiscountType: "offer", ValueType: "percentage", Value: 10}
 	if err := d.Create(); err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +209,7 @@ func TestInvoice_Create_InvoiceDiscount_FixedCappedAtAmount(t *testing.T) {
 	pb := patientBalance(t, pat.ID, cur.ID)
 
 	// Fixed $50 off, but the invoice is only $30: discount must be capped at 30.
-	d := Discount{Name: "50off-fixed", DiscountType: "offer", ValueType: "fixed", Value: 50, IsActive: 1}
+	d := Discount{Name: "50off-fixed", DiscountType: "offer", ValueType: "fixed", Value: 50}
 	if err := d.Create(); err != nil {
 		t.Fatal(err)
 	}
@@ -487,7 +487,7 @@ func TestInvoice_Delete_ReversesStockAndCharge(t *testing.T) {
 	pb := patientBalance(t, pat.ID, cur.ID)
 	prod := makeProductWithStock(t, "Cream", 8, 20)
 
-	d := Discount{Name: "10pct", DiscountType: "offer", ValueType: "percentage", Value: 10, IsActive: 1}
+	d := Discount{Name: "10pct", DiscountType: "offer", ValueType: "percentage", Value: 10}
 	if err := d.Create(); err != nil {
 		t.Fatal(err)
 	}

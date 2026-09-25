@@ -203,23 +203,21 @@ func (inv *Invoice) Create() error {
 
 	// 2) Resolve invoice-level offer discount (if any). Caps at Amount.
 	if inv.DiscountID != "" {
-		var dType, vType string
-		var value float64
-		var isActive int
-		if err := tx.QueryRow(`SELECT discount_type, value_type, value, is_active FROM discounts WHERE id = ?`, inv.DiscountID).Scan(&dType, &vType, &value, &isActive); err != nil {
+		var offer Discount
+		if err := offer.ScanRow(tx.QueryRow(`SELECT `+discountColumns+` FROM discounts WHERE id = ?`, inv.DiscountID)); err != nil {
 			return fmt.Errorf("discount %s: %w", inv.DiscountID, err)
 		}
-		if dType != "offer" {
-			return fmt.Errorf("invoice discount must be of type 'offer', got %q", dType)
+		if offer.DiscountType != "offer" {
+			return fmt.Errorf("invoice discount must be of type 'offer', got %q", offer.DiscountType)
 		}
-		if isActive != 1 {
+		if !offer.Active() {
 			return fmt.Errorf("%w: Discount is inactive", ErrValidation)
 		}
 		var dv float64
-		if vType == "percentage" {
-			dv = Round2(inv.Amount * value / 100)
+		if offer.ValueType == "percentage" {
+			dv = Round2(inv.Amount * offer.Value / 100)
 		} else {
-			dv = Round2(value)
+			dv = Round2(offer.Value)
 		}
 		if dv > inv.Amount {
 			dv = inv.Amount
@@ -335,7 +333,6 @@ func createGiftFromLine(tx *sql.Tx, item *InvoiceItem, now Date) (*Discount, err
 		Value:        item.Amount,
 		PatientID:    item.GiftPatientID,
 		Code:         item.GiftCode,
-		IsActive:     1,
 	}
 	if err := gift.CreateWithTx(tx); err != nil {
 		return nil, fmt.Errorf("create gift discount: %w", err)
@@ -404,7 +401,7 @@ func ApplyGiftByCode(code, patientID, createdBy string) (*Discount, error) {
 	if gift.RedeemedAt != nil {
 		return nil, errors.New("This gift card has already been used")
 	}
-	if gift.IsActive == 0 {
+	if !gift.Active() {
 		return nil, errors.New("This gift card is inactive")
 	}
 
