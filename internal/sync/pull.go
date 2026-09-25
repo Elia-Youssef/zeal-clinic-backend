@@ -49,7 +49,7 @@ func (e *Engine) pull(ctx context.Context) error {
 			return nil
 		}
 
-		applied, conflicts, err := Apply(e.db, pr.Rows)
+		_, conflicts, err := Apply(e.db, pr.Rows)
 		if err != nil {
 			return fmt.Errorf("apply pull batch: %w", err)
 		}
@@ -58,16 +58,17 @@ func (e *Engine) pull(ctx context.Context) error {
 			realtime.Broadcast(realtime.Event{Type: "data_changed"})
 		}
 
+		// The peer puts carried parents (Seq 0) first, so the last row is the
+		// prefix end. Cursoring beyond it, on a carried row's own outbox
+		// entry, would have the peer prune rows never sent.
 		cursor := pr.Rows[len(pr.Rows)-1].Seq
-		if applied > cursor {
-			cursor = applied
-		}
 		if err := SetLastPulled(e.db, SyncedPeer, cursor); err != nil {
 			return fmt.Errorf("set last_pulled: %w", err)
 		}
 		lastPulled = cursor
 
-		if len(pr.Rows) < pullBatchSize {
+		// Only outbox entries fill a batch; carried parents ride along.
+		if prefixRows(pr.Rows) < pullBatchSize {
 			return nil
 		}
 	}

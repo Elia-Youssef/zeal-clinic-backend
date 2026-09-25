@@ -75,7 +75,7 @@ func TestSystem(t *testing.T) {
 		run  func(*testing.T, *harness)
 	}{
 		{"gate_closed_before_first_connect", stepGateClosedBeforeConnect},
-		{"demo_push_refused", stepDemoPushRefused},
+		{"demo_push", stepDemoPush},
 		{"initial_sync", stepInitialSync},
 		{"write_gate", stepWriteGate},
 		{"newer_wins", stepNewerWins},

@@ -4,6 +4,7 @@ package sync
 // need the migrations and therefore cannot live inside package sync.
 var (
 	EnrichBatch       = enrichBatch
+	ReadForeignKeys   = readForeignKeys
 	MarkSyncRecovered = markSyncRecovered
 )
 

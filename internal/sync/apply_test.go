@@ -232,7 +232,8 @@ func TestApply_SecondaryUniqueKeyCollisionFailsTheBatch(t *testing.T) {
 }
 
 // A remote delete of a row that still has local children fails the whole
-// batch with a foreign key error, on both builds.
+// batch: the delete itself is deferred with the rest of the batch's foreign
+// keys, and the final check names the child the delete would orphan.
 func TestApply_DeleteOfParentWithLocalChildrenFailsTheBatch(t *testing.T) {
 	peer, node := newNodePair(t)
 	mustExec(t, node, `INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status) VALUES ('appointments-node', 'patients-2', 'rooms-1', '2026-01-10T08:00:00Z', '2026-01-10T09:00:00Z', 'Scheduled')`)
@@ -241,11 +242,14 @@ func TestApply_DeleteOfParentWithLocalChildrenFailsTheBatch(t *testing.T) {
 	mustExec(t, peer, `DELETE FROM patients WHERE id = 'patients-2'`)
 
 	_, _, err := syncpkg.Apply(node, outgoing(t, peer, since))
-	if err == nil || !strings.Contains(err.Error(), "delete patients/patients-2") || !strings.Contains(err.Error(), "FOREIGN KEY") {
-		t.Fatalf("Apply error = %v, want a foreign key failure deleting patients-2", err)
+	if err == nil || !strings.Contains(err.Error(), "appointments/appointments-node references patients") {
+		t.Fatalf("Apply error = %v, want the orphaned appointments-node named", err)
 	}
 	if !rowExists(t, node, "patients", "patients-2") {
 		t.Error("patients-2 was deleted")
+	}
+	if !rowExists(t, node, "appointments", "appointments-node") {
+		t.Error("appointments-node was lost")
 	}
 	if got, _ := markOf(t, node, "rooms", "rooms-1"); got != "Fixture Room" {
 		t.Errorf("rooms-1 = %q, want the batch rolled back", got)

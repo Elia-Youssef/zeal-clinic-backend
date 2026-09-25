@@ -20,8 +20,25 @@ var InvalidateCache func(key string)
 // RecalcBalance is injected at startup to avoid a store import cycle.
 var RecalcBalance func(tx *sql.Tx, balanceID string) error
 
+// FKViolation names a row whose foreign key points at a missing parent: a
+// row written without its parent, or a row left behind by a delete. Apply
+// and a cloud restore report it instead of a bare commit failure.
+type FKViolation struct {
+	Table  string
+	RowID  string
+	Parent string
+}
+
+func (v FKViolation) Error() string {
+	return fmt.Sprintf("%s/%s references %s", v.Table, v.RowID, v.Parent)
+}
+
 // Apply writes a sync batch in one tx. Local builds use local-wins LWW;
 // cloud builds accept incoming rows. NoDelete tables reject deletes.
+// Foreign keys are deferred for the batch, so rows may arrive in any order
+// (a rescheduled appointment before its original, a child before a parent
+// written later), and the batch's own references are probed once before the
+// commit; the deferred commit check stays the backstop.
 func Apply(db *sql.DB, batch []LogEntry) (maxApplied int64, conflicts []ConflictEntry, err error) {
 	if len(batch) == 0 {
 		return 0, nil, nil
@@ -37,6 +54,9 @@ func Apply(db *sql.DB, batch []LogEntry) (maxApplied int64, conflicts []Conflict
 		}
 	}()
 
+	if _, err = tx.Exec(`PRAGMA defer_foreign_keys = ON`); err != nil {
+		return 0, nil, fmt.Errorf("defer foreign keys: %w", err)
+	}
 	if _, err = tx.Exec(`UPDATE _sync_applying SET applying = 1 WHERE rowid = 1`); err != nil {
 		return 0, nil, fmt.Errorf("raise sync guard: %w", err)
 	}
@@ -109,6 +129,9 @@ func Apply(db *sql.DB, batch []LogEntry) (maxApplied int64, conflicts []Conflict
 		return 0, nil, fmt.Errorf("lower sync guard: %w", err)
 	}
 
+	if err = checkBatchForeignKeys(tx, byTable); err != nil {
+		return 0, nil, err
+	}
 	if err = tx.Commit(); err != nil {
 		return 0, nil, fmt.Errorf("commit: %w", err)
 	}
@@ -223,11 +246,11 @@ func applyUpsert(tx *sql.Tx, t TableInfo, e LogEntry) (*ConflictEntry, error) {
 
 func applyDelete(tx *sql.Tx, t TableInfo, e LogEntry) (*ConflictEntry, error) {
 	if t.NoDelete {
-		localJSON, _ := fetchRowJSON(tx, t, e.RowID)
+		body, _, _, _ := fetchLiveRow(tx, t, e.RowID)
 		return &ConflictEntry{
 			Table:      t.Name,
 			RowID:      e.RowID,
-			LocalJSON:  localJSON,
+			LocalJSON:  string(body),
 			RemoteJSON: "",
 			Resolution: "no_delete",
 		}, nil
@@ -274,32 +297,10 @@ func localWinsCheck(tx *sql.Tx, t TableInfo, e LogEntry) (keep bool, localJSON s
 	}
 
 	if localUpdatedAt.String > e.UpdatedAt {
-		localJSON, _ = fetchRowJSON(tx, t, e.RowID)
-		return true, localJSON, nil
+		body, _, _, _ := fetchLiveRow(tx, t, e.RowID)
+		return true, string(body), nil
 	}
 	return false, "", nil
-}
-
-// fetchRowJSON returns one row as JSON; empty means missing or scan failure.
-func fetchRowJSON(tx *sql.Tx, t TableInfo, pkVal string) (string, error) {
-	rows, err := tx.Query(
-		fmt.Sprintf(`SELECT * FROM %s WHERE %s = ?`, quoteIdent(t.Name), quoteIdent(t.PK())),
-		pkVal,
-	)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-	byPK, err := scanRowsByPK(rows, t.PK())
-	if err != nil || len(byPK) == 0 {
-		return "", err
-	}
-	row, ok := byPK[pkVal]
-	if !ok {
-		return "", nil
-	}
-	buf, _ := json.Marshal(row)
-	return string(buf), nil
 }
 
 func upsert(tx *sql.Tx, t TableInfo, row map[string]any) error {
@@ -327,6 +328,170 @@ func upsert(tx *sql.Tx, t TableInfo, row map[string]any) error {
 	)
 	_, err := tx.Exec(q, args...)
 	return err
+}
+
+// checkBatchForeignKeys probes the batch's own references in the open
+// transaction: every upserted row's parents must exist (rows this batch
+// wrote included), and a deleted row must leave nothing behind that still
+// references it. Anything the batch doesn't touch is left to the deferred
+// commit check, the backstop.
+func checkBatchForeignKeys(tx *sql.Tx, byTable map[string][]LogEntry) error {
+	for _, t := range SyncedTables {
+		entries, ok := byTable[t.Name]
+		if !ok {
+			continue
+		}
+		refs, err := parentRefs(tx, t.Name)
+		if err != nil {
+			return err
+		}
+		children, err := childRefs(tx, t.Name)
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if e.Op == "delete" {
+				err = checkDeleteChildren(tx, t, e, children)
+			} else {
+				err = checkUpsertParents(tx, t, e, refs)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// checkUpsertParents probes every foreign key of the stored row: a kept
+// local row is checked as it stands, a written row at what the batch wrote.
+func checkUpsertParents(tx *sql.Tx, t TableInfo, e LogEntry, refs []FKRef) error {
+	if len(refs) == 0 {
+		return nil
+	}
+	cols := make([]string, len(refs))
+	values := make([]sql.NullString, len(refs))
+	scan := make([]any, len(refs))
+	for i, ref := range refs {
+		cols[i] = quoteIdent(ref.Column)
+		scan[i] = &values[i]
+	}
+	err := tx.QueryRow(
+		fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`,
+			strings.Join(cols, ","), quoteIdent(t.Name), quoteIdent(t.PK())),
+		e.RowID,
+	).Scan(scan...)
+	if err == sql.ErrNoRows {
+		return nil // nothing of the row is stored; there is nothing to check
+	}
+	if err != nil {
+		return fmt.Errorf("load %s/%s for its foreign keys: %w", t.Name, e.RowID, err)
+	}
+
+	for i, ref := range refs {
+		if !values[i].Valid || values[i].String == "" {
+			continue
+		}
+		var one int
+		err := tx.QueryRow(
+			fmt.Sprintf(`SELECT 1 FROM %s WHERE %s = ? LIMIT 1`,
+				quoteIdent(ref.Parent), quoteIdent(tableSet[ref.Parent].PK())),
+			values[i].String,
+		).Scan(&one)
+		if err == sql.ErrNoRows {
+			return FKViolation{Table: t.Name, RowID: e.RowID, Parent: ref.Parent}
+		}
+		if err != nil {
+			return fmt.Errorf("check %s/%s against %s: %w", t.Name, e.RowID, ref.Parent, err)
+		}
+	}
+	return nil
+}
+
+// checkDeleteChildren probes the tables referencing a deleted row. A refused
+// or kept delete leaves the row in place, so its references still hold.
+func checkDeleteChildren(tx *sql.Tx, t TableInfo, e LogEntry, children []FKChild) error {
+	if len(children) == 0 {
+		return nil
+	}
+	var one int
+	err := tx.QueryRow(
+		fmt.Sprintf(`SELECT 1 FROM %s WHERE %s = ? LIMIT 1`, quoteIdent(t.Name), quoteIdent(t.PK())),
+		e.RowID,
+	).Scan(&one)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return firstChildLeftBehind(tx, t, e, children)
+		}
+		return fmt.Errorf("check delete %s/%s: %w", t.Name, e.RowID, err)
+	}
+	return nil
+}
+
+func firstChildLeftBehind(tx *sql.Tx, t TableInfo, e LogEntry, children []FKChild) error {
+	for _, c := range children {
+		var childID string
+		err := tx.QueryRow(
+			fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ? LIMIT 1`,
+				quoteIdent(tableSet[c.Table].PK()), quoteIdent(c.Table), quoteIdent(c.Column)),
+			e.RowID,
+		).Scan(&childID)
+		if err == sql.ErrNoRows {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("check %s/%s children in %s: %w", t.Name, e.RowID, c.Table, err)
+		}
+		return FKViolation{Table: c.Table, RowID: childID, Parent: t.Name}
+	}
+	return nil
+}
+
+// CheckForeignKeys reports the first foreign-key violation in the database,
+// naming the offending row and the table it references. A cloud restore runs
+// it before committing its replacement of every synced table; an apply uses
+// the batch-scoped checkBatchForeignKeys instead.
+func CheckForeignKeys(tx *sql.Tx) error {
+	v, err := firstFKViolation(tx)
+	if err != nil {
+		return err
+	}
+	if v == nil {
+		return nil
+	}
+	if t, ok := IsSyncedTable(v.table); ok {
+		var id string
+		if err := tx.QueryRow(
+			fmt.Sprintf(`SELECT %s FROM %s WHERE rowid = ?`, quoteIdent(t.PK()), quoteIdent(v.table)),
+			v.rowid,
+		).Scan(&id); err == nil {
+			return FKViolation{Table: v.table, RowID: id, Parent: v.parent}
+		}
+	}
+	return fmt.Errorf("%s row %d references %s", v.table, v.rowid, v.parent)
+}
+
+type fkViolation struct {
+	table  string
+	rowid  int64
+	parent string
+}
+
+func firstFKViolation(tx *sql.Tx) (*fkViolation, error) {
+	rows, err := tx.Query(`PRAGMA foreign_key_check`)
+	if err != nil {
+		return nil, fmt.Errorf("foreign_key_check: %w", err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return nil, rows.Err()
+	}
+	var v fkViolation
+	var fkid int
+	if err := rows.Scan(&v.table, &v.rowid, &v.parent, &fkid); err != nil {
+		return nil, fmt.Errorf("foreign_key_check: %w", err)
+	}
+	return &v, nil
 }
 
 func sortedKeys(m map[string]any) []string {

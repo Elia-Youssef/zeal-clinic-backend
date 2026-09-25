@@ -19,9 +19,9 @@
       4. seeds the clinic's demo data into tmp/demo/two-node/clinic/ (kept between runs; -Reset deletes
          tmp/demo/two-node and seeds again); the cloud node starts from its own folder tmp/demo/two-node/cloud/;
       5. starts both with --dev and waits for /health, then signs in on the clinic as the demo admin and runs the
-         cloud restore, which copies the clinic's data to the cloud; incremental sync starts from there (on the demo
-         data it can't start without it, so it runs on every start, also with kept data). The restore may take up to
-         300 s; Ctrl+C cancels it;
+         cloud restore, which copies the clinic's data to the cloud so both nodes start from the same state;
+         incremental sync would converge on its own, but the restore does it in one step, so it runs on every start,
+         also with kept data. The restore may take up to 300 s; Ctrl+C cancels it;
       6. waits until the cloud accepts financial writes (sync is running), prints "Demo ready: clinic <url>, cloud
          <url>", the demo sign-ins, the data folder and the servers' logs, and opens the clinic in the browser unless
          -NoBrowser.
@@ -131,7 +131,6 @@ $steps = {
     $ready = @{
         Session = $Session; Line = "Demo ready: clinic $clinicUrl, cloud $cloudUrl"; SignInWhere = ' on either node'
         Notes = @(
-            'The clinic shows one "Data sync failed" notice from before the first cloud restore; it can be ignored.'
             'The nodes sync both ways: a payment taken on the cloud shows up on the clinic, and the other way round.'
         )
         DataDir = $dataRoot; BrowserUrl = "$clinicUrl/"; NoBrowser = $NoBrowser

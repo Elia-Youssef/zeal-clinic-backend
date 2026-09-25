@@ -277,18 +277,15 @@ func maxSeq(t *testing.T, db *sql.DB) int64 {
 	return n
 }
 
-// outgoing returns what db ships for its changes after seq: the sync_log
-// entries enriched with the live rows, as the pull handler and push build them.
+// outgoing returns what db ships for its changes after seq, built the way
+// push and the pull handler build their batches.
 func outgoing(t *testing.T, db *sql.DB, after int64) []syncpkg.LogEntry {
 	t.Helper()
-	batch, err := syncpkg.LoadBatch(db, after, 10000)
+	batch, err := syncpkg.BuildBatch(db, after, 10000)
 	if err != nil {
-		t.Fatalf("load batch: %v", err)
+		t.Fatalf("build batch: %v", err)
 	}
-	if err := syncpkg.EnrichBatch(db, batch); err != nil {
-		t.Fatalf("enrich batch: %v", err)
-	}
-	return batch
+	return batch.Rows
 }
 
 func mustApply(t *testing.T, db *sql.DB, batch []syncpkg.LogEntry) (int64, []syncpkg.ConflictEntry) {

@@ -45,6 +45,12 @@ func ApplySnapshot(target, source *sql.DB) (result ApplyResult, err error) {
 		}
 	}()
 
+	// Tables are copied in the source's row order, which may list a
+	// rescheduled appointment before its original, so foreign keys are
+	// checked once at the end like a sync apply.
+	if _, err = tx.Exec(`PRAGMA defer_foreign_keys = ON`); err != nil {
+		return result, fmt.Errorf("defer foreign keys: %w", err)
+	}
 	if _, err = tx.Exec(`UPDATE _sync_applying SET applying = 1 WHERE rowid = 1`); err != nil {
 		return result, fmt.Errorf("raise sync guard: %w", err)
 	}
@@ -87,7 +93,7 @@ func ApplySnapshot(target, source *sql.DB) (result ApplyResult, err error) {
 	if _, err = tx.Exec(`UPDATE _sync_applying SET applying = 0 WHERE rowid = 1`); err != nil {
 		return result, fmt.Errorf("lower sync guard: %w", err)
 	}
-	if err = foreignKeyCheckTx(tx); err != nil {
+	if err = syncpkg.CheckForeignKeys(tx); err != nil {
 		return result, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -217,16 +223,4 @@ func setSyncState(tx *sql.Tx, pushed, pulled int64) error {
 		return fmt.Errorf("reset sync state: %w", err)
 	}
 	return nil
-}
-
-func foreignKeyCheckTx(tx *sql.Tx) error {
-	rows, err := tx.Query(`PRAGMA foreign_key_check`)
-	if err != nil {
-		return fmt.Errorf("foreign_key_check: %w", err)
-	}
-	defer rows.Close()
-	if rows.Next() {
-		return fmt.Errorf("foreign_key_check reported a violation")
-	}
-	return rows.Err()
 }

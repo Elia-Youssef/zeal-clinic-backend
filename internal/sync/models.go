@@ -7,6 +7,8 @@ import (
 
 // LogEntry is one replicated change.
 type LogEntry struct {
+	// Seq is the entry's outbox sequence; 0 marks a carried parent, which
+	// rides along with a batch but is never acked, cursored or pruned.
 	Seq       int64           `json:"seq"`
 	Table     string          `json:"table"`
 	RowID     string          `json:"row_id"`

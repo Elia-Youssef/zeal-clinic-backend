@@ -54,8 +54,9 @@ func MaxLogSeq(db *sql.DB) (int64, error) {
 	return n.Int64, nil
 }
 
-// LoadBatch returns sync_log rows after since.
-func LoadBatch(db *sql.DB, since int64, limit int) ([]LogEntry, error) {
+// LoadBatch returns sync_log rows after since, oldest first. It runs on a
+// connection or inside the batch builder's transaction.
+func LoadBatch(db queryer, since int64, limit int) ([]LogEntry, error) {
 	rows, err := db.Query(
 		`SELECT seq, table_name, row_id, op, created_at
 		 FROM sync_log

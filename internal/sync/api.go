@@ -109,12 +109,9 @@ func (a *API) handlePull(c echo.Context) error {
 		limit = pullBatchSize
 	}
 
-	rows, err := LoadBatch(db, since, limit)
+	batch, err := BuildBatch(db, since, limit)
 	if err != nil {
-		return a.inboundSyncFailure(c, fmt.Errorf("[sync] load pull batch (since=%d limit=%d): %w", since, limit, err))
-	}
-	if err := enrichBatch(db, rows); err != nil {
-		return a.inboundSyncFailure(c, fmt.Errorf("[sync] enrich pull batch: %w", err))
+		return a.inboundSyncFailure(c, fmt.Errorf("[sync] build pull batch (since=%d limit=%d): %w", since, limit, err))
 	}
 	maxSeq, _ := MaxLogSeq(db)
 
@@ -124,7 +121,7 @@ func (a *API) handlePull(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, PullResponse{Rows: rows, MaxSeq: maxSeq})
+	return c.JSON(http.StatusOK, PullResponse{Rows: batch.Rows, MaxSeq: maxSeq})
 }
 
 // handlePush applies rows from the caller and broadcasts when data lands.

@@ -93,6 +93,27 @@ func TestApplySnapshot_InvalidDumpLeavesCloudUnchanged(t *testing.T) {
 	assertCount(t, target, 1, `SELECT COUNT(*) FROM rooms WHERE id = 'cloud-marker'`)
 }
 
+// A snapshot can list a rescheduled appointment before its original (a node
+// that applied the two across batches stores them in that row order); the
+// restore defers its foreign-key checks, so the copy succeeds.
+func TestApplySnapshot_RestoresRescheduledAppointmentBeforeOriginal(t *testing.T) {
+	source := openRestoreTestDB(t, "source-reschedule")
+	target := openRestoreTestDB(t, "target-reschedule")
+	mustExec(t, source, `INSERT INTO patients (id, first_name, last_name, date_of_birth, contact) VALUES ('p-1', 'First', 'Last', '1990-01-01', '')`)
+	mustExec(t, source, `INSERT INTO rooms (id, name, type) VALUES ('r-1', 'Room', 'General')`)
+	mustExec(t, source, `INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status)
+		VALUES ('apt-second', 'p-1', 'r-1', '2026-02-02T08:00:00Z', '2026-02-02T09:00:00Z', 'Scheduled')`)
+	mustExec(t, source, `INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status)
+		VALUES ('apt-first', 'p-1', 'r-1', '2026-02-01T08:00:00Z', '2026-02-01T09:00:00Z', 'Scheduled')`)
+	mustExec(t, source, `UPDATE appointments SET rescheduled_from = 'apt-first' WHERE id = 'apt-second'`)
+
+	if _, err := ApplySnapshot(target, source); err != nil {
+		t.Fatalf("ApplySnapshot: %v", err)
+	}
+	assertCount(t, target, 2, `SELECT COUNT(*) FROM appointments`)
+	assertCount(t, target, 1, `SELECT COUNT(*) FROM appointments WHERE id = 'apt-second' AND rescheduled_from = 'apt-first'`)
+}
+
 func TestFinalizeLocal_ClearsRowsAndKeepsMonotonicOutbox(t *testing.T) {
 	db := openRestoreTestDB(t, "local-finalize")
 	mustExec(t, db, `INSERT INTO rooms (id, name, type) VALUES ('before-finalize', 'Before', 'General')`)

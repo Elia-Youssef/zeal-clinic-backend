@@ -237,6 +237,54 @@ func TestSyncAPI_PullLimitAndPrune(t *testing.T) {
 	}
 }
 
+// Pull serves the same batches push sends: a child whose parent is still
+// pending arrives with the parent, carried first with seq 0, the last row
+// stays the prefix end the client cursors on, and the parent's own entry
+// survives the prune so it is served again in its own batch.
+func TestSyncAPI_PullCarriesPendingParents(t *testing.T) {
+	m := newMachineServer(t)
+	loadFixture(t, m.db)
+	since := maxSeq(t, m.db)
+	mustExec(t, m.db, `INSERT INTO products (id, name, category_id, quantity) VALUES ('products-9', 'Peer Product', 'product_categories-1', 3)`)
+	mustExec(t, m.db, `INSERT INTO product_prices (id, product_id, price, is_active) VALUES ('product_prices-9', 'products-9', 15, 1)`)
+	mustExec(t, m.db, `UPDATE products SET name = 'Peer Product v2' WHERE id = 'products-9'`)
+
+	status, body := m.peerCall(t, http.MethodGet, "/api/sync/pull?since="+strconv.FormatInt(since, 10)+"&limit=1", "")
+	if status != http.StatusOK {
+		t.Fatalf("pull = %d %s", status, body)
+	}
+	var pr syncpkg.PullResponse
+	if err := json.Unmarshal([]byte(body), &pr); err != nil {
+		t.Fatal(err)
+	}
+	if len(pr.Rows) != 2 {
+		t.Fatalf("pull returned %d rows, want the price plus its product", len(pr.Rows))
+	}
+	if pr.Rows[0].Table != "products" || pr.Rows[0].Seq != 0 {
+		t.Errorf("first row = %+v, want the parent carried with seq 0", pr.Rows[0])
+	}
+	if pr.Rows[1].Table != "product_prices" || pr.Rows[1].Seq == 0 {
+		t.Errorf("last row = %+v, want the prefix's price entry", pr.Rows[1])
+	}
+	if pr.MaxSeq != maxSeq(t, m.db) {
+		t.Errorf("max_seq = %d, want %d", pr.MaxSeq, maxSeq(t, m.db))
+	}
+
+	// The client cursors on the last row; the next pull prunes up to that
+	// seq and serves the parent again from its own entry.
+	cursor := pr.Rows[len(pr.Rows)-1].Seq
+	status, body = m.peerCall(t, http.MethodGet, "/api/sync/pull?since="+strconv.FormatInt(cursor, 10)+"&limit=1", "")
+	if status != http.StatusOK {
+		t.Fatalf("pull after %d = %d %s", cursor, status, body)
+	}
+	if err := json.Unmarshal([]byte(body), &pr); err != nil {
+		t.Fatal(err)
+	}
+	if len(pr.Rows) != 1 || pr.Rows[0].Table != "products" || pr.Rows[0].RowID != "products-9" || pr.Rows[0].Seq <= cursor {
+		t.Fatalf("pull after the cursor = %+v, want the product's own entry", pr.Rows)
+	}
+}
+
 // Push applies with the cloud policy and reports no_delete refusals.
 func TestSyncAPI_PushAppliesRows(t *testing.T) {
 	m := newMachineServer(t)

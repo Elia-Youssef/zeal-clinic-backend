@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -51,54 +50,47 @@ func stepGateClosedBeforeConnect(t *testing.T, h *harness) {
 	}
 }
 
-// stepDemoPushRefused: the clinic's outbox keeps one entry per row, at the
-// row's last write, so a 500-row push batch of the demo data carries product
-// prices whose products were updated later and sit in a later batch. An empty
-// cloud refuses that batch on a foreign key, and every retry sends the same batch.
-func stepDemoPushRefused(t *testing.T, h *harness) {
+// stepDemoPush: the clinic's outbox keeps one entry per row, at the row's
+// last write, so a 500-row push batch of the demo data carries product
+// prices and invoice lines whose products and invoices were written later
+// and sit in later batches. Each batch travels with those parents, so the
+// demo data reaches an empty cloud on its own: no push is refused, both
+// nodes hold the same data, the write gate opens and no failure notice
+// appears.
+func stepDemoPush(t *testing.T, h *harness) {
 	h.clinicAdmin = h.login(t, h.clinic, "jvance", demoPassword)
+	// The clinic's startup cycles failed while the proxy refused connections;
+	// read that episode's notice so only new failures show up as unread.
+	h.clinicAdmin.expect(t, http.StatusOK, http.MethodPut, "/api/notifications/read-all", nil)
+
 	mark := h.proxy.mark()
 	h.reconnect()
-	refusals := func() []string {
-		return logLines(h.cloud.currentLog(), "POST /api/sync/push -> 500", "FOREIGN KEY constraint failed")
-	}
-	eventually(t, converge, "the cloud refuses the demo data push", func() (bool, string) {
-		n := len(refusals())
-		return n > 0, fmt.Sprint(n)
+	eventually(t, 45*time.Second, "the demo data pushes to reach the cloud", func() (bool, string) {
+		n := len(requests(h.proxy.since(mark), http.MethodPost, "/api/sync/push"))
+		return n >= 2, fmt.Sprint(n)
 	})
-	failedRow := regexp.MustCompile(`apply ([a-z_]+)/([0-9a-f-]+)`)
-	first := failedRow.FindStringSubmatch(refusals()[0])
-	if first == nil {
-		t.Fatalf("no failing row in %q", refusals()[0])
-	}
-	t.Logf("first push refused on %s %s", first[1], first[2])
-
-	// Nothing arrived, the gate stays closed, and the clinic reported the failure.
-	if n := h.cloudSuper.total(t, "/api/patients", ""); n != 0 {
-		t.Fatalf("the cloud holds %d patients after the refused push", n)
-	}
-	if st, code := h.cloudSuper.gateStatus(); st != http.StatusServiceUnavailable || code != "sync_not_ready" {
-		t.Fatalf("gate after the refused push: %d %s", st, code)
-	}
-	if len(requests(h.proxy.since(mark), http.MethodPost, "/api/sync/failed")) == 0 {
-		t.Fatal("the clinic did not report the failed cycle to the cloud")
-	}
-	eventually(t, converge, "sync failure notification on the clinic", func() (bool, string) {
-		n := len(unreadSyncFailures(h.clinicAdmin.notifications(t)))
-		return n == 1, fmt.Sprint(n)
+	eventually(t, 45*time.Second, "cloud write gate open after the demo pushes", func() (bool, string) {
+		st, code := h.cloudSuper.gateStatus()
+		return st == http.StatusBadRequest, fmt.Sprintf("%d %s", st, code)
 	})
 
-	// Any clinic write starts another cycle; it fails on the same row.
-	before := len(refusals())
-	h.clinicAdmin.expect(t, http.StatusOK, http.MethodPut, "/api/notifications/read-all", nil)
-	eventually(t, converge, "a retried push", func() (bool, string) {
-		n := len(refusals())
-		return n > before, fmt.Sprint(n)
-	})
-	again := failedRow.FindStringSubmatch(refusals()[before])
-	if again == nil || again[2] != first[2] {
-		t.Fatalf("the retry failed on %v, not on the same row %s", again, first[2])
+	if refused := logLines(h.cloud.currentLog(), "POST /api/sync/push -> 500"); len(refused) != 0 {
+		t.Fatalf("refused pushes: %s", strings.Join(refused, "; "))
 	}
+	eventually(t, converge, "demo data parity between the nodes", func() (bool, string) {
+		var diff []string
+		for _, l := range parityLists {
+			a, b := h.clinicAdmin.total(t, l, ""), h.cloudSuper.total(t, l, "")
+			if a != b {
+				diff = append(diff, fmt.Sprintf("%s: clinic %d, cloud %d", l, a, b))
+			}
+		}
+		return len(diff) == 0, strings.Join(diff, "; ")
+	})
+	if n := len(unreadSyncFailures(h.clinicAdmin.notifications(t))); n != 0 {
+		t.Fatalf("%d unread data sync failure notices on the clinic", n)
+	}
+	t.Logf("demo data pushed in %d push requests", len(requests(h.proxy.since(mark), http.MethodPost, "/api/sync/push")))
 }
 
 // stepInitialSync bootstraps the cloud the supported way, a cloud restore of
