@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -57,6 +58,11 @@ func (d *Discount) IsValid() error {
 		e["value"] = msg
 	} else if d.ValueType == "percentage" && d.Value > 100 {
 		e["value"] = "Percentage cannot exceed 100"
+	}
+	if d.IsActive != nil {
+		if msg := validation.OneOf(strconv.Itoa(*d.IsActive), []string{"0", "1"}, "isActive"); msg != "" {
+			e["isActive"] = msg
+		}
 	}
 
 	startValid := true
@@ -255,6 +261,9 @@ func (d *Discount) Update(updates map[string]any) error {
 			if dbCol == "value" {
 				val = Round2(next.Value)
 			}
+			if dbCol == "is_active" {
+				val = *next.IsActive
+			}
 			if setClauses != "" {
 				setClauses += ", "
 			}
@@ -283,6 +292,13 @@ func applyDiscountUpdates(next *Discount, updates map[string]any) error {
 		}
 		next.Name = name
 	}
+	if value, ok := updates["description"]; ok {
+		description, valid := value.(string)
+		if !valid {
+			return validation.Errors{"description": "Description must be a string"}
+		}
+		next.Description = description
+	}
 	if value, ok := updates["valueType"]; ok {
 		valueType, valid := value.(string)
 		if !valid {
@@ -310,6 +326,13 @@ func applyDiscountUpdates(next *Discount, updates map[string]any) error {
 			return validation.Errors{"endDate": "End date must be a string or null"}
 		}
 		next.EndDate = date
+	}
+	if value, ok := updates["isActive"]; ok {
+		active, valid := discountInt(value)
+		if !valid {
+			return validation.Errors{"isActive": "Is active must be a whole number"}
+		}
+		next.IsActive = &active
 	}
 	return next.IsValid()
 }
@@ -343,6 +366,15 @@ func discountNumber(value any) (float64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// discountInt parses a whole number, accepting the types discountNumber does.
+func discountInt(value any) (int, bool) {
+	number, valid := discountNumber(value)
+	if !valid || math.IsInf(number, 0) || number != math.Trunc(number) {
+		return 0, false
+	}
+	return int(number), true
 }
 
 func discountDate(value any) (*Date, bool) {

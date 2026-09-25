@@ -28,7 +28,7 @@ func TestCreateDiscount_OfferSuccess(t *testing.T) {
 	var d struct {
 		ID           string `json:"id"`
 		DiscountType string `json:"discountType"`
-		IsActive     int    `json:"isActive"`
+		IsActive     *int   `json:"isActive"`
 	}
 	errMsg, _ := decodeEnvelope(t, rec.Body, &d)
 	if errMsg != "" {
@@ -38,8 +38,8 @@ func TestCreateDiscount_OfferSuccess(t *testing.T) {
 		t.Errorf("got %+v", d)
 	}
 	// An absent isActive defaults to 1.
-	if d.IsActive != 1 {
-		t.Errorf("isActive = %d want 1", d.IsActive)
+	if d.IsActive == nil || *d.IsActive != 1 {
+		t.Errorf("isActive = %v want 1", d.IsActive)
 	}
 }
 
@@ -59,14 +59,14 @@ func TestCreateDiscount_ExplicitInactiveStaysInactive(t *testing.T) {
 	}
 	var d struct {
 		ID       string `json:"id"`
-		IsActive int    `json:"isActive"`
+		IsActive *int   `json:"isActive"`
 	}
 	errMsg, _ := decodeEnvelope(t, rec.Body, &d)
 	if errMsg != "" {
 		t.Fatalf("error: %s", errMsg)
 	}
-	if d.IsActive != 0 {
-		t.Errorf("created isActive = %d want 0", d.IsActive)
+	if d.IsActive == nil || *d.IsActive != 0 {
+		t.Errorf("created isActive = %v want 0", d.IsActive)
 	}
 
 	rec = doRequest(t, e, http.MethodGet, "/api/discounts/"+d.ID, nil, tok)
@@ -74,14 +74,14 @@ func TestCreateDiscount_ExplicitInactiveStaysInactive(t *testing.T) {
 		t.Fatalf("get: %d body=%s", rec.Code, rec.Body.String())
 	}
 	var got struct {
-		IsActive int `json:"isActive"`
+		IsActive *int `json:"isActive"`
 	}
 	errMsg, _ = decodeEnvelope(t, rec.Body, &got)
 	if errMsg != "" {
 		t.Fatalf("error: %s", errMsg)
 	}
-	if got.IsActive != 0 {
-		t.Errorf("stored isActive = %d want 0", got.IsActive)
+	if got.IsActive == nil || *got.IsActive != 0 {
+		t.Errorf("stored isActive = %v want 0", got.IsActive)
 	}
 }
 
@@ -120,6 +120,8 @@ func TestCreateDiscount_ValidationFails(t *testing.T) {
 		{"bad valueType", map[string]any{"name": "x", "discountType": "offer", "valueType": "weird", "value": 1.0}},
 		{"negative value", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": -1}},
 		{"percentage over 100", map[string]any{"name": "x", "discountType": "offer", "valueType": "percentage", "value": 100.01}},
+		{"isActive 2", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": 1.0, "isActive": 2}},
+		{"isActive -1", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": 1.0, "isActive": -1}},
 		{"invalid start date", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": 1, "startDate": "2026-02-30"}},
 		{"invalid end date", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": 1, "endDate": "not-a-date"}},
 		{"end before start", map[string]any{"name": "x", "discountType": "offer", "valueType": "fixed", "value": 1, "startDate": "2026-03-02", "endDate": "2026-03-01"}},
@@ -155,6 +157,11 @@ func TestUpdateDiscount_ValidationFailsWithoutChangingDiscount(t *testing.T) {
 	}{
 		{"negative value", map[string]any{"value": -1}},
 		{"percentage over 100", map[string]any{"value": 101}},
+		{"null isActive", map[string]any{"isActive": nil}},
+		{"isActive 2", map[string]any{"isActive": 2}},
+		{"string isActive", map[string]any{"isActive": "1"}},
+		{"fractional isActive", map[string]any{"isActive": 0.5}},
+		{"null description", map[string]any{"description": nil}},
 		{"invalid start date", map[string]any{"startDate": "2026-02-30"}},
 		{"start after stored end", map[string]any{"startDate": "2026-03-21"}},
 		{"end before stored start", map[string]any{"endDate": "2026-03-09"}},
@@ -176,9 +183,11 @@ func TestUpdateDiscount_ValidationFailsWithoutChangingDiscount(t *testing.T) {
 		Value     float64 `json:"value"`
 		StartDate string  `json:"startDate"`
 		EndDate   string  `json:"endDate"`
+		IsActive  *int    `json:"isActive"`
 	}
 	decodeEnvelope(t, rec.Body, &got)
-	if !approxEqualF(got.Value, 10) || got.StartDate != "2026-03-10" || got.EndDate != "2026-03-20" {
+	if !approxEqualF(got.Value, 10) || got.StartDate != "2026-03-10" || got.EndDate != "2026-03-20" ||
+		got.IsActive == nil || *got.IsActive != 1 {
 		t.Errorf("invalid updates changed discount: %+v", got)
 	}
 }
