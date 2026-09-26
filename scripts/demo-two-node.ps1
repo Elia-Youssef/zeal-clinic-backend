@@ -4,8 +4,8 @@
     Runs a clinic node and a cloud node side by side on this machine, both with the demo data, syncing (Windows).
 
 .DESCRIPTION
-    pwsh scripts/demo-two-node.ps1 [-Frontend <path>] [-ClinicPort <n>] [-CloudPort <n>] [-Reset] [-NoBrowser]
-                                   [-BinDir <dir>]
+    pwsh scripts/demo-two-node.ps1 [-Frontend <path>] [-ClinicPort <n>] [-CloudPort <n>] [-Lan] [-Reset]
+                                   [-NoBrowser] [-BinDir <dir>]
 
     Runs from any folder (the repository is found from this script's location; relative paths given on the command
     line are relative to the current folder):
@@ -18,10 +18,10 @@
          from a temporary file outside the checkout; nothing is written into internal/config;
       4. seeds the clinic's demo data into tmp/demo/two-node/clinic/ (kept between runs; -Reset deletes
          tmp/demo/two-node and seeds again); the cloud node starts from its own folder tmp/demo/two-node/cloud/;
-      5. starts both with --dev and waits for /health, then signs in on the clinic as the demo admin and runs the
-         cloud restore, which copies the clinic's data to the cloud so both nodes start from the same state;
-         incremental sync would converge on its own, but the restore does it in one step, so it runs on every start,
-         also with kept data. The restore may take up to 300 s; Ctrl+C cancels it;
+      5. starts both with --dev (plus --lan with -Lan) and waits for /health, then signs in on the clinic as the demo
+         admin and runs the cloud restore, which copies the clinic's data to the cloud so both nodes start from the
+         same state; incremental sync would converge on its own, but the restore does it in one step, so it runs on
+         every start, also with kept data. The restore may take up to 300 s; Ctrl+C cancels it;
       6. waits until the cloud accepts financial writes (sync is running), prints "Demo ready: clinic <url>, cloud
          <url>", the demo sign-ins, the data folder and the servers' logs, and opens the clinic in the browser unless
          -NoBrowser.
@@ -30,14 +30,16 @@
     was ready." and exits with 1, as does any failure. A killed script takes both nodes with it.
 
     -ClinicPort, -CloudPort  default: PORT of internal/config/local.env.defaults and cloud.env.defaults.
+    -Lan     opens the LAN: binds all network interfaces so other devices can connect (default: 127.0.0.1 only).
     -BinDir  where the binaries go (ZealClinicDemoClinic.exe, ZealClinicDemoCloud.exe). Windows Firewall may ask once
-             per binary path; the demo only needs 127.0.0.1, so the question can be cancelled.
+             per binary path; the demo only needs 127.0.0.1 without -Lan, so the question can be cancelled.
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Frontend,
     [int]$ClinicPort = 0,
     [int]$CloudPort = 0,
+    [switch]$Lan,
     [switch]$Reset,
     [switch]$NoBrowser,
     [string]$BinDir
@@ -105,8 +107,7 @@ $steps = {
     $binDir = Resolve-DemoBinDir $BinDir
     $clinicPort = if ($ClinicPort) { $ClinicPort } else { Get-DemoDefaultPort clinic }
     $cloudPort = if ($CloudPort) { $CloudPort } else { Get-DemoDefaultPort cloud }
-    $clinicUrl = "http://127.0.0.1:$clinicPort"
-    $cloudUrl = "http://127.0.0.1:$cloudPort"
+    $peerUrl = "http://127.0.0.1:$cloudPort"
     $dataRoot = Join-Path $DemoRepoRoot 'tmp\demo\two-node'
     $clinicDir = Join-Path $dataRoot 'clinic'
     $cloudDir = Join-Path $dataRoot 'cloud'
@@ -115,25 +116,26 @@ $steps = {
     $tools = Assert-DemoPrerequisites -Frontend $frontendDir -Ports $ports
     Build-DemoDashboard -Frontend $frontendDir -Npm $tools.Npm
     $builds = @{ Go = $tools.Go; BinDir = $binDir }
-    $clinicBuild = Build-DemoServer @builds -Node clinic -Name ZealClinicDemoClinic -Port $clinicPort -PeerUrl $cloudUrl
+    $clinicBuild = Build-DemoServer @builds -Node clinic -Name ZealClinicDemoClinic -Port $clinicPort -PeerUrl $peerUrl
     $cloudBuild = Build-DemoServer @builds -Node cloud -Name ZealClinicDemoCloud -Port $cloudPort
     Initialize-DemoData -Root $dataRoot -Reset:$Reset -Folders clinic, cloud
     Invoke-DemoSeed -Build $clinicBuild -Dir $clinicDir
     # The cloud needs no seed step: the server creates and migrates its database on start, and the restore replaces
     # its synced tables with the clinic's.
-    $cloud = Start-DemoNode -Session $Session -Build $cloudBuild -Dir $cloudDir
+    $cloud = Start-DemoNode -Session $Session -Build $cloudBuild -Dir $cloudDir -Lan:$Lan
     Wait-DemoHealth $cloud
-    $clinic = Start-DemoNode -Session $Session -Build $clinicBuild -Dir $clinicDir
+    $clinic = Start-DemoNode -Session $Session -Build $clinicBuild -Dir $clinicDir -Lan:$Lan
     Wait-DemoHealth $clinic
     Invoke-DemoCloudRestore $clinic
     Wait-DemoSyncRunning $cloud $Session.Nodes
 
     $ready = @{
-        Session = $Session; Line = "Demo ready: clinic $clinicUrl, cloud $cloudUrl"; SignInWhere = ' on either node'
+        Session = $Session; Line = "Demo ready: clinic $($clinic.Url), cloud $($cloud.Url)"
+        SignInWhere = ' on either node'
         Notes = @(
             'The nodes sync both ways: a payment taken on the cloud shows up on the clinic, and the other way round.'
         )
-        DataDir = $dataRoot; BrowserUrl = "$clinicUrl/"; NoBrowser = $NoBrowser
+        DataDir = $dataRoot; BrowserUrl = "$($clinic.Url)/"; NoBrowser = $NoBrowser
     }
     Write-DemoReady @ready
 }

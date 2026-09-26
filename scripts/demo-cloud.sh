@@ -1,10 +1,13 @@
 #!/bin/sh
 # Runs the cloud node on demo data (Linux).
 #
-#   scripts/demo-cloud.sh [--frontend <path>] [--port <n>] [--reset] [--no-browser]
+#   scripts/demo-cloud.sh [--frontend <path>] [--port <n>] [--lan] [--reset] [--no-browser]
 #
 #   --frontend <path>  the dashboard checkout (default: ../zeal-clinic-frontend next to this checkout)
 #   --port <n>         the server port (default: PORT of internal/config/cloud.env.defaults)
+#   --lan              open the LAN: listen on all network interfaces (default: 127.0.0.1 only). In WSL with NAT
+#                      networking (its default) the printed address is the VM's own, which other devices can't
+#                      reach: they need WSL's mirrored networking or a port proxy on Windows.
 #   --reset            delete the demo data in tmp/demo/cloud/ and seed it again
 #   --no-browser       don't open a browser
 #
@@ -18,8 +21,8 @@
 #      port reaches the build through a go build overlay in a temporary folder outside the checkout;
 #   4. runs the versioned demo seed in tmp/demo/cloud/ (the first run seeds; later runs keep the data and only
 #      apply what is new; --reset deletes the folder first);
-#   5. starts the server with --dev in that folder, waits until /health answers as this build, and prints
-#      "Demo ready: <url>", the demo sign-ins and where the data and logs are.
+#   5. starts the server in that folder with --dev (plus --lan when given), waits until /health on 127.0.0.1
+#      answers as this build, and prints "Demo ready: <url>", the demo sign-ins and where the data and logs are.
 # A cloud node without its clinic keeps financial writes read-only; the clinic node runs on Windows only
 # (scripts/demo.ps1, scripts/demo-two-node.ps1).
 #
@@ -75,11 +78,26 @@ die_log() {
 }
 
 usage() {
-	say 'Usage: scripts/demo-cloud.sh [--frontend <path>] [--port <n>] [--reset] [--no-browser]'
+	say 'Usage: scripts/demo-cloud.sh [--frontend <path>] [--port <n>] [--lan] [--reset] [--no-browser]'
 	say '  --frontend <path>  the dashboard checkout (default: ../zeal-clinic-frontend next to this checkout)'
 	say '  --port <n>         the server port (default: PORT of internal/config/cloud.env.defaults)'
+	say '  --lan              open the LAN: listen on all network interfaces (default: 127.0.0.1 only). In WSL with NAT'
+	say "                     networking (its default) the printed address is the VM's own, which other devices can't"
+	say "                     reach: they need WSL's mirrored networking or a port proxy on Windows."
 	say '  --reset            delete the demo data in tmp/demo/cloud/ and seed it again'
 	say "  --no-browser       don't open a browser"
+}
+
+# get_lan_ip: the machine's primary IPv4 address on the LAN (127.0.0.1 fallback when offline or undetected).
+get_lan_ip() {
+	ip=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++)if($i=="src"){print $(i+1);exit}}')
+	if [ -z "$ip" ]; then
+		ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+	fi
+	if [ -z "$ip" ]; then
+		ip='127.0.0.1'
+	fi
+	printf '%s' "$ip"
 }
 
 # Time: clock reads the seconds since the epoch (with a fraction where date supports %N); since <reading> <decimals>
@@ -310,7 +328,7 @@ seed_demo_data() {
 
 # health_ok: /health answers ok as this build (another version on the port is an error).
 health_ok() {
-	health=$(curl --noproxy '*' -fsS --max-time 3 "$url/health" 2>/dev/null) || return 1
+	health=$(curl --noproxy '*' -fsS --max-time 3 "$loopback_url/health" 2>/dev/null) || return 1
 	case $health in *'"status":"ok"'*) ;; *) return 1 ;; esac
 	health_version=$(printf '%s' "$health" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
 	[ "$health_version" = "$stamp" ] ||
@@ -319,10 +337,14 @@ health_ok() {
 
 start_server() {
 	check_port_free # again: the builds took a while
-	step "start: cloud node, $bin_name --dev on port $port (in $data_root)"
+	server_args="--dev"
+	if [ "$lan" = 1 ]; then
+		server_args="--dev --lan"
+	fi
+	step "start: cloud node, $bin_name $server_args on port $port (in $data_root)"
 	started=$(clock)
 	# SIGHUP ignored: a closed terminal reaches the server only through the script's trap, as a clean stop.
-	(trap '' HUP && cd "$data_root" && exec "$bin" --dev) >"$console_log" 2>&1 </dev/null &
+	(trap '' HUP && cd "$data_root" && exec "$bin" $server_args) >"$console_log" 2>&1 </dev/null &
 	server_pid=$!
 	until health_ok; do
 		if ! kill -0 "$server_pid" 2>/dev/null; then
@@ -336,7 +358,7 @@ start_server() {
 		fi
 		nap
 	done
-	step "start: cloud node healthy on $url ($(since "$started" 1) s)"
+	step "start: cloud node healthy on $loopback_url ($(since "$started" 1) s)"
 }
 
 show_ready() {
@@ -429,6 +451,7 @@ cleanup() {
 
 frontend=''
 port=''
+lan=0
 reset=0
 no_browser=0
 while [ $# -gt 0 ]; do
@@ -440,6 +463,7 @@ while [ $# -gt 0 ]; do
 		if [ "$1" = --frontend ]; then frontend=$2; else port=$2; fi
 		shift
 		;;
+	--lan) lan=1 ;;
 	--reset) reset=1 ;;
 	--no-browser) no_browser=1 ;;
 	-h | --help) usage && exit 0 ;;
@@ -478,7 +502,8 @@ bin="$repo/tmp/$bin_name"
 data_root="$repo/tmp/demo/cloud"
 seed_log="$data_root/seed-console.log"
 console_log="$data_root/server-console.log"
-url="http://127.0.0.1:$port"
+loopback_url="http://127.0.0.1:$port" # where the script checks /health
+if [ "$lan" = 1 ]; then url="http://$(get_lan_ip):$port"; else url=$loopback_url; fi
 
 trap cleanup EXIT
 trap 'on_signal 129' HUP

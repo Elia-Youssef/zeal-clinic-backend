@@ -284,8 +284,8 @@ function Assert-Platform {
     }
     if ($PeerUrl) {
         $u = $null
-        if (-not [Uri]::TryCreate($PeerUrl, [UriKind]::Absolute, [ref]$u) -or $u.Scheme -notin 'http', 'https' -or -not $u.IsLoopback) {
-            [Console]::Error.WriteLine('Refusing -PeerUrl: only http(s) URLs on a loopback host (127.0.0.1, ::1, localhost) are allowed.')
+        if (-not [Uri]::TryCreate($PeerUrl, [UriKind]::Absolute, [ref]$u) -or $u.Scheme -notin 'http', 'https' -or $u.Host -notin '127.0.0.1', 'localhost') {
+            [Console]::Error.WriteLine('Refusing -PeerUrl: only http(s) URLs on 127.0.0.1 or localhost are allowed (a dev peer listens on 127.0.0.1 only).')
             exit 1
         }
         if ($Tags -ne 'default') {

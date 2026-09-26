@@ -152,6 +152,23 @@ function Get-DemoDefaultPort([ValidateSet('clinic', 'cloud')][string]$Node) {
     throw "$file has no PORT line: the demo takes the $Node node's default port from it."
 }
 
+function Get-DemoLanAddress {
+    <# The machine's primary IPv4 address on the LAN (127.0.0.1 fallback when offline or undetected). #>
+    $udp = [System.Net.Sockets.UdpClient]::new()
+    try {
+        $udp.Connect('8.8.8.8', 80)
+        $addr = $udp.Client.LocalEndPoint.Address.IPAddressToString
+        if ($addr -and $addr -ne '0.0.0.0' -and $addr -ne '127.0.0.1') { return $addr }
+    } catch { } finally { $udp.Dispose() }
+    try {
+        $ips = @([System.Net.Dns]::GetHostAddresses([System.Net.Dns]::GetHostName()) |
+            Where-Object { $_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork -and
+                -not [System.Net.IPAddress]::IsLoopback($_) })
+        if ($ips.Count) { return $ips[0].IPAddressToString }
+    } catch { }
+    return '127.0.0.1'
+}
+
 # Checks
 
 function Assert-DemoWindows {
@@ -567,18 +584,26 @@ function Invoke-DemoSeed($Build, [string]$Dir) {
     Write-DemoLine ('seed: {0} ({1:0.0} s)' -f $state, $sw.Elapsed.TotalSeconds)
 }
 
-function Start-DemoNode($Session, $Build, [string]$Dir) {
+function Start-DemoNode($Session, $Build, [string]$Dir, [switch]$Lan) {
     <#
       Starts the build with --dev in its data folder, its console output in a new server-console.log there, and adds
       the node to the session. The port is checked once more first: something may have taken it since the checks.
+      With -Lan the server also gets --lan to bind every network interface instead of 127.0.0.1 only. The node's Url
+      is the address to open it at: 127.0.0.1, or with -Lan this machine's LAN address.
     #>
     Assert-DemoPortFree $Build.Port
     $log = Join-Path $Dir 'server-console.log'
-    Write-DemoLine "start: $($Build.Node) node, $($Build.Name).exe --dev on port $($Build.Port) (in $Dir)"
-    $child = [ZealScripts.ConsoleProcess]::Start($Build.Exe, [string[]]@('--dev'), $Dir, $null, $log, $true)
+    $serverArgs = [System.Collections.Generic.List[string]]::new()
+    $serverArgs.Add('--dev')
+    if ($Lan) { $serverArgs.Add('--lan') }
+    $hostName = if ($Lan) { Get-DemoLanAddress } else { '127.0.0.1' }
+    Write-DemoLine ("start: $($Build.Node) node, $($Build.Name).exe $($serverArgs -join ' ') on port $($Build.Port) " +
+        "(in $Dir)")
+    $child = [ZealScripts.ConsoleProcess]::Start($Build.Exe, $serverArgs.ToArray(), $Dir, $null, $log, $true)
     $node = [pscustomobject]@{
         Name = $Build.Node; Port = $Build.Port; Stamp = $Build.Stamp; Child = $child; Log = $log; Healthy = $false
         ConfigFile = $Build.ConfigFile; ConfigKeys = $Build.ConfigKeys; ConfigChecked = $Build.ConfigKeys.Count -eq 0
+        Url = "http://${hostName}:$($Build.Port)"
     }
     $Session.Nodes.Add($node)
     if (-not $child.EndsWithCaller) {

@@ -36,7 +36,7 @@ func GetServerInfo(c echo.Context) error {
 	}
 
 	port := cfg.Port
-	host := localIPv4()
+	host := listenHost(c)
 
 	return c.JSON(http.StatusOK, httpx.Response{
 		Success: true,
@@ -67,6 +67,16 @@ func splitURLHostPort(raw, fallbackPort string) (host, port string) {
 		}
 	}
 	return host, port
+}
+
+// listenHost is the host to reach this server at: the address it listens on
+// (127.0.0.1 for a dev run without --lan), or this machine's LAN address when
+// it listens on every interface or has no listener of its own.
+func listenHost(c echo.Context) string {
+	if addr, ok := c.Echo().ListenerAddr().(*net.TCPAddr); ok && !addr.IP.IsUnspecified() {
+		return addr.IP.String()
+	}
+	return localIPv4()
 }
 
 func localIPv4() string {

@@ -22,8 +22,23 @@ scripts/demo-cloud.sh            # cloud node on Linux (make demo runs it there)
 # demo sign-in: jvance (admin), tmercer (staff), lhayes and mowens (nurses); password demo123
 ```
 
-Listens on `:55555` (local) / `:8080` (cloud). The seeded `admin` user has no
-password and sets one on first sign-in.
+Dev and demo runs (`--dev`, or any build not stamped as a release) listen on
+`127.0.0.1` only. To test from another device on the LAN, pass `--lan` (`-Lan`
+on the Windows demo scripts, `LAN=1` with make):
+
+```bash
+make demo LAN=1                  # opens the demo to the LAN and prints the LAN address
+pwsh scripts/demo.ps1 -Lan       # Windows
+scripts/demo-cloud.sh --lan      # Linux
+go run ./cmd/server --dev --lan  # dev server
+```
+
+In WSL with its default NAT networking, `demo-cloud.sh --lan` prints the VM's
+own address, which other devices can't reach: they need WSL's mirrored
+networking or a port proxy on Windows.
+
+Release builds listen on every interface: `:55555` (clinic), `:8080` (cloud).
+The seeded `admin` user has no password and sets one on first sign-in.
 
 ## Build
 

@@ -78,7 +78,7 @@ param(
     [string[]]$Packages,
     # PORT for the active tag's config file. 0 keeps the committed value.
     [int]$Port = 0,
-    # PEER_URL for the clinic config (loopback only). Empty by default.
+    # PEER_URL for the clinic config (127.0.0.1 or localhost only). Empty by default.
     [string]$PeerUrl = '',
     # system: folder for the node binaries. Default: nodes/bin in the scratch area.
     [string]$BinDir,
@@ -135,8 +135,8 @@ if ($Port -ne 0 -and ($Port -lt 1024 -or $Port -gt 65535)) {
 }
 if ($PeerUrl) {
     $u = $null
-    if (-not [Uri]::TryCreate($PeerUrl, [UriKind]::Absolute, [ref]$u) -or $u.Scheme -notin 'http', 'https' -or -not $u.IsLoopback) {
-        [Console]::Error.WriteLine('Refusing -PeerUrl: only http(s) URLs on a loopback host (127.0.0.1, ::1, localhost) are allowed.')
+    if (-not [Uri]::TryCreate($PeerUrl, [UriKind]::Absolute, [ref]$u) -or $u.Scheme -notin 'http', 'https' -or $u.Host -notin '127.0.0.1', 'localhost') {
+        [Console]::Error.WriteLine('Refusing -PeerUrl: only http(s) URLs on 127.0.0.1 or localhost are allowed (a dev peer listens on 127.0.0.1 only).')
         exit 1
     }
 }

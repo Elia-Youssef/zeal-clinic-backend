@@ -152,8 +152,21 @@ var protectedRouteRegistrars = []func(*echo.Group){
 	routes.SetupSearchRoutes,
 }
 
-func Start(e *echo.Echo, cfg *config.Config) {
-	if err := e.Start(":" + cfg.Port); err != nil && err != http.ErrServerClosed {
+// ListenAddr is the address a run listens on. Release runs listen on every
+// interface: the clinic serves its LAN, the cloud sits behind its proxy. Dev
+// runs (--dev, or any build not stamped as a release) may run on the public
+// dev secrets and demo sign-ins, so they listen on 127.0.0.1 only, unless lan
+// (--lan) opens every interface to them.
+func ListenAddr(port string, release, dev, lan bool) string {
+	if (dev || !release) && !lan {
+		return "127.0.0.1:" + port
+	}
+	return ":" + port
+}
+
+// Start serves e on addr (from ListenAddr) until the server is shut down.
+func Start(e *echo.Echo, addr string) {
+	if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
 		e.Logger.Fatal(err)
 	}
 }

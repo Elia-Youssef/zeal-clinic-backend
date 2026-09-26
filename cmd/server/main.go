@@ -34,6 +34,7 @@ type appOptions struct {
 	demo       bool
 	noBrowser  bool
 	dev        bool
+	lan        bool
 	startup    bool
 	postUpdate bool
 }
@@ -138,6 +139,7 @@ func parseOptions() appOptions {
 	demo := flag.Bool("demo", false, "Seed the database with a large demo dataset (includes --seed)")
 	noBrowser := flag.Bool("no-browser", false, "Don't auto-open the browser on startup")
 	dev := flag.Bool("dev", false, "Development mode: no tray, no browser, db at ./tmp/clinic.db")
+	lan := flag.Bool("lan", false, "Open a dev run (--dev or a dev build) to the LAN: listen on every network interface, not only 127.0.0.1")
 	startup := flag.Bool("startup", false, "Windows startup launch: delay heavy services and do not open the browser")
 	postUpdate := flag.Bool("post-update", false, "Relaunch after a self-update: skip the single-instance handoff and the browser")
 	flag.Parse()
@@ -147,6 +149,7 @@ func parseOptions() appOptions {
 		demo:       *demo,
 		noBrowser:  *noBrowser,
 		dev:        *dev,
+		lan:        *lan,
 		startup:    *startup,
 		postUpdate: *postUpdate,
 	}
@@ -253,9 +256,10 @@ func runServer(cfg *config.Config, opts appOptions) {
 	}
 
 	e := server.CreateServerWithOptions(server.Options{DevCORS: opts.dev, DebugRoutes: opts.dev})
+	addr := server.ListenAddr(cfg.Port, buildmode.Release(), opts.dev, opts.lan)
 
 	if opts.dev || buildmode.Cloud {
-		go server.Start(e, cfg)
+		go server.Start(e, addr)
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
@@ -266,7 +270,7 @@ func runServer(cfg *config.Config, opts appOptions) {
 	}
 
 	go func() {
-		server.Start(e, cfg)
+		server.Start(e, addr)
 		systray.Quit()
 	}()
 
