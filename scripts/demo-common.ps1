@@ -22,8 +22,8 @@
       Ctrl+Break from the keyboard reaches them directly, one sent to the script's process group by a program
       doesn't; so after Ctrl+Break the script waits a moment and sends it only to the servers still listening on
       their port (a server that got the event closes its port first).
-    - Every seed and server process is in a job that Windows closes when the script ends, so a killed script takes
-      them with it (a hard stop).
+    - Tool calls, builds, the seed and the servers are in a job that Windows closes when the script ends, so a
+      killed script takes them with it (a hard stop); the browser is left out on purpose so it outlives the script.
     - A closing console (or log-off, shutdown) gives the servers the same event, and Windows ends the script soon
       after its handler returns; the handler waits up to 4 s for the servers to finish, while the script's own stop
       runs as after Ctrl+Break.
@@ -55,7 +55,8 @@ $DemoSeedTimeoutMin = 10
 $DemoHealthTimeoutSec = 90
 $DemoBreakGraceMs = 2000       # after Ctrl+Break: time for the servers that got it to close their port
 $DemoStopTimeoutSec = 30       # from Ctrl+Break to the server's exit
-$DemoKillWaitSec = 15          # from a hard stop to the server's exit
+$DemoChildGraceSec = 5         # from Ctrl+Break to a tool's or the seed's exit, before a hard stop
+$DemoKillWaitSec = 15          # from a hard stop to the exit of a child (a server, the seed or a tool)
 $DemoHelperTimeoutMs = 30000   # the Ctrl+Break helper for a server on another console
 
 # Native types
@@ -248,32 +249,39 @@ function Assert-DemoPrerequisites([string]$Frontend, [System.Collections.Special
 
 function Invoke-DemoCapture([string]$Exe, [string[]]$Arguments) {
     <# Runs a short command in the repository and returns its exit code and output (stdout and stderr). #>
-    $psi = [System.Diagnostics.ProcessStartInfo]::new($Exe)
-    foreach ($a in $Arguments) { $psi.ArgumentList.Add($a) }
-    $psi.WorkingDirectory = $DemoRepoRoot
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $p = [System.Diagnostics.Process]::Start($psi)
-    $out = $p.StandardOutput.ReadToEndAsync()
-    $err = $p.StandardError.ReadToEndAsync()
-    if (-not $p.WaitForExit($DemoToolTimeoutSec * 1000)) {
-        try { $p.Kill($true) } catch { }
-        throw "$(Split-Path -Leaf $Exe) $($Arguments -join ' ') didn't finish within $DemoToolTimeoutSec s"
+    $tempLog = [System.IO.Path]::GetTempFileName()
+    try {
+        $child = [ZealScripts.ConsoleProcess]::Start($Exe, $Arguments, $DemoRepoRoot, $null, $tempLog, $true)
+        try {
+            if (-not $child.WaitForExit($DemoToolTimeoutSec * 1000)) {
+                Stop-DemoChild $child $DemoChildGraceSec (Split-Path -Leaf $Exe)
+                throw "$(Split-Path -Leaf $Exe) $($Arguments -join ' ') didn't finish within $DemoToolTimeoutSec s"
+            }
+            $code = $child.ExitCode
+        } finally {
+            $child.Dispose()
+        }
+        $output = (Get-Content -Raw -LiteralPath $tempLog -ErrorAction SilentlyContinue)
+        if ($output) { $output = $output.Trim() } else { $output = '' }
+        return [pscustomobject]@{ ExitCode = $code; Output = $output }
+    } finally {
+        Remove-Item -LiteralPath $tempLog -Force -ErrorAction SilentlyContinue
     }
-    $p.WaitForExit()
-    return [pscustomobject]@{ ExitCode = $p.ExitCode; Output = ($out.Result + $err.Result).Trim() }
 }
 
 function Invoke-DemoTool([string]$Exe, [string[]]$Arguments, [string]$Cwd, [string]$What) {
     <# Runs a build tool with its output on the console. A stop request during the run wins over its exit code. #>
-    Push-Location -LiteralPath $Cwd
+    $child = [ZealScripts.ConsoleProcess]::Start($Exe, $Arguments, $Cwd, $null, $null, $true)
     try {
-        $global:LASTEXITCODE = 0
-        & $Exe @Arguments | Out-Host
-        $code = $LASTEXITCODE
+        while (-not $child.WaitForExit(200)) {
+            if (Test-DemoStopRequested) {
+                Stop-DemoChild $child $DemoChildGraceSec $What
+                break
+            }
+        }
+        $code = $child.ExitCode
     } finally {
-        Pop-Location
+        $child.Dispose()
     }
     Assert-DemoNoStopRequest
     if ($code -ne 0) { throw "$What failed (exit $code); see its output above." }
@@ -569,7 +577,7 @@ function Invoke-DemoSeed($Build, [string]$Dir) {
                 $noted = $true
             }
             if ($sw.Elapsed.TotalMinutes -ge $DemoSeedTimeoutMin) {
-                $child.Kill()
+                Stop-DemoChild $child $DemoChildGraceSec 'the seed'
                 throw ("the seed didn't finish within $DemoSeedTimeoutMin minutes; last lines of ${log}:" +
                     "`n$(Get-DemoLogTail $log)")
             }
@@ -678,13 +686,31 @@ function Wait-DemoHealth($Node) {
 
 # Stopping (see "Stopping" at the top)
 
-function Send-DemoCtrlBreak($Node) {
-    <# Ctrl+Break to the node's process group: directly on the script's console, otherwise through the helper. #>
-    $id = $Node.Child.Pid
+function Send-DemoCtrlBreak([int]$ProcessId, [string]$Who) {
+    <#
+      Ctrl+Break to the process group of $ProcessId (every child leads its own): directly on the script's console,
+      otherwise through the helper. $Who names the child in the warning when it can't be sent.
+    #>
     $native = [ZealScripts.ConsoleProcess]
-    $sent = $native::SharesConsoleWith($id) -and $native::SendCtrlBreak($id)
-    if (-not $sent) { $sent = $native::SendCtrlBreakThroughHelper($id, $DemoNativeSource, $DemoHelperTimeoutMs) }
-    if (-not $sent) { Write-DemoWarning "couldn't send Ctrl+Break to the $($Node.Name) node (pid $id)" }
+    $sent = $native::SharesConsoleWith($ProcessId) -and $native::SendCtrlBreak($ProcessId)
+    if (-not $sent) { $sent = $native::SendCtrlBreakThroughHelper($ProcessId, $DemoNativeSource, $DemoHelperTimeoutMs) }
+    if (-not $sent) { Write-DemoWarning "couldn't send Ctrl+Break to $Who (pid $ProcessId)" }
+}
+
+function Stop-DemoChild($Child, [int]$GraceSec, [string]$Who) {
+    <#
+      Stops a child process: sends Ctrl+Break to its process group so it can exit cleanly, waits up to $GraceSec,
+      and ends its whole process tree hard if it didn't exit ($GraceSec 0 goes straight to the hard stop). npm.cmd
+      runs under cmd.exe, which answers Ctrl+Break with "Terminate batch job (Y/N)?" and waits for an answer on the
+      console: a stopped npm then takes the whole grace before the hard stop.
+    #>
+    if (-not $Child -or $Child.HasExited) { return }
+    if ($GraceSec -gt 0) {
+        Send-DemoCtrlBreak $Child.Pid $Who
+        if ($Child.WaitForExit($GraceSec * 1000)) { return }
+    }
+    $Child.Kill()
+    $null = $Child.WaitForExit($DemoKillWaitSec * 1000)
 }
 
 function Wait-DemoNodeStop($Node, [switch]$Report) {
@@ -697,8 +723,7 @@ function Wait-DemoNodeStop($Node, [switch]$Report) {
     if ($hard) {
         Write-DemoWarning ("the $($Node.Name) node didn't stop within $DemoStopTimeoutSec s of Ctrl+Break; " +
             'stopping it hard (not a clean shutdown)')
-        $Node.Child.Kill()
-        $null = $Node.Child.WaitForExit($DemoKillWaitSec * 1000)
+        Stop-DemoChild $Node.Child 0 "the $($Node.Name) node"
     }
     $clean = -not $hard -and $Node.Child.ExitCode -eq 0 -and (Read-DemoLog $Node.Log).Contains('Server shutting down')
     if ($Report) {
@@ -728,7 +753,9 @@ function Stop-DemoNodes([object[]]$Nodes, [switch]$Report) {
     }
     foreach ($node in $running) {
         $gotEvent = $eventReachedNodes -and $node.Healthy -and -not (Test-DemoListening $node.Port)
-        if (-not $node.Child.HasExited -and -not $gotEvent) { Send-DemoCtrlBreak $node }
+        if (-not $node.Child.HasExited -and -not $gotEvent) {
+            Send-DemoCtrlBreak $node.Child.Pid "the $($node.Name) node"
+        }
     }
     $allClean = $true
     foreach ($node in $Nodes) {

@@ -1,7 +1,8 @@
 // Windows process helpers of the PowerShell scripts in this folder (stack.ps1 and the demo scripts), loaded with
 // Add-Type -Path:
-// - ConsoleProcess starts a program in its own process group on the caller's console, with its output in a log file,
-//   and stops it with Ctrl+Break, directly or through a short-lived helper when it runs on another console;
+// - ConsoleProcess starts a program in its own process group on the caller's console, with its output in a log file
+//   or on the console, and stops it with Ctrl+Break, directly or through a short-lived helper when it runs on another
+//   console;
 // - a started program can be tied to the caller, so that Windows ends it when the caller ends, however it ends;
 // - ConsoleEvents records Ctrl+C, Ctrl+Break and a closing console instead of letting them end the caller.
 using System;
@@ -49,8 +50,23 @@ namespace ZealScripts
             return WaitForSingleObject(handle, (uint)milliseconds) == WAIT_OBJECT_0;
         }
 
-        // A hard stop, for a program that ignored Ctrl+Break.
-        public void Kill() { TerminateProcess(handle, 1); }
+        // A hard stop, ending the process and its whole process tree. When that throws (for example because the
+        // process has just exited), the fallback ends only the process itself.
+        public void Kill()
+        {
+            if (handle == IntPtr.Zero) return;
+            try
+            {
+                using (var p = Process.GetProcessById(Pid))
+                {
+                    p.Kill(true);
+                }
+            }
+            catch
+            {
+                TerminateProcess(handle, 1);
+            }
+        }
 
         public void Dispose()
         {
@@ -139,29 +155,37 @@ namespace ZealScripts
         public const int HelperCannotAttach = 2;
         public const int HelperCannotSend = 3;
 
-        // Starts exe in a new process group on the caller's console (a hidden one when the caller has none), with
-        // stdout and stderr in logPath (created new) and stdin on NUL. Only those two handles are inherited, so a pipe
-        // the caller writes to never stays open because of the program. environment replaces the caller's
-        // environment when it isn't null. With endWithCaller the program is started suspended, put into the caller's
-        // job (see CallerJob) and then resumed, so neither it nor anything it starts outlives the caller.
+        // Starts exe in a new process group on the caller's console (a hidden one when the caller has none).
+        // When logPath is set (created new), stdout and stderr are written there, stdin is NUL, and only those
+        // two handles are inherited, so a pipe the caller writes to never stays open because of the program.
+        // When logPath is null or empty, the program inherits the caller's standard handles and inheritable handles.
+        // environment replaces the caller's environment when it isn't null. With endWithCaller the program is started
+        // suspended, put into the caller's job (see CallerJob) and then resumed, so neither it nor anything it starts
+        // outlives the caller.
         public static ChildProcess Start(string exe, string[] args, string workDir, IDictionary environment,
                                          string logPath, bool endWithCaller)
         {
             var cmd = new StringBuilder(Quote(exe));
             foreach (var a in args) cmd.Append(' ').Append(Quote(a));
 
-            var sa = new SECURITY_ATTRIBUTES();
-            sa.nLength = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
-            sa.bInheritHandle = 1;
-            IntPtr hLog = CreateFileW(logPath, GENERIC_WRITE, FILE_SHARE_ALL, ref sa, CREATE_ALWAYS,
-                                      FILE_ATTRIBUTE_NORMAL, IntPtr.Zero);
-            if (hLog == INVALID_HANDLE_VALUE) throw new Win32Exception(Marshal.GetLastWin32Error(), "open " + logPath);
-            IntPtr hNul = CreateFileW("NUL", GENERIC_READ, FILE_SHARE_ALL, ref sa, OPEN_EXISTING, 0, IntPtr.Zero);
-            if (hNul == INVALID_HANDLE_VALUE)
+            bool hasLog = !string.IsNullOrEmpty(logPath);
+            IntPtr hLog = IntPtr.Zero, hNul = IntPtr.Zero;
+            if (hasLog)
             {
-                int err = Marshal.GetLastWin32Error();
-                CloseHandle(hLog);
-                throw new Win32Exception(err, "open NUL");
+                var sa = new SECURITY_ATTRIBUTES();
+                sa.nLength = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
+                sa.bInheritHandle = 1;
+                hLog = CreateFileW(logPath, GENERIC_WRITE, FILE_SHARE_ALL, ref sa, CREATE_ALWAYS,
+                                   FILE_ATTRIBUTE_NORMAL, IntPtr.Zero);
+                if (hLog == INVALID_HANDLE_VALUE)
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "open " + logPath);
+                hNul = CreateFileW("NUL", GENERIC_READ, FILE_SHARE_ALL, ref sa, OPEN_EXISTING, 0, IntPtr.Zero);
+                if (hNul == INVALID_HANDLE_VALUE)
+                {
+                    int err = Marshal.GetLastWin32Error();
+                    CloseHandle(hLog);
+                    throw new Win32Exception(err, "open NUL");
+                }
             }
 
             IntPtr envBlock = IntPtr.Zero, attrList = IntPtr.Zero, handles = IntPtr.Zero;
@@ -177,25 +201,33 @@ namespace ZealScripts
                     flags |= CREATE_UNICODE_ENVIRONMENT;
                 }
 
+                int attrCount = hasLog ? 1 : 0;
                 IntPtr size = IntPtr.Zero;
-                InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
+                InitializeProcThreadAttributeList(IntPtr.Zero, attrCount, 0, ref size);
                 attrList = Marshal.AllocHGlobal(size);
-                if (!InitializeProcThreadAttributeList(attrList, 1, 0, ref size))
+                if (!InitializeProcThreadAttributeList(attrList, attrCount, 0, ref size))
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "InitializeProcThreadAttributeList");
                 attrInit = true;
-                handles = Marshal.AllocHGlobal(IntPtr.Size * 2);
-                Marshal.WriteIntPtr(handles, 0, hLog);
-                Marshal.WriteIntPtr(handles, IntPtr.Size, hNul);
-                if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles,
-                                               (IntPtr)(IntPtr.Size * 2), IntPtr.Zero, IntPtr.Zero))
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "UpdateProcThreadAttribute");
+
+                if (hasLog)
+                {
+                    handles = Marshal.AllocHGlobal(IntPtr.Size * 2);
+                    Marshal.WriteIntPtr(handles, 0, hLog);
+                    Marshal.WriteIntPtr(handles, IntPtr.Size, hNul);
+                    if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles,
+                                                   (IntPtr)(IntPtr.Size * 2), IntPtr.Zero, IntPtr.Zero))
+                        throw new Win32Exception(Marshal.GetLastWin32Error(), "UpdateProcThreadAttribute");
+                }
 
                 var si = new STARTUPINFOEX();
                 si.StartupInfo.cb = Marshal.SizeOf(typeof(STARTUPINFOEX));
-                si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
-                si.StartupInfo.hStdInput = hNul;
-                si.StartupInfo.hStdOutput = hLog;
-                si.StartupInfo.hStdError = hLog;
+                if (hasLog)
+                {
+                    si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+                    si.StartupInfo.hStdInput = hNul;
+                    si.StartupInfo.hStdOutput = hLog;
+                    si.StartupInfo.hStdError = hLog;
+                }
                 si.lpAttributeList = attrList;
 
                 PROCESS_INFORMATION pi;
@@ -223,8 +255,8 @@ namespace ZealScripts
                 if (attrList != IntPtr.Zero) Marshal.FreeHGlobal(attrList);
                 if (handles != IntPtr.Zero) Marshal.FreeHGlobal(handles);
                 if (envBlock != IntPtr.Zero) Marshal.FreeHGlobal(envBlock);
-                CloseHandle(hLog);
-                CloseHandle(hNul);
+                if (hLog != IntPtr.Zero) CloseHandle(hLog);
+                if (hNul != IntPtr.Zero) CloseHandle(hNul);
             }
         }
 
