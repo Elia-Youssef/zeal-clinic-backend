@@ -269,6 +269,22 @@ func TestDeleteDiscount_SuccessAndNotFound(t *testing.T) {
 	}
 }
 
+// A gift sold on an invoice is in use: the invoice line names it.
+func TestDeleteDiscount_GiftSoldOnAnInvoiceIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	buyer := createPatientAndGetID(t, e, tok, "GiftSeller")
+	giftID := createGiftViaInvoice(t, e, tok, buyer, firstSeededCurrencyID(t), "SOLD-ONCE", 25.0)
+
+	rec := doRequest(t, e, http.MethodDelete, "/api/discounts/"+giftID, nil, tok)
+	expectInUse(t, rec, "discount")
+	if n := countTableRows(t, "discounts", "id = ?", giftID); n != 1 {
+		t.Errorf("gift should remain")
+	}
+}
+
 func TestGetAllDiscounts_ListShape(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

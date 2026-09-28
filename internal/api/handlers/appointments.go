@@ -149,6 +149,10 @@ func RescheduleAppointment(c echo.Context) error {
 
 func DeleteAppointment(c echo.Context) error {
 	id := c.Param("id")
+	if store.HasDependencies(id, map[string]string{"appointments": "rescheduled_from"}) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete appointment while it's in use"})
+	}
+
 	apt := store.Appointment{ID: id}
 	if err := apt.Delete(); err != nil {
 		return storeError(c, err, "Appointment not found", "Couldn't delete appointment")

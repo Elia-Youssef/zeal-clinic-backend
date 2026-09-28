@@ -55,6 +55,9 @@ func UpdateEmployeeSalary(c echo.Context) error {
 
 func DeleteEmployeeSalary(c echo.Context) error {
 	s := store.EmployeeSalary{ID: c.Param("id")}
+	if store.HasDependencies(s.ID, map[string]string{"employee_salary_preparations": "salary_id"}) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete salary while it's in use"})
+	}
 	if err := s.Delete(); err != nil {
 		return storeError(c, err, "Salary not found", "Couldn't delete salary")
 	}

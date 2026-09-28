@@ -196,15 +196,13 @@ func (s *Supplier) Delete() error {
 	}
 	defer tx.Rollback()
 
-	res, err := tx.Exec("DELETE FROM suppliers WHERE id = ?", s.ID)
-	if err != nil {
+	if err := requireRow(tx, "suppliers", s.ID); err != nil {
 		return err
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
+	if err := releaseEntityBalances(tx, "supplier", s.ID, "supplier"); err != nil {
+		return err
 	}
-	if _, err := tx.Exec("DELETE FROM balances WHERE entity_id = ? AND entity_type = ?", s.ID, "supplier"); err != nil {
+	if _, err := tx.Exec("DELETE FROM suppliers WHERE id = ?", s.ID); err != nil {
 		return err
 	}
 	return tx.Commit()

@@ -274,15 +274,22 @@ func (p *Patient) Update(updates map[string]any) error {
 }
 
 func (p *Patient) Delete() error {
-	res, err := DB.Exec("DELETE FROM patients WHERE id = ?", p.ID)
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
+	defer tx.Rollback()
+
+	if err := requireRow(tx, "patients", p.ID); err != nil {
+		return err
 	}
-	return nil
+	if err := releaseEntityBalances(tx, "patient", p.ID, "patient"); err != nil {
+		return err
+	}
+	if _, err := tx.Exec("DELETE FROM patients WHERE id = ?", p.ID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (p *Patient) GetByPhone(phone string) error {

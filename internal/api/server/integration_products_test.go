@@ -20,6 +20,28 @@ func createProductCategory(t *testing.T, e *echo.Echo, tok, name string) string 
 	return c.ID
 }
 
+// A category that is another's parent is in use; both stay.
+func TestDeleteProductCategory_ParentIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	parent := createProductCategory(t, e, tok, "Parent Stock")
+	rec := doRequest(t, e, http.MethodPost, "/api/product-categories",
+		asJSON(t, map[string]any{"name": "Child Stock", "parentId": parent}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create child: %d %s", rec.Code, rec.Body.String())
+	}
+	var child struct{ ID string }
+	decodeEnvelope(t, rec.Body, &child)
+
+	rec = doRequest(t, e, http.MethodDelete, "/api/product-categories/"+parent, nil, tok)
+	expectInUse(t, rec, "category")
+	if n := countTableRows(t, "product_categories", "id IN (?, ?)", parent, child.ID); n != 2 {
+		t.Errorf("both categories should remain, got %d", n)
+	}
+}
+
 func TestCreateProduct_Success(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

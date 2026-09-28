@@ -18,7 +18,7 @@
         "body": {
           "last_pulled_seq": 0,
           "last_pushed_seq": 0,
-          "max_log_seq": 374,
+          "max_log_seq": 375,
           "self_id": "cloud"
         }
       }
@@ -71,7 +71,7 @@
       "response": {
         "status": 200,
         "body": {
-          "max_seq": 374,
+          "max_seq": 375,
           "rows": [
             {
               "created_at": "<ts>",

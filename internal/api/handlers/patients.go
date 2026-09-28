@@ -88,7 +88,7 @@ func UpdatePatient(c echo.Context) error {
 
 func DeletePatient(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"appointment_procedures": "patient_id", "appointments": "patient_id", "prescriptions": "patient_id"}) {
+	if store.HasDependencies(id, map[string]string{"appointment_procedures": "patient_id", "appointments": "patient_id", "prescriptions": "patient_id", "patients": "referral_id"}) {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete patient while it's in use"})
 	}
 

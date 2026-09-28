@@ -33,6 +33,28 @@ func createProcedureCategory(t *testing.T, e *echo.Echo, tok, name string) strin
 	return c.ID
 }
 
+// A category that is another's parent is in use; both stay.
+func TestDeleteProcedureCategory_ParentIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	parent := createProcedureCategory(t, e, tok, "Parent Care")
+	rec := doRequest(t, e, http.MethodPost, "/api/procedure-categories",
+		asJSON(t, map[string]any{"name": "Child Care", "parentId": parent}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create child: %d %s", rec.Code, rec.Body.String())
+	}
+	var child struct{ ID string }
+	decodeEnvelope(t, rec.Body, &child)
+
+	rec = doRequest(t, e, http.MethodDelete, "/api/procedure-categories/"+parent, nil, tok)
+	expectInUse(t, rec, "category")
+	if n := countTableRows(t, "procedure_categories", "id IN (?, ?)", parent, child.ID); n != 2 {
+		t.Errorf("both categories should remain, got %d", n)
+	}
+}
+
 func TestCreateProcedure_Success(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

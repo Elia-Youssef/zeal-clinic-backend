@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
 type Balance struct {
@@ -105,6 +106,39 @@ func (b *Balance) GetByEntityID(entityType, entityID string) error {
 		return err
 	}
 	return nil
+}
+
+// releaseEntityBalances deletes an entity's balances as part of deleting the
+// entity, or refuses with ErrConflict while one is in use: it holds an amount,
+// or a transaction or an invoice names it. A balance names its entity by type
+// and id, without a foreign key, so every delete of an entity that can own a
+// balance goes through here; what names the entity in the refusal.
+func releaseEntityBalances(tx *sql.Tx, entityType, entityID, what string) error {
+	var inUse int
+	if err := tx.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1
+			FROM balances b
+			WHERE b.entity_type = ? AND b.entity_id = ?
+			AND (
+				b.amount != 0
+				OR EXISTS (
+					SELECT 1 FROM balance_transactions bt
+					WHERE bt.from_balance_id = b.id OR bt.to_balance_id = b.id
+				)
+				OR EXISTS (
+					SELECT 1 FROM invoices i
+					WHERE i.from_balance_id = b.id OR i.to_balance_id = b.id
+				)
+			)
+		)`, entityType, entityID).Scan(&inUse); err != nil {
+		return err
+	}
+	if inUse != 0 {
+		return fmt.Errorf("%w: Can't delete %s while it's in use", ErrConflict, what)
+	}
+	_, err := tx.Exec(`DELETE FROM balances WHERE entity_type = ? AND entity_id = ?`, entityType, entityID)
+	return err
 }
 
 func (b *BalanceList) GetAll(entityType string, params ListParams) (int, error) {

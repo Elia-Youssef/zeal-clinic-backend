@@ -204,6 +204,77 @@ func TestDeletePatient_Success(t *testing.T) {
 	}
 }
 
+// A patient another names as their referrer is in use.
+func TestDeletePatient_ReferrerIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	referrer := createPatientAndGetID(t, e, tok, "Referrer")
+	referred := patientPayload("Referred", "Patient", "0700600600")
+	referred["referralId"] = referrer
+	if rec := doRequest(t, e, http.MethodPost, "/api/patients", asJSON(t, referred), tok); rec.Code != http.StatusCreated {
+		t.Fatalf("create referred patient: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec := doRequest(t, e, http.MethodDelete, "/api/patients/"+referrer, nil, tok)
+	expectInUse(t, rec, "patient")
+	if n := countTableRows(t, "patients", "id = ?", referrer); n != 1 {
+		t.Errorf("referrer should remain")
+	}
+}
+
+// A patient whose balance has money history is in use; patient and balance stay.
+func TestDeletePatient_BalanceWithHistoryIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	pid := createPatientAndGetID(t, e, tok, "Paying")
+	if rec := doRequest(t, e, http.MethodPost, "/api/client-payments",
+		asJSON(t, map[string]any{"patientId": pid, "amount": 20, "transactionMethod": "cash"}), tok); rec.Code != http.StatusCreated {
+		t.Fatalf("pay: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec := doRequest(t, e, http.MethodDelete, "/api/patients/"+pid, nil, tok)
+	expectInUse(t, rec, "patient")
+	if n := countTableRows(t, "patients", "id = ?", pid); n != 1 {
+		t.Errorf("patient should remain")
+	}
+	if n := countTableRows(t, "balances", "entity_type = 'patient' AND entity_id = ?", pid); n != 1 {
+		t.Errorf("balance should remain, got %d", n)
+	}
+}
+
+// A balance that never held money goes with its patient instead of staying
+// behind with a deleted patient's name.
+func TestDeletePatient_UnusedBalanceGoesWithThePatient(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	pid := createPatientAndGetID(t, e, tok, "Unused")
+	// A refused invoice leaves the patient's balance created but unused.
+	rec := doRequest(t, e, http.MethodPost, "/api/client-invoices", asJSON(t, map[string]any{
+		"patientId": pid,
+		"items":     []map[string]any{{"itemType": "product", "itemId": "00000000-0000-7000-8000-000000000000", "quantity": 1, "amount": 5}},
+	}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("refused invoice: %d %s", rec.Code, rec.Body.String())
+	}
+	if n := countTableRows(t, "balances", "entity_type = 'patient' AND entity_id = ?", pid); n != 1 {
+		t.Fatalf("expected the unused balance, got %d", n)
+	}
+
+	rec = doRequest(t, e, http.MethodDelete, "/api/patients/"+pid, nil, tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete: %d %s", rec.Code, rec.Body.String())
+	}
+	if n := countTableRows(t, "balances", "entity_type = 'patient' AND entity_id = ?", pid); n != 0 {
+		t.Errorf("unused balance should go with the patient, got %d", n)
+	}
+}
+
 func TestDeletePatient_NotFound(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

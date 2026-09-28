@@ -244,11 +244,11 @@
         "path": "/api/procedure-categories/<id:1>"
       },
       "response": {
-        "status": 200,
+        "status": 409,
         "body": {
           "Data": null,
-          "Error": "",
-          "Success": true
+          "Error": "Can't delete category while it's in use",
+          "Success": false
         }
       }
     },

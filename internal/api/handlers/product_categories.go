@@ -65,7 +65,7 @@ func UpdateProductCategory(c echo.Context) error {
 
 func DeleteProductCategory(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"products": "category_id"}) {
+	if store.HasDependencies(id, map[string]string{"products": "category_id", "product_categories": "parent_id"}) {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete category while it's in use"})
 	}
 

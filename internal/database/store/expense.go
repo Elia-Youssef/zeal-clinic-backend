@@ -4,7 +4,6 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -188,32 +187,7 @@ func (e *Expense) Delete() error {
 	if err := requireRow(tx, "expenses", e.ID); err != nil {
 		return err
 	}
-
-	var blocked int
-	if err := tx.QueryRow(`
-		SELECT EXISTS(
-			SELECT 1
-			FROM balances b
-			WHERE b.entity_type = 'expense' AND b.entity_id = ?
-			AND (
-				b.amount != 0
-				OR EXISTS (
-					SELECT 1 FROM balance_transactions bt
-					WHERE bt.from_balance_id = b.id OR bt.to_balance_id = b.id
-				)
-				OR EXISTS (
-					SELECT 1 FROM invoices i
-					WHERE i.from_balance_id = b.id OR i.to_balance_id = b.id
-				)
-			)
-		)`, e.ID).Scan(&blocked); err != nil {
-		return err
-	}
-	if blocked != 0 {
-		return fmt.Errorf("%w: Can't delete expense while it's in use", ErrConflict)
-	}
-
-	if _, err := tx.Exec(`DELETE FROM balances WHERE entity_type = 'expense' AND entity_id = ?`, e.ID); err != nil {
+	if err := releaseEntityBalances(tx, "expense", e.ID, "expense"); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM expenses WHERE id = ?`, e.ID); err != nil {

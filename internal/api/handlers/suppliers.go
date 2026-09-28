@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
 
@@ -73,24 +72,7 @@ func UpdateSupplier(c echo.Context) error {
 }
 
 func DeleteSupplier(c echo.Context) error {
-	id := c.Param("id")
-
-	balance := store.Balance{}
-	switch err := balance.GetByEntityID("supplier", id); {
-	case errors.Is(err, store.ErrNotFound):
-		// no balance means no dependencies
-	case err != nil:
-		log.Println("Error: [DeleteSupplier] failed to load balance:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete supplier"})
-	default:
-		hasDepFrom := store.HasDependencies(balance.ID, map[string]string{"invoices": "from_balance_id", "balance_transactions": "from_balance_id"})
-		hasDepTo := store.HasDependencies(balance.ID, map[string]string{"invoices": "to_balance_id", "balance_transactions": "to_balance_id"})
-		if hasDepFrom || hasDepTo {
-			return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete supplier while it's in use"})
-		}
-	}
-
-	s := store.Supplier{ID: id}
+	s := store.Supplier{ID: c.Param("id")}
 	if err := s.Delete(); err != nil {
 		return storeError(c, err, "Supplier not found", "Couldn't delete supplier")
 	}

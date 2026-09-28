@@ -640,7 +640,7 @@
         "status": 409,
         "body": {
           "Data": null,
-          "Error": "This discount is used by invoices and can't be deleted",
+          "Error": "Can't delete discount while it's in use",
           "Success": false
         }
       }

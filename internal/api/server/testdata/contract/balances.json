@@ -47,21 +47,9 @@
                 "totalIn": 0,
                 "totalOut": 0,
                 "updatedAt": "<ts>"
-              },
-              {
-                "amount": 0,
-                "createdAt": "<ts>",
-                "currencyId": "USD",
-                "entityId": "<id:8>",
-                "entityName": "Dan Dummy",
-                "entityType": "patient",
-                "id": "<id:7>",
-                "totalIn": 0,
-                "totalOut": 0,
-                "updatedAt": "<ts>"
               }
             ],
-            "total": 4
+            "total": 3
           },
           "Error": "",
           "Success": true
@@ -83,10 +71,10 @@
                 "amount": -1925,
                 "createdAt": "<ts>",
                 "currencyId": "USD",
-                "entityId": "<id:10>",
+                "entityId": "<id:8>",
                 "entityName": "Nora Example",
                 "entityType": "employee",
-                "id": "<id:9>",
+                "id": "<id:7>",
                 "totalIn": 600,
                 "totalOut": 0,
                 "updatedAt": "<ts>"
@@ -95,10 +83,10 @@
                 "amount": 0,
                 "createdAt": "<ts>",
                 "currencyId": "USD",
-                "entityId": "<id:12>",
+                "entityId": "<id:10>",
                 "entityName": "Otto Placeholder",
                 "entityType": "employee",
-                "id": "<id:11>",
+                "id": "<id:9>",
                 "totalIn": 0,
                 "totalOut": 0,
                 "updatedAt": "<ts>"
@@ -107,28 +95,16 @@
                 "amount": -910,
                 "createdAt": "<ts>",
                 "currencyId": "USD",
-                "entityId": "<id:14>",
+                "entityId": "<id:12>",
                 "entityName": "Sam Sample",
                 "entityType": "employee",
-                "id": "<id:13>",
+                "id": "<id:11>",
                 "totalIn": 0,
                 "totalOut": 10,
                 "updatedAt": "<ts>"
-              },
-              {
-                "amount": 0,
-                "createdAt": "<ts>",
-                "currencyId": "USD",
-                "entityId": "<id:16>",
-                "entityName": "Temp Worker",
-                "entityType": "employee",
-                "id": "<id:15>",
-                "totalIn": 0,
-                "totalOut": 0,
-                "updatedAt": "<ts>"
               }
             ],
-            "total": 4
+            "total": 3
           },
           "Error": "",
           "Success": true
@@ -181,10 +157,10 @@
                 "amount": -42,
                 "createdAt": "<ts>",
                 "currencyId": "USD",
-                "entityId": "<id:18>",
+                "entityId": "<id:14>",
                 "entityName": "Acme Test Supplies",
                 "entityType": "supplier",
-                "id": "<id:17>",
+                "id": "<id:13>",
                 "totalIn": 150,
                 "totalOut": 2,
                 "updatedAt": "<ts>"
@@ -193,10 +169,10 @@
                 "amount": 0,
                 "createdAt": "<ts>",
                 "currencyId": "USD",
-                "entityId": "<id:20>",
+                "entityId": "<id:16>",
                 "entityName": "Globex Sample Traders",
                 "entityType": "supplier",
-                "id": "<id:19>",
+                "id": "<id:15>",
                 "totalIn": 0,
                 "totalOut": 0,
                 "updatedAt": "<ts>"
@@ -224,10 +200,10 @@
                 "amount": -20,
                 "createdAt": "<ts>",
                 "currencyId": "USD",
-                "entityId": "<id:22>",
+                "entityId": "<id:18>",
                 "entityName": "Test Rent",
                 "entityType": "expense",
-                "id": "<id:21>",
+                "id": "<id:17>",
                 "totalIn": 500,
                 "totalOut": 0,
                 "updatedAt": "<ts>"
@@ -236,10 +212,10 @@
                 "amount": 5,
                 "createdAt": "<ts>",
                 "currencyId": "USD",
-                "entityId": "<id:24>",
+                "entityId": "<id:20>",
                 "entityName": "Test Utilities",
                 "entityType": "expense",
-                "id": "<id:23>",
+                "id": "<id:19>",
                 "totalIn": 5,
                 "totalOut": 0,
                 "updatedAt": "<ts>"
@@ -354,10 +330,10 @@
       }
     },
     {
-      "name": "GET /api/balances/employee/<id:10>",
+      "name": "GET /api/balances/employee/<id:8>",
       "request": {
         "method": "GET",
-        "path": "/api/balances/employee/<id:10>"
+        "path": "/api/balances/employee/<id:8>"
       },
       "response": {
         "status": 200,
@@ -366,10 +342,10 @@
             "amount": -1925,
             "createdAt": "<ts>",
             "currencyId": "USD",
-            "entityId": "<id:10>",
+            "entityId": "<id:8>",
             "entityName": "Nora Example",
             "entityType": "employee",
-            "id": "<id:9>",
+            "id": "<id:7>",
             "totalIn": 600,
             "totalOut": 0,
             "updatedAt": "<ts>"
@@ -380,10 +356,10 @@
       }
     },
     {
-      "name": "GET /api/balances/supplier/<id:18>",
+      "name": "GET /api/balances/supplier/<id:14>",
       "request": {
         "method": "GET",
-        "path": "/api/balances/supplier/<id:18>"
+        "path": "/api/balances/supplier/<id:14>"
       },
       "response": {
         "status": 200,
@@ -392,10 +368,10 @@
             "amount": -42,
             "createdAt": "<ts>",
             "currencyId": "USD",
-            "entityId": "<id:18>",
+            "entityId": "<id:14>",
             "entityName": "Acme Test Supplies",
             "entityType": "supplier",
-            "id": "<id:17>",
+            "id": "<id:13>",
             "totalIn": 150,
             "totalOut": 2,
             "updatedAt": "<ts>"
@@ -406,10 +382,10 @@
       }
     },
     {
-      "name": "GET /api/balances/expense/<id:22>",
+      "name": "GET /api/balances/expense/<id:18>",
       "request": {
         "method": "GET",
-        "path": "/api/balances/expense/<id:22>"
+        "path": "/api/balances/expense/<id:18>"
       },
       "response": {
         "status": 200,
@@ -418,10 +394,10 @@
             "amount": -20,
             "createdAt": "<ts>",
             "currencyId": "USD",
-            "entityId": "<id:22>",
+            "entityId": "<id:18>",
             "entityName": "Test Rent",
             "entityType": "expense",
-            "id": "<id:21>",
+            "id": "<id:17>",
             "totalIn": 500,
             "totalOut": 0,
             "updatedAt": "<ts>"
@@ -476,7 +452,7 @@
       "name": "nurse reads her own balance",
       "request": {
         "method": "GET",
-        "path": "/api/balances/employee/<id:10>",
+        "path": "/api/balances/employee/<id:8>",
         "as": "nurse"
       },
       "response": {
@@ -486,10 +462,10 @@
             "amount": -1925,
             "createdAt": "<ts>",
             "currencyId": "USD",
-            "entityId": "<id:10>",
+            "entityId": "<id:8>",
             "entityName": "Nora Example",
             "entityType": "employee",
-            "id": "<id:9>",
+            "id": "<id:7>",
             "totalIn": 600,
             "totalOut": 0,
             "updatedAt": "<ts>"

@@ -243,13 +243,20 @@ func (m *Employee) Update(updates map[string]any) error {
 }
 
 func (m *Employee) Delete() error {
-	res, err := DB.Exec("DELETE FROM employees WHERE id = ?", m.ID)
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
+	defer tx.Rollback()
+
+	if err := requireRow(tx, "employees", m.ID); err != nil {
+		return err
 	}
-	return nil
+	if err := releaseEntityBalances(tx, "employee", m.ID, "employee"); err != nil {
+		return err
+	}
+	if _, err := tx.Exec("DELETE FROM employees WHERE id = ?", m.ID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

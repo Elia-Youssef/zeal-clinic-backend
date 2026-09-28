@@ -234,6 +234,19 @@ func containsString(t *testing.T, body, substr string) {
 	}
 }
 
+// expectInUse asserts a delete was refused because something still refers to
+// the record: 409 with the in-use message naming what.
+func expectInUse(t *testing.T, rec *httptest.ResponseRecorder, what string) {
+	t.Helper()
+	if rec.Code != http.StatusConflict {
+		t.Errorf("code = %d want %d body=%s", rec.Code, http.StatusConflict, rec.Body.String())
+	}
+	want := "Can't delete " + what + " while it's in use"
+	if msg, _ := decodeEnvelope(t, rec.Body, nil); msg != want {
+		t.Errorf("error = %q want %q", msg, want)
+	}
+}
+
 // countTableRows reads a row count for an arbitrary WHERE.
 func countTableRows(t *testing.T, table, where string, args ...any) int {
 	t.Helper()

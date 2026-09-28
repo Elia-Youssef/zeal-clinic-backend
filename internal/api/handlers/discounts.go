@@ -122,8 +122,8 @@ func UpdateDiscount(c echo.Context) error {
 
 func DeleteDiscount(c echo.Context) error {
 	d := store.Discount{ID: c.Param("id")}
-	if store.HasDependencies(d.ID, map[string]string{"invoices": "discount_id"}) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: "This discount is used by invoices and can't be deleted"})
+	if store.HasDependencies(d.ID, map[string]string{"invoices": "discount_id", "invoice_items": "item_id"}) {
+		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete discount while it's in use"})
 	}
 	if err := d.Delete(); err != nil {
 		return storeError(c, err, "Discount not found", "Couldn't delete discount")

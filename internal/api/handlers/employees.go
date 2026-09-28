@@ -120,7 +120,7 @@ func UpdateEmployee(c echo.Context) error {
 
 func DeleteEmployee(c echo.Context) error {
 	id := c.Param("id")
-	if store.HasDependencies(id, map[string]string{"employee_salaries": "employee_id", "employee_schedules": "employee_id", "employee_schedule_changes": "employee_id", "employee_salary_preparations": "employee_id", "prescriptions": "prescribed_by_id"}) {
+	if store.HasDependencies(id, map[string]string{"employee_salaries": "employee_id", "employee_schedules": "employee_id", "employee_schedule_changes": "employee_id", "employee_salary_preparations": "employee_id", "prescriptions": "prescribed_by_id", "appointment_procedures": "assigned_to_id"}) {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete employee while it's in use"})
 	}
 

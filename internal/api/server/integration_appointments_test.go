@@ -281,6 +281,44 @@ func TestDeleteAppointment_Success(t *testing.T) {
 	}
 }
 
+// An appointment another was rescheduled from is in use; both stay.
+func TestDeleteAppointment_RescheduledFromIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	pid := createPatientAndGetID(t, e, tok, "DelResched")
+	rid := createRoom(t, e, tok, "Room DelResched", "Procedure")
+	rec := doRequest(t, e, http.MethodPost, "/api/appointments",
+		asJSON(t, map[string]any{
+			"patientId": pid, "roomId": rid,
+			"startTime": "2026-06-09T10:00:00Z", "endTime": "2026-06-09T11:00:00Z",
+		}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var old struct{ ID string }
+	decodeEnvelope(t, rec.Body, &old)
+	rec = doRequest(t, e, http.MethodPost, "/api/appointments/"+old.ID+"/reschedule",
+		asJSON(t, map[string]any{"startTime": "2026-06-10T10:00:00Z", "endTime": "2026-06-10T11:00:00Z"}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("reschedule: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var nu struct{ ID string }
+	decodeEnvelope(t, rec.Body, &nu)
+
+	rec = doRequest(t, e, http.MethodDelete, "/api/appointments/"+old.ID, nil, tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("code = %d want %d body=%s", rec.Code, http.StatusConflict, rec.Body.String())
+	}
+	if msg, _ := decodeEnvelope(t, rec.Body, nil); msg != "Can't delete appointment while it's in use" {
+		t.Errorf("error = %q", msg)
+	}
+	if n := countTableRows(t, "appointments", "id IN (?, ?)", old.ID, nu.ID); n != 2 {
+		t.Errorf("both appointments should remain, got %d", n)
+	}
+}
+
 func TestDeleteAppointment_NotFound(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

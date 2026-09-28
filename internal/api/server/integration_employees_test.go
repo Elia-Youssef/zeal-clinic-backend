@@ -241,6 +241,88 @@ func TestDeleteEmployee_SuccessAndNotFound(t *testing.T) {
 	}
 }
 
+// An employee whose balance has money history is in use.
+func TestDeleteEmployee_BalanceWithHistoryIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	empID := createEmployee(t, e, tok, "Paid", "Worker")
+	if rec := doRequest(t, e, http.MethodPost, "/api/employee-payments",
+		asJSON(t, map[string]any{"employeeId": empID, "amount": 50, "transactionMethod": "cash"}), tok); rec.Code != http.StatusCreated {
+		t.Fatalf("pay: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec := doRequest(t, e, http.MethodDelete, "/api/employees/"+empID, nil, tok)
+	expectInUse(t, rec, "employee")
+	if n := countTableRows(t, "employees", "id = ?", empID); n != 1 {
+		t.Errorf("employee should remain")
+	}
+}
+
+// A salary a preparation was made from is in use.
+func TestDeleteEmployeeSalary_PreparedIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	empID := createEmployee(t, e, tok, "Prepared", "Worker")
+	rec := doRequest(t, e, http.MethodPost, "/api/employees/"+empID+"/salaries",
+		asJSON(t, map[string]any{"amount": 700.0, "effectiveDate": "2026-01-01"}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("salary: %d %s", rec.Code, rec.Body.String())
+	}
+	var salary struct{ ID string }
+	decodeEnvelope(t, rec.Body, &salary)
+	if rec := doRequest(t, e, http.MethodPost, "/api/employee-salaries/prepare",
+		asJSON(t, map[string]any{"periodStart": "2026-04-01", "periodEnd": "2026-04-30"}), tok); rec.Code != http.StatusCreated {
+		t.Fatalf("prepare: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = doRequest(t, e, http.MethodDelete, "/api/employee-salaries/"+salary.ID, nil, tok)
+	expectInUse(t, rec, "salary")
+	if n := countTableRows(t, "employee_salaries", "id = ?", salary.ID); n != 1 {
+		t.Errorf("salary should remain")
+	}
+}
+
+// An employee assigned to an appointment's procedure is in use.
+func TestDeleteEmployee_AssignedToAProcedureIsInUse(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	empID := createEmployee(t, e, tok, "Assigned", "Worker")
+	pid := createPatientAndGetID(t, e, tok, "AssignedPatient")
+	rid := createRoom(t, e, tok, "Room Assigned", "Procedure")
+	rec := doRequest(t, e, http.MethodPost, "/api/procedures",
+		asJSON(t, map[string]any{"name": "Assigned Peel", "price": 50.0}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create procedure: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var proc struct{ ID string }
+	decodeEnvelope(t, rec.Body, &proc)
+	rec = doRequest(t, e, http.MethodPost, "/api/appointments", asJSON(t, map[string]any{
+		"patientId": pid, "roomId": rid,
+		"startTime": "2026-06-08T10:00:00Z", "endTime": "2026-06-08T11:00:00Z",
+		"appointmentProcedures": []map[string]any{{"procedureId": proc.ID, "assignedToId": empID}},
+	}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create appointment: %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec = doRequest(t, e, http.MethodDelete, "/api/employees/"+empID, nil, tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("code = %d want %d body=%s", rec.Code, http.StatusConflict, rec.Body.String())
+	}
+	if msg, _ := decodeEnvelope(t, rec.Body, nil); msg != "Can't delete employee while it's in use" {
+		t.Errorf("error = %q", msg)
+	}
+	if n := countTableRows(t, "employees", "id = ?", empID); n != 1 {
+		t.Errorf("employee should remain")
+	}
+}
+
 func TestEmployeeDropdown(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
