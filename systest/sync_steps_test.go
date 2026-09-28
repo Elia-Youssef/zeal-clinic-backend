@@ -142,7 +142,7 @@ func stepInitialSync(t *testing.T, h *harness) {
 	t.Logf("demo data on the cloud: %s", strings.Join(parts, ", "))
 
 	// With the outbox reset, the next cycle completes and opens the gate.
-	h.waitGateOpen(t, 45*time.Second)
+	h.waitGateOpen(t, streamReconnect)
 
 	// A cloud write reaches the clinic after a sync_pending event on the stream.
 	mark := h.proxy.mark()
@@ -728,7 +728,7 @@ func stepDeletes(t *testing.T, h *harness) {
 			t.Fatalf("the clinic logged no no_delete conflict for %s %s", row.Table, row.RowID)
 		}
 	}
-	h.waitGateOpen(t, 45*time.Second)
+	h.waitGateOpen(t, streamReconnect)
 }
 
 // checkLedgerRows asserts the ledger step's invoice, item and payment still exist.

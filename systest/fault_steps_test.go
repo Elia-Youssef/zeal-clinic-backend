@@ -94,8 +94,25 @@ func stepVersionMismatch(t *testing.T, h *harness) {
 		t.Fatalf("the other version received %d patients", n)
 	}
 
-	// A good cycle ends the episode: back on the right version the rows go out.
+	// A good cycle ends the episode: back on the right version the rows written
+	// meanwhile go out. The clinic ends the episode once a cycle has the answer
+	// to its ready, or to its push when the stream has no session yet (it sends
+	// no ready then). The retarget below cuts whatever is still on its way, so
+	// the step waits for a ready after the push, which comes in both cases (at
+	// the latest from the reconnected stream's first cycle), before the next
+	// row. Cycles run one at a time: that row goes out in a later cycle, so once
+	// it is on the cloud the cycle that ended the episode is over.
+	mark := h.proxy.mark()
 	h.proxy.retarget(h.cloud.addr())
+	eventually(t, streamReconnect, "the clinic's push and ready on the right version", func() (bool, string) {
+		events := h.proxy.since(mark)
+		pushes := requests(events, http.MethodPost, "/api/sync/push")
+		if len(pushes) == 0 {
+			return false, "no push yet"
+		}
+		ready := requests(after(events, pushes[0].at), http.MethodPost, "/api/sync/ready")
+		return len(ready) > 0, "no ready after the push yet"
+	})
 	h.createPatient(t, h.clinicAdmin, "Systest", "Mismatch D")
 	eventually(t, converge, "mismatch patients on the cloud", func() (bool, string) {
 		n, err := h.cloudAdmin.totalOrError("/api/patients", "Mismatch")
@@ -119,7 +136,7 @@ func stepVersionMismatch(t *testing.T, h *harness) {
 		return err == nil && n == 6, fmt.Sprint(n, err)
 	})
 	// The event stream reconnects after its backoff (at most 30 s) and reopens the gate.
-	h.waitGateOpen(t, 45*time.Second)
+	h.waitGateOpen(t, streamReconnect)
 	h.alt.stop(t)
 }
 
@@ -193,7 +210,7 @@ func stepResilience(t *testing.T, h *harness) {
 	h.cloudAdmin.waitStatus(t, "/api/balances/patient/"+p.ID, http.StatusOK)
 
 	// The stream is back: the gate opens and cloud writes reach the clinic again.
-	h.waitGateOpen(t, 45*time.Second)
+	h.waitGateOpen(t, streamReconnect)
 	h.cloudAdmin.expect(t, http.StatusCreated, http.MethodPost, "/api/allergies", map[string]any{"name": "Systest after crash"})
 	eventually(t, converge, "cloud write on the clinic after the restart", func() (bool, string) {
 		n, err := h.clinicAdmin.totalOrError("/api/allergies", "Systest after crash")

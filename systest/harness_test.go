@@ -19,8 +19,11 @@ import (
 )
 
 const (
-	converge     = 30 * time.Second
-	demoPassword = "demo123"
+	converge = 30 * time.Second
+	// streamReconnect bounds a wait on the clinic's event stream: it reconnects
+	// after at most 30 s of backoff, and the cycle it starts has to finish too.
+	streamReconnect = 45 * time.Second
+	demoPassword    = "demo123"
 )
 
 type harness struct {

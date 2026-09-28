@@ -76,7 +76,7 @@ func stepBackupDrill(t *testing.T, h *harness) {
 	h.reconnect()
 	p := h.createPatient(t, h.clinicAdmin, "Systest", "Restored")
 	h.cloudAdmin.waitStatus(t, "/api/patients/"+p.ID, http.StatusOK)
-	h.waitGateOpen(t, 45*time.Second)
+	h.waitGateOpen(t, streamReconnect)
 	h.cloudAdmin.expect(t, http.StatusCreated, http.MethodPost, "/api/allergies", map[string]any{"name": "Systest markercharlie"})
 	eventually(t, converge, "cloud write on the clinic after the restore", func() (bool, string) {
 		n, err := h.clinicAdmin.totalOrError("/api/allergies", "markercharlie")
@@ -298,7 +298,7 @@ func stepCloudRestore(t *testing.T, h *harness) {
 	h.proxy.dropAll()
 	p := h.createPatient(t, h.clinicAdmin, "Systest", "After Restore")
 	h.cloudAdmin.waitStatus(t, "/api/patients/"+p.ID, http.StatusOK)
-	h.waitGateOpen(t, 45*time.Second)
+	h.waitGateOpen(t, streamReconnect)
 	h.cloudAdmin.expect(t, http.StatusCreated, http.MethodPost, "/api/allergies", map[string]any{"name": "Systest markerdelta"})
 	eventually(t, converge, "cloud write on the clinic after the restore", func() (bool, string) {
 		n, err := h.clinicAdmin.totalOrError("/api/allergies", "markerdelta")
