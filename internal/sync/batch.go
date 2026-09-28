@@ -128,8 +128,8 @@ func pendingParents(tx *sql.Tx, prefix []LogEntry) ([]LogEntry, error) {
 			return nil, err
 		}
 		for _, ref := range refs {
-			id, _ := row[ref.Column].(string)
-			if id == "" {
+			id, ok := fkValue(row, ref.Column)
+			if !ok {
 				continue
 			}
 			if seen[ref.Parent] == nil {
@@ -168,7 +168,9 @@ func pendingParents(tx *sql.Tx, prefix []LogEntry) ([]LogEntry, error) {
 // row now, ahead of its own batch, with Seq 0 so it cannot move a cursor.
 // A pending delete never carries: the outbox holds one entry per row at its
 // latest write, so a delete entry means the parent row is gone and there is
-// no live parent to ship.
+// no live parent to ship. That holds even when an apply re-created the row
+// without logging (the guard is raised): the apply replaces the stale delete
+// entry, so a delete entry still standing says the row is gone.
 func carryIfPending(tx *sql.Tx, table, id string, after int64) (LogEntry, bool, error) {
 	var e LogEntry
 	err := tx.QueryRow(
@@ -207,7 +209,7 @@ func fetchLiveRow(tx *sql.Tx, t TableInfo, id string) (rowJSON []byte, updatedAt
 	}
 	defer rows.Close()
 	byPK, err := scanRowsByPK(rows, t.PK())
-	if err != nil || len(byPK) == 0 {
+	if err != nil {
 		return nil, "", false, err
 	}
 	row, present := byPK[id]
@@ -237,6 +239,21 @@ func rowBody(row map[string]any) ([]byte, string, error) {
 type FKRef struct {
 	Column string
 	Parent string
+}
+
+// fkValue returns the id a row's foreign-key column holds, and whether it
+// holds one. Only NULL, or a column the row doesn't carry, references
+// nothing: SQLite checks every other value against the parent, the empty
+// string included.
+func fkValue(row map[string]any, column string) (string, bool) {
+	v, present := row[column]
+	if !present || v == nil {
+		return "", false
+	}
+	if id, ok := v.(string); ok {
+		return id, true
+	}
+	return fmt.Sprint(v), true
 }
 
 // FKChild mirrors FKRef from the parent's side: one column of one synced
@@ -276,6 +293,8 @@ func childRefs(db queryer, table string) ([]FKChild, error) {
 	return children[table], nil
 }
 
+// fkViews returns the schema-derived foreign-key views, reading them from
+// the schema on first use.
 func fkViews(db queryer) (parents map[string][]FKRef, children map[string][]FKChild, err error) {
 	fkMu.Lock()
 	parents, children = fkParents, fkChildren
@@ -344,6 +363,116 @@ func tableRank(name string) int {
 		}
 	}
 	return len(SyncedTables)
+}
+
+// uniqueKey is one secondary unique index of a synced table: the columns two
+// rows can hold the same values in, and for a single-column key that can be
+// rewritten, the suffix shape a renamed value takes. An empty Suffix marks a
+// key that can't sensibly be renamed.
+type uniqueKey struct {
+	Columns []string
+	Suffix  string
+}
+
+// renamableKeys lists the single-column unique keys whose value can be
+// rewritten when both nodes create the same one, with the suffix shape that
+// fits the column's validator. Every other unique key (seed data, compound
+// business keys) can't sensibly be renamed, and a clash on it parks the
+// incoming row instead.
+var renamableKeys = map[string]map[string]string{
+	"allergies": {"name": " (%s)"},
+	"users":     {"username": "-%s"},
+	"discounts": {"code": "-%s"},
+}
+
+var (
+	uniqueMu  sync.Mutex
+	uniqueMap map[string][]uniqueKey // synced table -> its secondary unique keys
+)
+
+// uniqueKeys returns the secondary unique indexes of table: the keys another
+// row can clash an incoming row's values on.
+func uniqueKeys(db queryer, table string) ([]uniqueKey, error) {
+	uniqueMu.Lock()
+	keys := uniqueMap
+	uniqueMu.Unlock()
+	if keys == nil {
+		var err error
+		keys, err = readUniqueKeys(db)
+		if err != nil {
+			return nil, err
+		}
+		uniqueMu.Lock()
+		uniqueMap = keys
+		uniqueMu.Unlock()
+	}
+	return keys[table], nil
+}
+
+// readUniqueKeys derives the secondary unique keys from the schema. Primary
+// keys never clash an incoming row (they merge on conflict), and partial and
+// expression indexes only hold some rows, so all three stay out.
+func readUniqueKeys(db queryer) (map[string][]uniqueKey, error) {
+	out := make(map[string][]uniqueKey, len(SyncedTables))
+	for _, t := range SyncedTables {
+		idx, err := db.Query(`PRAGMA index_list(` + quoteIdent(t.Name) + `)`)
+		if err != nil {
+			return nil, fmt.Errorf("read indexes of %s: %w", t.Name, err)
+		}
+		var uniqueIndexes []string
+		for idx.Next() {
+			var seq int
+			var name, origin string
+			var unique, partial int
+			if err := idx.Scan(&seq, &name, &unique, &origin, &partial); err != nil {
+				idx.Close()
+				return nil, fmt.Errorf("scan index of %s: %w", t.Name, err)
+			}
+			if unique == 0 || origin == "pk" || partial != 0 {
+				continue
+			}
+			uniqueIndexes = append(uniqueIndexes, name)
+		}
+		if err := idx.Err(); err != nil {
+			idx.Close()
+			return nil, fmt.Errorf("read indexes of %s: %w", t.Name, err)
+		}
+		idx.Close()
+
+		for _, name := range uniqueIndexes {
+			info, err := db.Query(`PRAGMA index_info(` + quoteIdent(name) + `)`)
+			if err != nil {
+				return nil, fmt.Errorf("read columns of index %s: %w", name, err)
+			}
+			var cols []string
+			for info.Next() {
+				var seqno, cid int
+				var col sql.NullString
+				if err := info.Scan(&seqno, &cid, &col); err != nil {
+					info.Close()
+					return nil, fmt.Errorf("scan column of index %s: %w", name, err)
+				}
+				if cid < 0 || !col.Valid {
+					cols = nil // an expression index: no column values to compare
+					break
+				}
+				cols = append(cols, col.String)
+			}
+			if err := info.Err(); err != nil {
+				info.Close()
+				return nil, fmt.Errorf("read columns of index %s: %w", name, err)
+			}
+			info.Close()
+			if len(cols) > 0 {
+				key := uniqueKey{Columns: cols}
+				if len(cols) == 1 {
+					key.Suffix = renamableKeys[t.Name][cols[0]]
+				}
+				out[t.Name] = append(out[t.Name], key)
+			}
+		}
+	}
+	return out, nil
 }
 
 // enrichBatch attaches live row JSON; missing rows become deletes.

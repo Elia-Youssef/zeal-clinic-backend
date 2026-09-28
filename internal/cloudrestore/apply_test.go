@@ -2,10 +2,12 @@ package cloudrestore
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
 
 	"clinic-api/internal/database"
+	syncpkg "clinic-api/internal/sync"
 )
 
 const seededSuperAdminID = "b10829b3-19a0-4813-8e1c-df6f5990737b"
@@ -91,6 +93,31 @@ func TestApplySnapshot_InvalidDumpLeavesCloudUnchanged(t *testing.T) {
 		t.Fatal("ApplySnapshot accepted a dump with a foreign-key violation")
 	}
 	assertCount(t, target, 1, `SELECT COUNT(*) FROM rooms WHERE id = 'cloud-marker'`)
+}
+
+// The whole-database check a restore runs before its commit names the
+// offending row with the typed violation.
+func TestCheckForeignKeysNamesTheRow(t *testing.T) {
+	db := openRestoreTestDB(t, "fk-check")
+	mustExec(t, db, `PRAGMA foreign_keys = OFF`)
+	mustExec(t, db, `INSERT INTO procedure_prices (id, procedure_id, price) VALUES ('orphan-price', 'missing-procedure', 10)`)
+	mustExec(t, db, `PRAGMA foreign_keys = ON`)
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	err = syncpkg.CheckForeignKeys(tx)
+	var v syncpkg.FKViolation
+	if err == nil || !errors.As(err, &v) {
+		t.Fatalf("CheckForeignKeys error = %v, want an FKViolation", err)
+	}
+	if v != (syncpkg.FKViolation{
+		Table: "procedure_prices", RowID: "orphan-price", Parent: "procedures",
+	}) {
+		t.Errorf("violation = %+v, want orphan-price referencing procedures", v)
+	}
 }
 
 // A snapshot can list a rescheduled appointment before its original (a node

@@ -59,6 +59,22 @@ func (h *peerHub) broadcast() {
 
 func notifyPeers() { peers.broadcast() }
 
+// wakePeer sends rows an apply re-logged on their way right away: the
+// cloud's event stream tells the clinic to pull, the clinic's engine runs a
+// cycle and pushes. Without it the rows wait for the next scheduled poll.
+func wakePeer() {
+	if buildmode.Cloud {
+		notifyPeers()
+		return
+	}
+	debounce.mu.Lock()
+	eng := debounce.engine
+	debounce.mu.Unlock()
+	if eng != nil {
+		eng.Notify()
+	}
+}
+
 const writeDebounceWait = time.Second
 
 type writeDebouncer struct {

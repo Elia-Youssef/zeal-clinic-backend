@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 
 	syncpkg "clinic-api/internal/sync"
@@ -183,7 +182,7 @@ func TestBuildBatch_ReplaysOutboxAtAnyBatchSize(t *testing.T) {
 					seen[key] = struct{}{}
 				}
 				carried += len(batch.Rows) - batch.Prefix
-				if _, _, err := syncpkg.Apply(node, batch.Rows); err != nil {
+				if _, err := syncpkg.Apply(node, batch.Rows); err != nil {
 					t.Fatalf("apply batch of %d rows: %v", len(batch.Rows), err)
 				}
 				cursor = batch.LastSeq()
@@ -333,9 +332,10 @@ func TestApply_IgnoresAViolationOutsideTheBatch(t *testing.T) {
 	}
 }
 
-// An upsert whose parent is missing everywhere still fails the batch, with
-// the offending row named.
-func TestApply_OrphanFailsTheBatchAndNamesTheRow(t *testing.T) {
+// An upsert whose parent is missing everywhere is skipped with its data
+// logged, and the rest of the batch applies; the row returns with its
+// parent.
+func TestApply_OrphanIsSkippedUntilItsParentArrives(t *testing.T) {
 	peer, node := newNodePair(t)
 	since := maxSeq(t, peer)
 	setMark(t, peer, "rooms", "rooms-1", "remote", "")
@@ -346,15 +346,111 @@ func TestApply_OrphanFailsTheBatchAndNamesTheRow(t *testing.T) {
 	}
 	batch := append(outgoing(t, peer, since), orphan)
 
-	_, _, err := syncpkg.Apply(node, batch)
-	if err == nil || !strings.Contains(err.Error(), "appointments/appointments-9 references patients") {
-		t.Fatalf("Apply error = %v, want the orphaned appointments-9 named", err)
+	applied, conflicts := mustApply(t, node, batch)
+	if applied != lastSeq(batch) {
+		t.Errorf("applied seq = %d, want %d (a skipped row counts as handled)", applied, lastSeq(batch))
 	}
-	if got, _ := markOf(t, node, "rooms", "rooms-1"); got != "Fixture Room" {
-		t.Errorf("rooms-1 = %q, want the batch rolled back", got)
+	if len(conflicts) != 1 || conflicts[0].Resolution != "orphan_skipped" || conflicts[0].RowID != "appointments-9" {
+		t.Fatalf("conflicts = %+v, want one orphan_skipped for appointments-9", conflicts)
 	}
-	if g := applyGuard(t, node); g != 0 {
-		t.Errorf("apply guard = %d after a failed apply", g)
+	if jsonField(t, conflicts[0].RemoteJSON, "patient_id") != "patients-missing" {
+		t.Errorf("conflict = %+v, want the skipped row's data", conflicts[0])
+	}
+	if rowExists(t, node, "appointments", "appointments-9") {
+		t.Error("the orphan was written")
+	}
+	if got, _ := markOf(t, node, "rooms", "rooms-1"); got != "remote" {
+		t.Errorf("rooms-1 = %q, want the rest of the batch applied", got)
+	}
+
+	parent := syncpkg.LogEntry{
+		Seq: 901, Table: "patients", RowID: "patients-missing", Op: "insert", CreatedAt: fixtureTime,
+		RowJSON: json.RawMessage(`{"id":"patients-missing","first_name":"Found","last_name":"Parent",` +
+			`"date_of_birth":"1990-01-01","contact":""}`),
+	}
+	_, conflicts = mustApply(t, node, []syncpkg.LogEntry{parent, orphan})
+	if len(conflicts) != 0 {
+		t.Fatalf("conflicts = %+v, want the row to arrive with its parent", conflicts)
+	}
+	if !rowExists(t, node, "patients", "patients-missing") || !rowExists(t, node, "appointments", "appointments-9") {
+		t.Error("the skipped row did not return with its parent")
+	}
+}
+
+// A parent the batch brings but skips (its own parent is missing) is skipped
+// before the row listed ahead of it that references it, so that row is
+// skipped too and the batch applies.
+func TestApply_SkippedParentSkipsTheRowReferencingIt(t *testing.T) {
+	node := newNode(t)
+	loadFixture(t, node)
+	entries := []syncpkg.LogEntry{
+		{Seq: 900, Table: "appointments", RowID: "apt-rescheduled", Op: "insert", CreatedAt: fixtureTime,
+			RowJSON: json.RawMessage(`{"id":"apt-rescheduled","patient_id":"patients-1","room_id":"rooms-1",` +
+				`"start_time":"2026-02-01T08:00:00Z","end_time":"2026-02-01T09:00:00Z","status":"Scheduled","rescheduled_from":"apt-original"}`)},
+		{Seq: 901, Table: "appointments", RowID: "apt-original", Op: "insert", CreatedAt: fixtureTime,
+			RowJSON: json.RawMessage(`{"id":"apt-original","patient_id":"patients-missing","room_id":"rooms-1",` +
+				`"start_time":"2026-02-01T08:00:00Z","end_time":"2026-02-01T09:00:00Z","status":"Scheduled"}`)},
+	}
+
+	applied, conflicts := mustApply(t, node, entries)
+	if applied != 901 {
+		t.Errorf("applied seq = %d, want 901 (skipped rows count as handled)", applied)
+	}
+	assertResolutions(t, conflicts,
+		"appointments/apt-original orphan_skipped",
+		"appointments/apt-rescheduled orphan_skipped")
+	for _, id := range []string{"apt-original", "apt-rescheduled"} {
+		if rowExists(t, node, "appointments", id) {
+			t.Errorf("appointments/%s was written", id)
+		}
+	}
+}
+
+// While apart, the receiver deletes a room; the other node books an
+// appointment in it, reschedules it, and edits the original again, so the
+// rescheduled row is listed first. The original is skipped as an orphan and
+// the reschedule with it, so the batch applies; the receiver's delete of the
+// room then reaches the other node, which refuses it, and the room comes
+// back with both appointments.
+func TestApply_OrphanedOriginalSkipsItsReschedule(t *testing.T) {
+	peer, node := newNodePair(t)
+	execAll(t, []string{`INSERT INTO rooms (id, name, type) VALUES ('rooms-9', 'Systest Room', 'General')`}, peer, node)
+	down, up := newLink(t, peer, node), newLink(t, node, peer)
+	mustExec(t, node, `DELETE FROM rooms WHERE id = 'rooms-9'`)
+	mustExec(t, peer, `INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status)
+		VALUES ('appointments-o', 'patients-1', 'rooms-9', '2026-02-01T08:00:00Z', '2026-02-01T09:00:00Z', 'Scheduled')`)
+	mustExec(t, peer, `INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status, rescheduled_from)
+		VALUES ('appointments-n', 'patients-1', 'rooms-1', '2026-02-02T08:00:00Z', '2026-02-02T09:00:00Z', 'Scheduled', 'appointments-o')`)
+	mustExec(t, peer, `UPDATE appointments SET status = 'Rescheduled' WHERE id = 'appointments-o'`)
+
+	assertResolutions(t, down.ship(t),
+		"appointments/appointments-n orphan_skipped",
+		"appointments/appointments-o orphan_skipped")
+
+	assertResolutions(t, settle(t, up, down), "rooms/rooms-9 delete_refused")
+	assertSameRows(t, peer, node, "rooms", "rooms-9")
+	assertSameRows(t, peer, node, "appointments", "appointments-o", "appointments-n")
+}
+
+// A reference holding the empty string names a parent like any other value:
+// SQLite exempts only NULL. A row whose referenced parent is missing is
+// skipped, so the rest of the batch applies.
+func TestApply_EmptyReferenceNamesAMissingParent(t *testing.T) {
+	peer, node := newNodePair(t)
+	since := maxSeq(t, peer)
+	setMark(t, peer, "rooms", "rooms-1", "remote", "")
+	unsigned := syncpkg.LogEntry{
+		Seq: 900, Table: "prescriptions", RowID: "prescriptions-9", Op: "insert", CreatedAt: fixtureTime,
+		RowJSON: json.RawMessage(`{"id":"prescriptions-9","patient_id":"patients-1","prescribed_by_id":"",` +
+			`"start_date":"2026-02-01","end_date":""}`),
+	}
+	_, conflicts := mustApply(t, node, append(outgoing(t, peer, since), unsigned))
+	assertResolutions(t, conflicts, "prescriptions/prescriptions-9 orphan_skipped")
+	if rowExists(t, node, "prescriptions", "prescriptions-9") {
+		t.Error("the row with the empty reference was written")
+	}
+	if got, _ := markOf(t, node, "rooms", "rooms-1"); got != "remote" {
+		t.Errorf("rooms-1 = %q, want the rest of the batch applied", got)
 	}
 }
 
@@ -395,5 +491,19 @@ func TestParentRefs_MatchTheSchema(t *testing.T) {
 	}
 	if !reflect.DeepEqual(sortRefs(got), sortRefs(want)) {
 		t.Errorf("parent references =\n%v\nwant\n%v", sortRefs(got), sortRefs(want))
+	}
+
+	// Apply decides a row's parents before the row by walking SyncedTables in
+	// order, so every other table a table references must come before it.
+	rank := make(map[string]int, len(syncpkg.SyncedTables))
+	for i, ti := range syncpkg.SyncedTables {
+		rank[ti.Name] = i
+	}
+	for table, refs := range got {
+		for _, ref := range refs {
+			if ref.Parent != table && rank[ref.Parent] > rank[table] {
+				t.Errorf("%s references %s, which comes after it in SyncedTables", table, ref.Parent)
+			}
+		}
 	}
 }

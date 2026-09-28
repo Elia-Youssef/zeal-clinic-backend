@@ -3,6 +3,7 @@
 package sync_test
 
 import (
+	"database/sql"
 	"testing"
 
 	syncpkg "clinic-api/internal/sync"
@@ -126,5 +127,37 @@ func TestApplyClinic_RemoteDeletesWinOverNewerLocalEdits(t *testing.T) {
 	}
 	if rowExists(t, node, "rooms", "rooms-2") {
 		t.Error("rooms/rooms-2 survived the remote delete")
+	}
+}
+
+// A local edit newer than the batch's move of a child keeps the child where
+// it stands, under the old parent the batch deletes: the delete is refused,
+// the batch applies, and both nodes end with the clinic's row and the parent
+// it references.
+func TestApplyClinic_KeptChildKeepsItsOldParent(t *testing.T) {
+	for _, rc := range repointCases {
+		t.Run(rc.name, func(t *testing.T) {
+			peer, node := newNodePair(t)
+			execAll(t, rc.setup, peer, node)
+			down, up := newLink(t, peer, node), newLink(t, node, peer)
+			rc.moveAndDelete(t, peer, "2026-03-01T00:00:00Z")
+			setMark(t, node, rc.child, rc.childID, "node edit", "2026-03-02T00:00:00Z")
+
+			assertResolutions(t, down.ship(t),
+				rc.child+"/"+rc.childID+" local_wins",
+				rc.parent+"/"+rc.oldParent+" delete_refused")
+
+			settle(t, down, up)
+			for _, db := range []*sql.DB{peer, node} {
+				if got, _ := markOf(t, db, rc.child, rc.childID); got != "node edit" {
+					t.Errorf("%s/%s = %q, want the clinic's edit", rc.child, rc.childID, got)
+				}
+				if got := refOf(t, db, rc.child, rc.childID, rc.column); got != rc.oldParent {
+					t.Errorf("%s/%s points at %q, want the old parent it kept", rc.child, rc.childID, got)
+				}
+			}
+			assertSameRows(t, peer, node, rc.child, rc.childID)
+			assertSameRows(t, peer, node, rc.parent, rc.oldParent, rc.newParent)
+		})
 	}
 }

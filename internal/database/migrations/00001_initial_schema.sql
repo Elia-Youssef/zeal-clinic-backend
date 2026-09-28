@@ -582,13 +582,14 @@ CREATE TABLE IF NOT EXISTS discounts (
 -- ============================================================
 
 -- sync_log is the transactional outbox written by AFTER triggers on every
--- business table. Each row records the *intent* of a mutation - (table, id,
+-- synced table. Each row records the *intent* of a mutation - (table, id,
 -- op) - without capturing the row payload itself. The sync engine reads the
--- live row at push time and ships the current state, so triggers don't have
--- to be rebuilt when columns change. Every row here is locally-authored by
--- construction: the _sync_applying temp-table guard suppresses logging
--- during applies of remote changes. Origin is tagged at marshal time from
--- SERVER_ID, not stored in the row.
+-- live row when it builds a batch and ships the current state, so triggers
+-- don't have to be rebuilt when columns change. While sync.Apply replays a
+-- peer's batch it raises the _sync_applying guard so its writes aren't
+-- logged, and logs only the rows it keeps or changes on its own account (a
+-- renamed row, a refused delete's row and the rows referencing it, a row
+-- re-created over a local delete), so they go back to the peer.
 CREATE TABLE IF NOT EXISTS sync_log (
     seq        INTEGER PRIMARY KEY AUTOINCREMENT,
     table_name TEXT NOT NULL,
@@ -608,10 +609,18 @@ CREATE TABLE IF NOT EXISTS sync_state (
     updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
--- sync_conflicts logs rows where local won over a conflicting remote write,
--- so staff can review later. Cloud is authoritative for nothing - it only
--- ever writes here when it sees its own writes lose, which can't happen on
--- the local side (local always wins by design).
+-- sync_conflicts records each conflict sync.Apply resolves, one row per
+-- resolution, with the local and the incoming row where each exists:
+-- local_wins (the clinic kept its newer copy of a row), no_delete (a delete
+-- in a table whose rows are never deleted), delete_refused (local rows
+-- still reference the row; it and they go back to the peer),
+-- delete_overtaken (a row deleted here came back while the delete was still
+-- in the outbox; the row stays and goes back out), orphan_skipped (the
+-- parent is missing here; skipped until it returns), unique_renamed (two
+-- rows with one unique value; the greater id took a suffix from its id) and
+-- unique_parked (the same on a key that can't be renamed, or with every
+-- suffix taken; the incoming row is set aside). Both builds write it; a
+-- cloud restore clears it.
 CREATE TABLE IF NOT EXISTS sync_conflicts (
     id           TEXT PRIMARY KEY,
     table_name   TEXT NOT NULL,

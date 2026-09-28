@@ -49,12 +49,12 @@ func (e *Engine) pull(ctx context.Context) error {
 			return nil
 		}
 
-		_, conflicts, err := Apply(e.db, pr.Rows)
+		res, err := Apply(e.db, pr.Rows)
 		if err != nil {
 			return fmt.Errorf("apply pull batch: %w", err)
 		}
 
-		if len(pr.Rows) > len(conflicts) {
+		if res.Written > 0 {
 			realtime.Broadcast(realtime.Event{Type: "data_changed"})
 		}
 

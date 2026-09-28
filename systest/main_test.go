@@ -77,6 +77,7 @@ func TestSystem(t *testing.T) {
 		{"gate_closed_before_first_connect", stepGateClosedBeforeConnect},
 		{"demo_push", stepDemoPush},
 		{"initial_sync", stepInitialSync},
+		{"conflicts", stepConflicts},
 		{"write_gate", stepWriteGate},
 		{"newer_wins", stepNewerWins},
 		{"no_updated_at", stepNoUpdatedAt},

@@ -138,14 +138,14 @@ func (a *API) handlePush(c echo.Context) error {
 		return c.JSON(http.StatusOK, PushResponse{})
 	}
 
-	applied, conflicts, err := Apply(db, req.Rows)
+	res, err := Apply(db, req.Rows)
 	if err != nil {
 		return a.inboundSyncFailure(c, fmt.Errorf("[sync] apply push batch (%d rows): %w", len(req.Rows), err))
 	}
-	if len(req.Rows) > len(conflicts) {
+	if res.Written > 0 {
 		realtime.Broadcast(realtime.Event{Type: "data_changed"})
 	}
-	return c.JSON(http.StatusOK, PushResponse{AppliedSeq: applied, Conflicts: conflicts})
+	return c.JSON(http.StatusOK, PushResponse{AppliedSeq: res.MaxSeq, Conflicts: res.Conflicts})
 }
 
 func (a *API) handleReady(c echo.Context) error {

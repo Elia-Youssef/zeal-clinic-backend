@@ -290,11 +290,11 @@ func outgoing(t *testing.T, db *sql.DB, after int64) []syncpkg.LogEntry {
 
 func mustApply(t *testing.T, db *sql.DB, batch []syncpkg.LogEntry) (int64, []syncpkg.ConflictEntry) {
 	t.Helper()
-	applied, conflicts, err := syncpkg.Apply(db, batch)
+	res, err := syncpkg.Apply(db, batch)
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	return applied, conflicts
+	return res.MaxSeq, res.Conflicts
 }
 
 func lastSeq(batch []syncpkg.LogEntry) int64 {

@@ -176,6 +176,39 @@ func TestApply_InvalidatesCachesOfAppliedTablesOnly(t *testing.T) {
 	}
 }
 
+// Apply counts the rows it wrote or removed, renamed and re-created rows
+// included; a row it kept, skipped or refused is only a conflict.
+func TestApply_CountsTheRowsItWrote(t *testing.T) {
+	peer, node := newNodePair(t)
+	mustExec(t, node, `INSERT INTO allergies (id, name) VALUES ('allergies-node', 'Shared Allergy')`)
+	mustExec(t, node, `INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status) VALUES ('appointments-node', 'patients-2', 'rooms-1', '2026-01-10T08:00:00Z', '2026-01-10T09:00:00Z', 'Scheduled')`)
+	mustExec(t, node, `DELETE FROM rooms WHERE id = 'rooms-2'`)
+	since := maxSeq(t, peer)
+	setMark(t, peer, "rooms", "rooms-1", "remote", "")
+	setMark(t, peer, "rooms", "rooms-2", "peer edit", "")
+	mustExec(t, peer, `INSERT INTO allergies (id, name) VALUES ('allergies-peer', 'Shared Allergy')`)
+	mustExec(t, peer, `DELETE FROM expenses WHERE id = 'expenses-2'`)
+	mustExec(t, peer, `DELETE FROM patients WHERE id = 'patients-2'`)
+	orphan := syncpkg.LogEntry{
+		Seq: 900, Table: "appointments", RowID: "appointments-9", Op: "insert", CreatedAt: fixtureTime,
+		RowJSON: json.RawMessage(`{"id":"appointments-9","patient_id":"patients-missing","room_id":"rooms-1",` +
+			`"start_time":"2026-02-01T08:00:00Z","end_time":"2026-02-01T09:00:00Z","status":"Scheduled"}`),
+	}
+
+	res, err := syncpkg.Apply(node, append(outgoing(t, peer, since), orphan))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertResolutions(t, res.Conflicts,
+		"allergies/allergies-peer unique_renamed",
+		"appointments/appointments-9 orphan_skipped",
+		"patients/patients-2 delete_refused",
+		"rooms/rooms-2 delete_overtaken")
+	if res.Written != 4 {
+		t.Errorf("written = %d, want 4: the edited room, the re-created room, the renamed allergy and the removed expense", res.Written)
+	}
+}
+
 // One bad row fails the whole batch: nothing is written and the guard is
 // lowered by the rollback.
 func TestApply_BadRowRollsBackTheBatch(t *testing.T) {
@@ -196,12 +229,12 @@ func TestApply_BadRowRollsBackTheBatch(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			batch := append(append([]syncpkg.LogEntry{}, good...), tc.entry)
-			applied, conflicts, err := syncpkg.Apply(node, batch)
+			res, err := syncpkg.Apply(node, batch)
 			if err == nil || !strings.Contains(err.Error(), tc.err) {
 				t.Fatalf("Apply error = %v, want it to contain %q", err, tc.err)
 			}
-			if applied != 0 || conflicts != nil {
-				t.Errorf("failed apply returned seq %d and %d conflicts", applied, len(conflicts))
+			if res.MaxSeq != 0 || res.Written != 0 || res.Conflicts != nil {
+				t.Errorf("failed apply returned %+v", res)
 			}
 			if rowExists(t, node, "rooms", "rooms-9") {
 				t.Error("the valid row of the failed batch was kept")
@@ -213,37 +246,80 @@ func TestApply_BadRowRollsBackTheBatch(t *testing.T) {
 	}
 }
 
-// A row that collides with a different local row on a secondary unique key
-// (here the allergy name) fails the whole batch, on both builds.
-func TestApply_SecondaryUniqueKeyCollisionFailsTheBatch(t *testing.T) {
+// A row that holds a unique value a different local row already has is
+// renamed instead of failing the batch: the row with the greater id takes a
+// suffix from its own id, the conflict is logged with both rows, and the
+// renamed row goes back out.
+func TestApply_SecondaryUniqueClashRenamesTheGreaterRow(t *testing.T) {
 	peer, node := newNodePair(t)
 	mustExec(t, node, `INSERT INTO allergies (id, name) VALUES ('allergies-node', 'Shared Allergy')`)
 	since := maxSeq(t, peer)
 	setMark(t, peer, "rooms", "rooms-1", "remote", "")
 	mustExec(t, peer, `INSERT INTO allergies (id, name) VALUES ('allergies-peer', 'Shared Allergy')`)
 
-	_, _, err := syncpkg.Apply(node, outgoing(t, peer, since))
-	if err == nil || !strings.Contains(err.Error(), "apply allergies/allergies-peer") || !strings.Contains(err.Error(), "UNIQUE") {
-		t.Fatalf("Apply error = %v, want a unique constraint failure on allergies-peer", err)
+	// 'allergies-peer' has the greater id: the incoming row is renamed.
+	batch := outgoing(t, peer, since)
+	applied, conflicts := mustApply(t, node, batch)
+	if applied != lastSeq(batch) {
+		t.Errorf("applied seq = %d, want %d (a renamed row counts as applied)", applied, lastSeq(batch))
 	}
-	if got, _ := markOf(t, node, "rooms", "rooms-1"); got != "Fixture Room" {
-		t.Errorf("rooms-1 = %q, want the batch rolled back", got)
+	if len(conflicts) != 1 || conflicts[0].Resolution != "unique_renamed" || conflicts[0].RowID != "allergies-peer" {
+		t.Fatalf("conflicts = %+v, want one unique_renamed for allergies-peer", conflicts)
+	}
+	if jsonField(t, conflicts[0].LocalJSON, "name") != "Shared Allergy" || jsonField(t, conflicts[0].RemoteJSON, "name") != "Shared Allergy" {
+		t.Errorf("conflict = %+v, want both rows' bodies", conflicts[0])
+	}
+	if got, _ := markOf(t, node, "rooms", "rooms-1"); got != "remote" {
+		t.Errorf("rooms-1 = %q, want the rest of the batch applied", got)
+	}
+	if got := nameOf(t, node, "allergies", "allergies-node"); got != "Shared Allergy" {
+		t.Errorf("allergies-node = %q, want the row that kept its name", got)
+	}
+	if got := nameOf(t, node, "allergies", "allergies-peer"); got != "Shared Allergy (aeeee)" {
+		t.Errorf("allergies-peer = %q, want the suffixed name", got)
+	}
+	if n := count(t, node, `SELECT COUNT(*) FROM sync_log WHERE table_name = 'allergies' AND row_id = 'allergies-peer' AND op = 'update'`); n != 1 {
+		t.Errorf("renamed rows in the outbox = %d, want the renamed row re-logged", n)
+	}
+
+	// The mirror: a local row with the greater id takes the suffix instead
+	// and is re-logged where it stands.
+	peer, node = newNodePair(t)
+	mustExec(t, node, `INSERT INTO allergies (id, name) VALUES ('allergies-zzz', 'Shared Allergy')`)
+	since = maxSeq(t, peer)
+	mustExec(t, peer, `INSERT INTO allergies (id, name) VALUES ('allergies-aaa', 'Shared Allergy')`)
+
+	_, conflicts = mustApply(t, node, outgoing(t, peer, since))
+	if len(conflicts) != 1 || conflicts[0].Resolution != "unique_renamed" || conflicts[0].RowID != "allergies-zzz" {
+		t.Fatalf("conflicts = %+v, want one unique_renamed for allergies-zzz", conflicts)
+	}
+	if got := nameOf(t, node, "allergies", "allergies-aaa"); got != "Shared Allergy" {
+		t.Errorf("allergies-aaa = %q, want the incoming row as it arrived", got)
+	}
+	if got := nameOf(t, node, "allergies", "allergies-zzz"); got != "Shared Allergy (aee)" {
+		t.Errorf("allergies-zzz = %q, want the suffixed name", got)
+	}
+	if n := count(t, node, `SELECT COUNT(*) FROM sync_log WHERE table_name = 'allergies' AND row_id = 'allergies-zzz' AND op = 'update'`); n != 1 {
+		t.Errorf("renamed rows in the outbox = %d, want the renamed row re-logged", n)
 	}
 }
 
-// A remote delete of a row that still has local children fails the whole
-// batch: the delete itself is deferred with the rest of the batch's foreign
-// keys, and the final check names the child the delete would orphan.
-func TestApply_DeleteOfParentWithLocalChildrenFailsTheBatch(t *testing.T) {
+// A remote delete of a row that still has local children is refused: the
+// row stays, it and the rows referencing it go back out, and the rest of the
+// batch applies.
+func TestApply_DeleteOfParentWithLocalChildrenIsRefused(t *testing.T) {
 	peer, node := newNodePair(t)
 	mustExec(t, node, `INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status) VALUES ('appointments-node', 'patients-2', 'rooms-1', '2026-01-10T08:00:00Z', '2026-01-10T09:00:00Z', 'Scheduled')`)
 	since := maxSeq(t, peer)
 	setMark(t, peer, "rooms", "rooms-1", "remote", "")
 	mustExec(t, peer, `DELETE FROM patients WHERE id = 'patients-2'`)
 
-	_, _, err := syncpkg.Apply(node, outgoing(t, peer, since))
-	if err == nil || !strings.Contains(err.Error(), "appointments/appointments-node references patients") {
-		t.Fatalf("Apply error = %v, want the orphaned appointments-node named", err)
+	_, conflicts := mustApply(t, node, outgoing(t, peer, since))
+	if len(conflicts) != 1 || conflicts[0].Resolution != "delete_refused" || conflicts[0].RowID != "patients-2" {
+		t.Fatalf("conflicts = %+v, want one delete_refused for patients-2", conflicts)
+	}
+	if jsonField(t, conflicts[0].LocalJSON, "id") != "patients-2" || conflicts[0].RemoteJSON != "" {
+		t.Errorf("conflict = %+v, want the kept parent's body and no remote row", conflicts[0])
 	}
 	if !rowExists(t, node, "patients", "patients-2") {
 		t.Error("patients-2 was deleted")
@@ -251,8 +327,13 @@ func TestApply_DeleteOfParentWithLocalChildrenFailsTheBatch(t *testing.T) {
 	if !rowExists(t, node, "appointments", "appointments-node") {
 		t.Error("appointments-node was lost")
 	}
-	if got, _ := markOf(t, node, "rooms", "rooms-1"); got != "Fixture Room" {
-		t.Errorf("rooms-1 = %q, want the batch rolled back", got)
+	if got, _ := markOf(t, node, "rooms", "rooms-1"); got != "remote" {
+		t.Errorf("rooms-1 = %q, want the rest of the batch applied", got)
+	}
+	if n := count(t, node, `SELECT COUNT(*) FROM sync_log WHERE op = 'update'
+		AND ((table_name = 'patients' AND row_id = 'patients-2')
+			OR (table_name = 'appointments' AND row_id = 'appointments-node'))`); n != 2 {
+		t.Errorf("re-logged rows in the outbox = %d, want the parent and its child", n)
 	}
 }
 
@@ -279,9 +360,9 @@ func TestApply_SkipsUnknownTablesAndEmptyBatches(t *testing.T) {
 		t.Errorf("a row for an unsynced table was written")
 	}
 
-	applied, conflicts, err := syncpkg.Apply(node, nil)
-	if applied != 0 || conflicts != nil || err != nil {
-		t.Errorf("Apply(empty) = %d, %v, %v", applied, conflicts, err)
+	res, err := syncpkg.Apply(node, nil)
+	if res.MaxSeq != 0 || res.Written != 0 || res.Conflicts != nil || err != nil {
+		t.Errorf("Apply(empty) = %+v, %v", res, err)
 	}
 }
 

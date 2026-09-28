@@ -180,6 +180,62 @@ func stepInitialSync(t *testing.T, h *harness) {
 	}
 }
 
+// stepConflicts: two nodes that create the same unique value while apart
+// both end up with both rows, the greater id carrying the same deterministic
+// suffix on both; nothing stalls and no failure notice appears.
+func stepConflicts(t *testing.T, h *harness) {
+	name := "Systest Same"
+	h.whileApart(t, func() {
+		h.clinicAdmin.expect(t, http.StatusCreated, http.MethodPost, "/api/allergies", map[string]any{"name": name})
+		h.cloudAdmin.expect(t, http.StatusCreated, http.MethodPost, "/api/allergies", map[string]any{"name": name})
+	})
+	h.waitGateOpen(t, 45*time.Second)
+
+	suffixed := ""
+	for _, s := range []*session{h.clinicAdmin, h.cloudAdmin} {
+		var rows []allergyRow
+		eventually(t, converge, "both clash rows on "+s.n.name, func() (bool, string) {
+			rows = s.allergyRows(t, name)
+			return len(rows) == 2, fmt.Sprint(len(rows))
+		})
+		plain, renamed := 0, ""
+		for _, row := range rows {
+			switch {
+			case row.Name == name:
+				plain++
+			case strings.HasPrefix(row.Name, name+" ("):
+				renamed = row.ID
+			}
+		}
+		if plain != 1 || renamed == "" {
+			t.Fatalf("allergies on %s = %+v, want one plain and one suffixed row", s.n.name, rows)
+		}
+		if suffixed == "" {
+			suffixed = renamed
+		} else if suffixed != renamed {
+			t.Fatalf("the suffixed row is %s on one node and %s on the other", suffixed, renamed)
+		}
+	}
+	if n := len(unreadSyncFailures(h.clinicAdmin.notifications(t))); n != 0 {
+		t.Fatalf("%d unread data sync failure notices on the clinic", n)
+	}
+}
+
+type allergyRow struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (s *session) allergyRows(t *testing.T, filter string) []allergyRow {
+	t.Helper()
+	r := s.expect(t, http.StatusOK, http.MethodGet, "/api/allergies?limit=10&filter="+urlEscape(filter), nil)
+	var d struct {
+		Items []allergyRow `json:"items"`
+	}
+	r.into(t, &d)
+	return d.Items
+}
+
 func stepWriteGate(t *testing.T, h *harness) {
 	// Open: a financial write passes; a nurse gets the scope error.
 	p := h.createPatient(t, h.clinicAdmin, "Systest", "Gate")
@@ -646,6 +702,39 @@ func stepDeletes(t *testing.T, h *harness) {
 	h.reconnect()
 	h.clinicAdmin.waitStatus(t, "/api/patients/"+q.ID, http.StatusNotFound)
 	h.cloudAdmin.waitStatus(t, "/api/patients/"+q.ID, http.StatusNotFound)
+
+	// A cloud delete of a patient the clinic booked for while apart is
+	// refused: both nodes end up holding the patient and the appointment.
+	k := h.createPatient(t, h.clinicAdmin, "Systest", "Kept")
+	h.cloudAdmin.waitStatus(t, "/api/patients/"+k.ID, http.StatusOK)
+	roomsReply := h.clinicAdmin.expect(t, http.StatusOK, http.MethodGet, "/api/rooms?limit=1&filter=", nil)
+	var rooms struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	roomsReply.into(t, &rooms)
+	if len(rooms.Items) == 0 {
+		t.Fatal("no room to book the appointment in")
+	}
+	h.whileApart(t, func() {
+		h.cloudAdmin.expect(t, http.StatusOK, http.MethodDelete, "/api/patients/"+k.ID, nil)
+		h.clinicAdmin.expect(t, http.StatusCreated, http.MethodPost, "/api/appointments", map[string]any{
+			"patientId": k.ID, "roomId": rooms.Items[0].ID, "notes": "kept appointment",
+			"startTime": "2027-03-02T09:00:00Z", "endTime": "2027-03-02T10:00:00Z",
+		})
+	})
+	h.waitGateOpen(t, 45*time.Second)
+	for _, s := range []*session{h.clinicAdmin, h.cloudAdmin} {
+		s.waitStatus(t, "/api/patients/"+k.ID, http.StatusOK)
+		eventually(t, converge, "the kept appointment on "+s.n.name, func() (bool, string) {
+			n, err := s.totalOrError("/api/appointments?date=2027-03-02", "kept appointment")
+			return err == nil && n == 1, fmt.Sprint(n, err)
+		})
+	}
+	if n := len(unreadSyncFailures(h.clinicAdmin.notifications(t))); n != 0 {
+		t.Fatalf("%d unread data sync failure notices on the clinic", n)
+	}
 
 	// Deletes of an expense (with its balance) and of a discount replicate.
 	r := h.clinicAdmin.expect(t, http.StatusCreated, http.MethodPost, "/api/expenses", map[string]any{"name": "Systest expense"})

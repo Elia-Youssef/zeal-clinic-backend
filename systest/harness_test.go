@@ -113,6 +113,24 @@ func (h *harness) disconnect() { h.proxy.setMode(modeRefuse) }
 
 func (h *harness) reconnect() { h.proxy.setMode(modeForward) }
 
+// whileApart runs writes with the clinic cut off from its peer, then
+// reconnects. The clinic's notices are read before the cut, and the failure
+// notice of the offline episode (raised by the first cycle the clinic's
+// writes start) is awaited and read before the reconnect, so any failure
+// after the reconnect shows up as a new unread notice.
+func (h *harness) whileApart(t *testing.T, writes func()) {
+	t.Helper()
+	h.clinicAdmin.expect(t, http.StatusOK, http.MethodPut, "/api/notifications/read-all", nil)
+	h.disconnect()
+	writes()
+	eventually(t, converge, "the offline episode's failure notice on the clinic", func() (bool, string) {
+		n := len(unreadSyncFailures(h.clinicAdmin.notifications(t)))
+		return n == 1, fmt.Sprint(n)
+	})
+	h.clinicAdmin.expect(t, http.StatusOK, http.MethodPut, "/api/notifications/read-all", nil)
+	h.reconnect()
+}
+
 func randomText(n int) string {
 	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
 	b := make([]byte, n)

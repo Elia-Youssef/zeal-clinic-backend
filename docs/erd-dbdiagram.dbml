@@ -560,7 +560,7 @@ Table sync_conflicts {
   row_id string
   local_json string
   remote_json string
-  resolution string [note: 'local_wins | no_delete']
+  resolution string [note: 'local_wins | no_delete | delete_refused (local rows still reference it; sent back) | delete_overtaken (re-created before the local delete left) | orphan_skipped (parent missing here) | unique_renamed | unique_parked']
   created_at datetime
 
   indexes {
