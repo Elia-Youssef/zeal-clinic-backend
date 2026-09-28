@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"clinic-api/internal/database"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/pdf"
+	"clinic-api/internal/realtime"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/vfs/adiantum"
@@ -270,6 +272,43 @@ func TestCheckLowStock_OneNoticePerProduct(t *testing.T) {
 	check("low")
 	if n := notices("low"); n != len(active) {
 		t.Errorf("notices after a new drop = %d, want %d", n, len(active))
+	}
+}
+
+// Clearing a recovered product's notices tells each account that lost one,
+// once, that its notifications changed; accounts that held none hear nothing,
+// and a product still low sends nothing either.
+func TestCheckLowStock_ClearTellsTheAccountsThatLostANotice(t *testing.T) {
+	db, _ := setupMonitorDB(t)
+	active := addUsers(t, db)
+	mustExec(t, db, `INSERT INTO products (id, name, quantity, min_threshold) VALUES ('low', 'Low Serum', 2, 5), ('still-low', 'Still Low Gel', 1, 5)`)
+	CheckLowStock([]string{"low", "still-low"})
+	WaitAsync()
+	// Activated after the notices went out, so it holds none of them.
+	mustExec(t, db, `INSERT INTO users (id, username, display_name, role, is_active) VALUES ('user-late', 'user-late', 'Late User', 'staff', 1)`)
+
+	clients := map[string]*realtime.Client{}
+	for _, uid := range append(slices.Clone(active), "user-off", "user-late") {
+		c := realtime.Register(uid)
+		t.Cleanup(c.Close)
+		clients[uid] = c
+	}
+	mustExec(t, db, `UPDATE products SET quantity = 20 WHERE id = 'low'`)
+	CheckLowStock([]string{"low", "still-low"})
+	WaitAsync()
+
+	for uid, c := range clients {
+		var got []string
+		for len(c.Events()) > 0 {
+			got = append(got, (<-c.Events()).Type)
+		}
+		var want []string
+		if slices.Contains(active, uid) {
+			want = []string{realtime.NotificationsChanged}
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("events to %s = %v, want %v", uid, got, want)
+		}
 	}
 }
 

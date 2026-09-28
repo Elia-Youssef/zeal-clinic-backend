@@ -148,6 +148,25 @@ func (n *Notification) Delete() error {
 	return nil
 }
 
+// DeleteNotificationsByAction deletes every notification carrying action and
+// returns the user each deleted row belonged to, one entry per row.
+func DeleteNotificationsByAction(action string) ([]string, error) {
+	rows, err := DB.Query(`DELETE FROM notifications WHERE action = ? RETURNING user_id`, action)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var userIDs []string
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+	return userIDs, rows.Err()
+}
+
 func GetUserIDForNotification(id string) (string, error) {
 	var userID string
 	err := RDB.QueryRow("SELECT user_id FROM notifications WHERE id = ?", id).Scan(&userID)

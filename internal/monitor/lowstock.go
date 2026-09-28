@@ -15,10 +15,10 @@ var lowStockWG sync.WaitGroup
 // keeps low-stock notifications in sync: products at or below threshold get a
 // notification per active user (idempotent via action `low-stock:<productId>`);
 // products that recovered above threshold have their prior notifications
-// cleared so a subsequent drop re-alerts. Call after any operation that may
-// have changed a product's quantity or threshold (invoice create/delete,
-// product create/update). Runs asynchronously so the calling request returns
-// at its usual speed.
+// cleared (clearNotices) so a subsequent drop re-alerts. Call after any
+// operation that may have changed a product's quantity or threshold (invoice
+// create/delete, product create/update). Runs asynchronously so the calling
+// request returns at its usual speed.
 func CheckLowStock(productIDs []string) {
 	if len(productIDs) == 0 {
 		return
@@ -85,12 +85,7 @@ func runLowStockCheck(ids []string) {
 		action := "low-stock:" + pid
 
 		if quantity > threshold {
-			res, err := store.DB.Exec(`DELETE FROM notifications WHERE action = ?`, action)
-			if err == nil {
-				if n, _ := res.RowsAffected(); n > 0 {
-					cleared += int(n)
-				}
-			}
+			cleared += clearNotices(action)
 			continue
 		}
 
@@ -120,4 +115,23 @@ func runLowStockCheck(ids []string) {
 	if cleared > 0 {
 		log.Printf("low-stock: cleared %d notification(s)", cleared)
 	}
+}
+
+// clearNotices deletes the notices carrying action and sends each user who
+// lost one a NotificationsChanged event, since no other event tells their open
+// tabs that a notice is gone. It returns how many notices it deleted.
+func clearNotices(action string) int {
+	userIDs, err := store.DeleteNotificationsByAction(action)
+	if err != nil {
+		log.Printf("low-stock: clear %s: %v", action, err)
+		return 0
+	}
+	told := make(map[string]bool, len(userIDs))
+	for _, uid := range userIDs {
+		if !told[uid] {
+			told[uid] = true
+			realtime.SendTo(uid, realtime.Event{Type: realtime.NotificationsChanged})
+		}
+	}
+	return len(userIDs)
 }

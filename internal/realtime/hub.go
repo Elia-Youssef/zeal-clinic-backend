@@ -11,6 +11,11 @@ type Event struct {
 	Data any    `json:"data,omitempty"`
 }
 
+// NotificationsChanged tells a user's open tabs that their notifications
+// changed in a way no "notification" event carries (some were deleted for
+// them), so the tabs load their unread count and list again.
+const NotificationsChanged = "notifications_changed"
+
 type Client struct {
 	userID  string
 	ch      chan Event
