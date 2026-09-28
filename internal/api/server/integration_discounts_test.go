@@ -421,6 +421,27 @@ func TestRedeemGiftCard_NotFound(t *testing.T) {
 	}
 }
 
+// An unknown recipient refuses the redemption without reading as an unknown
+// gift card, and the card stays unused.
+func TestRedeemGiftCard_UnknownPatient(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	curID := firstSeededCurrencyID(t)
+	buyer := createPatientAndGetID(t, e, tok, "Buyer3")
+	giftID := createGiftViaInvoice(t, e, tok, buyer, curID, "NOBODY-HOME", 20.0)
+
+	rec := doRequest(t, e, http.MethodPost, "/api/gift-cards/redeem",
+		asJSON(t, map[string]any{"code": "NOBODY-HOME", "patientId": "00000000-0000-7000-8000-000000000000"}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if n := countTableRows(t, "discounts", "id = ? AND redeemed_at IS NOT NULL AND redeemed_at != ''", giftID); n != 0 {
+		t.Errorf("gift should not be marked redeemed")
+	}
+}
+
 func TestRedeemGiftCard_AlreadyRedeemed(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

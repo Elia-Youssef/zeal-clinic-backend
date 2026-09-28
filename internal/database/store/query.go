@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -134,6 +135,31 @@ func NameExists(table, name, excludeID string) bool {
 		return true
 	}
 	return count > 0
+}
+
+// requireRow returns ErrNotFound unless table holds a row with id. A write
+// whose statements would otherwise touch no row for an unknown id, or fail on
+// a foreign key, calls it first so the missing record answers as not found.
+func requireRow(q DBTX, table, id string) error {
+	var exists int
+	if err := q.QueryRow(fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE id = ?)", table), id).Scan(&exists); err != nil {
+		return err
+	}
+	if exists == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// requireReference is requireRow for a record the request names in its body
+// rather than addresses in its path: a missing one is a fault of the input,
+// so it answers ErrValidation "<name> not found" instead of not found.
+func requireReference(q DBTX, table, name, id string) error {
+	err := requireRow(q, table, id)
+	if errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("%w: %s not found", ErrValidation, name)
+	}
+	return err
 }
 
 // DeleteDependencies removes all rows that reference the given id in the

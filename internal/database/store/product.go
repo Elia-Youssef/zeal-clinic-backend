@@ -187,6 +187,11 @@ func (p *Product) update(updates map[string]any) error {
 	}
 	defer tx.Rollback()
 
+	// An unknown product is not found before any price row is touched.
+	if err := requireRow(tx, "products", p.ID); err != nil {
+		return err
+	}
+
 	// Price changes are written to product_prices: deactivate previous active
 	// rows and insert a new active row.
 	if val, ok := updates["unitPrice"]; ok {
@@ -246,8 +251,14 @@ func (p *Product) update(updates map[string]any) error {
 }
 
 func (p *Product) AdjustQuantity(delta int, tx *sql.Tx) error {
-	_, err := tx.Exec(`UPDATE products SET quantity = quantity + ? WHERE id = ?`, delta, p.ID)
-	return err
+	res, err := tx.Exec(`UPDATE products SET quantity = quantity + ? WHERE id = ?`, delta, p.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (p *Product) Delete() error {

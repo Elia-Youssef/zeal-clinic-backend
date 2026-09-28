@@ -145,6 +145,23 @@ func TestUpdateProcedure_PriceVersioning(t *testing.T) {
 	}
 }
 
+// A price change for an unknown procedure answers 404 like any other update
+// of it, not a missing-parent 400 from the price row.
+func TestUpdateProcedure_PriceOnUnknownIsNotFound(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	rec := doRequest(t, e, http.MethodPut, "/api/procedures/00000000-0000-7000-8000-000000000000",
+		asJSON(t, map[string]any{"price": 90.0}), tok)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("code = %d want %d body=%s", rec.Code, http.StatusNotFound, rec.Body.String())
+	}
+	if msg, _ := decodeEnvelope(t, rec.Body, nil); msg != "Procedure not found" {
+		t.Errorf("error = %q want %q", msg, "Procedure not found")
+	}
+}
+
 func TestGetProcedurePrices(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

@@ -222,6 +222,11 @@ func (p *Procedure) update(updates map[string]any) error {
 	}
 	defer tx.Rollback()
 
+	// An unknown procedure is not found before any price row is touched.
+	if err := requireRow(tx, "procedures", p.ID); err != nil {
+		return err
+	}
+
 	now := DateNow()
 
 	// Price changes are written to procedure_prices: deactivate previous active

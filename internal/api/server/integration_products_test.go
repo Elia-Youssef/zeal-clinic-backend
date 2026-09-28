@@ -144,6 +144,23 @@ func TestUpdateProduct_NegativeQuantityAllowed(t *testing.T) {
 	}
 }
 
+// A price change for an unknown product answers 404 like any other update of
+// it, not a missing-parent 400 from the price row.
+func TestUpdateProduct_PriceOnUnknownIsNotFound(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	rec := doRequest(t, e, http.MethodPut, "/api/products/00000000-0000-7000-8000-000000000000",
+		asJSON(t, map[string]any{"unitPrice": 2.5}), tok)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("code = %d want %d body=%s", rec.Code, http.StatusNotFound, rec.Body.String())
+	}
+	if msg, _ := decodeEnvelope(t, rec.Body, nil); msg != "Product not found" {
+		t.Errorf("error = %q want %q", msg, "Product not found")
+	}
+}
+
 // TestDeleteProduct_Clean: a product with no invoice references deletes cleanly.
 func TestDeleteProduct_Clean(t *testing.T) {
 	setupTestEnv(t)

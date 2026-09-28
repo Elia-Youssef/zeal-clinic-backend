@@ -185,12 +185,8 @@ func (e *Expense) Delete() error {
 	}
 	defer tx.Rollback()
 
-	var exists int
-	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM expenses WHERE id = ?)`, e.ID).Scan(&exists); err != nil {
+	if err := requireRow(tx, "expenses", e.ID); err != nil {
 		return err
-	}
-	if exists == 0 {
-		return ErrNotFound
 	}
 
 	var blocked int

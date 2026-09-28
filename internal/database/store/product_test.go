@@ -138,6 +138,19 @@ func TestProduct_AdjustQuantity_NegativeAllowed(t *testing.T) {
 	}
 }
 
+func TestProduct_AdjustQuantity_UnknownIsNotFound(t *testing.T) {
+	setupTestDB(t)
+	tx, err := DB.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	p := Product{ID: "ghost"}
+	if err := p.AdjustQuantity(5, tx); !errors.Is(err, ErrNotFound) {
+		t.Errorf("got %v, want ErrNotFound", err)
+	}
+}
+
 func TestProduct_Delete(t *testing.T) {
 	setupTestDB(t)
 	p := Product{Name: "ToDel", Quantity: 1, UnitPrice: 1}

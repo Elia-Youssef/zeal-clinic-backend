@@ -68,3 +68,42 @@ func TestDeleteSupplierInvoice_RejectsNegativeStockReversal(t *testing.T) {
 		t.Errorf("supplier invoice should remain active")
 	}
 }
+
+// A line naming an unknown product refuses the whole invoice before anything
+// is written: no invoice, no line, and no stock received on the other lines.
+func TestCreateSupplierInvoice_UnknownProductWritesNothing(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	supplierID := createSupplier(t, e, tok, "Unknown Line Supplier")
+	productID := createStockProduct(t, e, tok, "Known Item", 2)
+
+	invoicesBefore := countTableRows(t, "invoices", "")
+	linesBefore := countTableRows(t, "invoice_items", "")
+	rec := doRequest(t, e, http.MethodPost, "/api/supplier-invoices", asJSON(t, map[string]any{
+		"supplierId": supplierID,
+		"items": []map[string]any{
+			{"itemType": "product", "itemId": productID, "quantity": 3, "amount": 15},
+			{"itemType": "product", "itemId": "00000000-0000-7000-8000-000000000000", "quantity": 1, "amount": 5},
+		},
+	}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("code = %d want %d body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if msg, _ := decodeEnvelope(t, rec.Body, nil); msg != "Product not found" {
+		t.Errorf("error = %q want %q", msg, "Product not found")
+	}
+	if after := countTableRows(t, "invoices", ""); after != invoicesBefore {
+		t.Errorf("invoices changed from %d to %d", invoicesBefore, after)
+	}
+	if after := countTableRows(t, "invoice_items", ""); after != linesBefore {
+		t.Errorf("invoice lines changed from %d to %d", linesBefore, after)
+	}
+	var quantity int
+	if err := store.RDB.QueryRow(`SELECT quantity FROM products WHERE id = ?`, productID).Scan(&quantity); err != nil {
+		t.Fatal(err)
+	}
+	if quantity != 2 {
+		t.Errorf("stock of the known product = %d want 2", quantity)
+	}
+}

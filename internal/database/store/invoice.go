@@ -138,6 +138,15 @@ func (inv *Invoice) create() error {
 	}
 	defer tx.Rollback()
 
+	// Every record the invoice names is checked before anything is written.
+	if err := checkLineRecords(tx, inv.Items); err != nil {
+		return err
+	}
+	offer, err := invoiceOffer(tx, inv.DiscountID)
+	if err != nil {
+		return err
+	}
+
 	bal := Balance{}
 	fromEntityType := bal.GetEntityType(inv.FromBalanceID, tx)
 	toEntityType := bal.GetEntityType(inv.ToBalanceID, tx)
@@ -205,21 +214,8 @@ func (inv *Invoice) create() error {
 	}
 	inv.Amount = Round2(total)
 
-	// 2) Resolve invoice-level offer discount (if any). Caps at Amount.
-	if inv.DiscountID != "" {
-		var offer Discount
-		if err := offer.ScanRow(tx.QueryRow(`SELECT `+discountColumns+` FROM discounts WHERE id = ?`, inv.DiscountID)); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("%w: Discount not found", ErrValidation)
-			}
-			return fmt.Errorf("load discount %s: %w", inv.DiscountID, err)
-		}
-		if offer.DiscountType != "offer" {
-			return fmt.Errorf("%w: Only an offer can discount an invoice", ErrValidation)
-		}
-		if !offer.Active() {
-			return fmt.Errorf("%w: Discount is inactive", ErrValidation)
-		}
+	// 2) Apply the invoice-level offer (if any). Caps at Amount.
+	if offer != nil {
 		var dv float64
 		if offer.ValueType == "percentage" {
 			dv = Round2(inv.Amount * offer.Value / 100)
@@ -268,9 +264,6 @@ func (inv *Invoice) create() error {
 			var name string
 			var qty int
 			if err := tx.QueryRow(`SELECT name, quantity FROM products WHERE id = ?`, item.ItemID).Scan(&name, &qty); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					return fmt.Errorf("%w: Product not found", ErrValidation)
-				}
 				return fmt.Errorf("check product stock: %w", err)
 			}
 			if qty+delta < 0 {
@@ -319,6 +312,51 @@ func (inv *Invoice) create() error {
 	}
 
 	return tx.Commit()
+}
+
+// checkLineRecords refuses an invoice whose lines name a record that does not
+// exist, before anything is written: the item of a product or procedure line
+// and the recipient of a gift line (a gift line's own item is the gift it
+// creates; an "other" line names nothing). Client and supplier invoices both
+// pass through Create, so this is the one check for every line kind.
+func checkLineRecords(q DBTX, items InvoiceItemList) error {
+	for _, item := range items {
+		var err error
+		switch {
+		case item.ItemType == "product" && item.ItemID != "":
+			err = requireReference(q, "products", "Product", item.ItemID)
+		case item.ItemType == "procedure" && item.ItemID != "":
+			err = requireReference(q, "procedures", "Procedure", item.ItemID)
+		case item.ItemType == "gift" && item.GiftPatientID != nil && *item.GiftPatientID != "":
+			err = requireReference(q, "patients", "Patient", *item.GiftPatientID)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// invoiceOffer loads the offer an invoice names as its discount, refusing a
+// missing, non-offer or inactive one; nil when the invoice names none.
+func invoiceOffer(q DBTX, id string) (*Discount, error) {
+	if id == "" {
+		return nil, nil
+	}
+	var offer Discount
+	if err := offer.ScanRow(q.QueryRow(`SELECT `+discountColumns+` FROM discounts WHERE id = ?`, id)); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w: Discount not found", ErrValidation)
+		}
+		return nil, fmt.Errorf("load discount %s: %w", id, err)
+	}
+	if offer.DiscountType != "offer" {
+		return nil, fmt.Errorf("%w: Only an offer can discount an invoice", ErrValidation)
+	}
+	if !offer.Active() {
+		return nil, fmt.Errorf("%w: Discount is inactive", ErrValidation)
+	}
+	return &offer, nil
 }
 
 // createGiftFromLine creates a gift Discount row from an invoice line. The
@@ -414,6 +452,9 @@ func ApplyGiftByCode(code, patientID, createdBy string) (*Discount, error) {
 	if !gift.Active() {
 		return nil, errors.New("This gift card is inactive")
 	}
+	if err := requireReference(tx, "patients", "Patient", patientID); err != nil {
+		return nil, err
+	}
 
 	if err := applyGiftToPatientWithTx(tx, patientID, currencyID, gift.Value,
 		gift.ID, "discount", gift.ID,
@@ -440,9 +481,6 @@ func resolvePatientBalanceWithTx(tx *sql.Tx, patientID, currencyID string) (*Bal
 	}
 	var firstName, lastName string
 	if err := tx.QueryRow(`SELECT first_name, last_name FROM patients WHERE id = ?`, patientID).Scan(&firstName, &lastName); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: Patient not found", ErrValidation)
-		}
 		return nil, fmt.Errorf("patient %s: %w", patientID, err)
 	}
 	now := DateNow()

@@ -297,8 +297,9 @@ func TestClientInvoice_Create_WrongDiscountAnswersClientErrors(t *testing.T) {
 	}
 }
 
-// A line naming a product or a gift recipient that does not exist answers 400
-// with what is missing, not 404 as if the invoice itself were.
+// A line naming a product, a procedure or a gift recipient that does not
+// exist answers 400 with what is missing, not 404 as if the invoice itself
+// were.
 func TestClientInvoice_Create_UnknownLineRecordAnswersClientError(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
@@ -312,6 +313,7 @@ func TestClientInvoice_Create_UnknownLineRecordAnswersClientError(t *testing.T) 
 		text string
 	}{
 		{"unknown product", map[string]any{"itemType": "product", "itemId": unknown, "quantity": 1, "amount": 10}, "Product not found"},
+		{"unknown procedure", map[string]any{"itemType": "procedure", "itemId": unknown, "quantity": 1, "amount": 10}, "Procedure not found"},
 		{"unknown gift patient", map[string]any{"itemType": "gift", "quantity": 1, "amount": 10, "giftPatientId": unknown}, "Patient not found"},
 	}
 	for _, tc := range cases {
