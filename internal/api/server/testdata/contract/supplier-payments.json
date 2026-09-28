@@ -247,10 +247,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't create adjustment",
+          "Error": "Supplier not found",
           "Success": false
         }
       }

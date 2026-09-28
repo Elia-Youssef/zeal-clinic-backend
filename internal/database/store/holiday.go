@@ -1,6 +1,7 @@
 package store
 
 import (
+	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -26,13 +27,21 @@ type HolidayList []Holiday
 
 func (h *Holiday) IsValid() error {
 	if h.Name == "" {
-		return fmt.Errorf("name is required")
+		return fmt.Errorf("%w: Name is required", ErrValidation)
 	}
+	// Checked on the values as sent, before anything normalizes them: an empty
+	// date would otherwise become "0001-01-01" and slip through.
 	if h.StartDate.IsZero() || h.EndDate.IsZero() {
-		return fmt.Errorf("startDate and endDate are required")
+		return fmt.Errorf("%w: Start and end dates are required", ErrValidation)
+	}
+	if validation.Date(h.StartDate.DateOnly()) != "" {
+		return fmt.Errorf("%w: Start date must be a valid date", ErrValidation)
+	}
+	if validation.Date(h.EndDate.DateOnly()) != "" {
+		return fmt.Errorf("%w: End date must be a valid date", ErrValidation)
 	}
 	if h.EndDate.Before(h.StartDate) {
-		return fmt.Errorf("endDate must be on or after startDate")
+		return fmt.Errorf("%w: End date must be on or after start date", ErrValidation)
 	}
 	return nil
 }
@@ -104,11 +113,11 @@ func (h *Holiday) GetByID(id string) error {
 }
 
 func (h *Holiday) Create() error {
-	h.StartDate = Date(h.StartDate.DateOnly())
-	h.EndDate = Date(h.EndDate.DateOnly())
 	if err := h.IsValid(); err != nil {
 		return err
 	}
+	h.StartDate = Date(h.StartDate.DateOnly())
+	h.EndDate = Date(h.EndDate.DateOnly())
 	now := DateNow()
 	h.ID = uuid.Must(uuid.NewV7()).String()
 	h.CreatedAt = now
@@ -140,11 +149,11 @@ func (h *Holiday) Update(updates map[string]any) error {
 	if v, ok := stringUpdate(updates, "notes"); ok {
 		next.Notes = v
 	}
-	next.StartDate = Date(next.StartDate.DateOnly())
-	next.EndDate = Date(next.EndDate.DateOnly())
 	if err := next.IsValid(); err != nil {
 		return err
 	}
+	next.StartDate = Date(next.StartDate.DateOnly())
+	next.EndDate = Date(next.EndDate.DateOnly())
 	now := DateNow()
 	if _, err := DB.Exec(`UPDATE holidays SET name = ?, start_date = ?, end_date = ?, notes = ?, updated_at = ? WHERE id = ?`,
 		next.Name, next.StartDate, next.EndDate, next.Notes, now, next.ID); err != nil {

@@ -100,8 +100,7 @@ func CreateEmployeePayment(c echo.Context) error {
 		CreatedBy:         user.DisplayName,
 	}
 	if err := bt.Create(); err != nil {
-		log.Println("Error: CreateEmployeePayment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create payment"})
+		return storeError(c, err, "Transaction not found", "Couldn't create payment")
 	}
 
 	bt.FromEntityName = selfBalance.EntityName
@@ -151,8 +150,7 @@ func CreateEmployeeAdjustment(c echo.Context) error {
 	bt, err := createEntityBalanceCorrection(c, "employee", req.EmployeeID, currencyID,
 		req.Amount, req.Direction, "adjustment", req.TransactionMethod, req.Description)
 	if err != nil {
-		log.Println("Error: CreateEmployeeAdjustment:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create adjustment"})
+		return storeError(c, err, "Employee not found", "Couldn't create adjustment")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }
@@ -194,8 +192,7 @@ func CreateEmployeeWriteOff(c echo.Context) error {
 	bt, err := createEntityBalanceCorrection(c, "employee", req.EmployeeID, currencyID,
 		req.Amount, req.Direction, "write-off", "other", req.Description)
 	if err != nil {
-		log.Println("Error: CreateEmployeeWriteOff:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create write-off"})
+		return storeError(c, err, "Employee not found", "Couldn't create write-off")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: bt})
 }

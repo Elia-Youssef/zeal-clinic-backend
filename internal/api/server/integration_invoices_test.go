@@ -160,6 +160,59 @@ func TestClientInvoice_Create_ValidationFailures(t *testing.T) {
 	}
 }
 
+// A gift line carries either a patient or a code; neither or both is refused,
+// and a code that already exists conflicts like any other duplicate.
+func TestClientInvoice_Create_GiftLineRules(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	pid := createPatientAndGetID(t, e, tok, "InvGiftRules")
+
+	code := "GIFTRULES"
+	taken := store.Discount{
+		Name:         "Taken code gift",
+		DiscountType: "gift",
+		ValueType:    "fixed",
+		Value:        5,
+		Code:         &code,
+	}
+	if err := taken.Create(); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		line map[string]any
+		want int
+		text string
+	}{
+		{
+			"neither patient nor code",
+			map[string]any{"itemType": "gift", "quantity": 1, "amount": 10},
+			http.StatusBadRequest,
+			"A gift line needs either a patient or a code",
+		},
+		{
+			"taken code",
+			map[string]any{"itemType": "gift", "quantity": 1, "amount": 10, "giftCode": code},
+			http.StatusConflict,
+			"This code is already in use",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := map[string]any{"patientId": pid, "items": []any{tc.line}}
+			rec := doRequest(t, e, http.MethodPost, "/api/client-invoices", asJSON(t, body), tok)
+			if rec.Code != tc.want {
+				t.Errorf("code = %d want %d body=%s", rec.Code, tc.want, rec.Body.String())
+			}
+			if msg, _ := decodeEnvelope(t, rec.Body, nil); msg != tc.text {
+				t.Errorf("error = %q want %q", msg, tc.text)
+			}
+		})
+	}
+}
+
 func TestClientInvoice_Create_RejectsInactiveDiscount(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)
@@ -192,6 +245,92 @@ func TestClientInvoice_Create_RejectsInactiveDiscount(t *testing.T) {
 	}
 	if after := countTableRows(t, "invoices", "voided_at = ''"); after != before {
 		t.Errorf("active invoices changed from %d to %d", before, after)
+	}
+}
+
+// A create never answers 404 naming the record it creates: an unknown or
+// wrong-kind discount answers 400.
+func TestClientInvoice_Create_WrongDiscountAnswersClientErrors(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	pid := createPatientAndGetID(t, e, tok, "InvWrongDiscount")
+
+	giftCode := "WRONGDISCOUNT"
+	gift := store.Discount{
+		Name:         "Gift as discount",
+		DiscountType: "gift",
+		ValueType:    "fixed",
+		Value:        5,
+		Code:         &giftCode,
+	}
+	if err := gift.Create(); err != nil {
+		t.Fatalf("create gift: %v", err)
+	}
+
+	cases := []struct {
+		name       string
+		discountID string
+		text       string
+	}{
+		{"unknown discount", "00000000-0000-7000-8000-000000000000", "Discount not found"},
+		{"a gift as the discount", gift.ID, "Only an offer can discount an invoice"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			before := countTableRows(t, "invoices", "voided_at = ''")
+			rec := doRequest(t, e, http.MethodPost, "/api/client-invoices", asJSON(t, map[string]any{
+				"patientId":  pid,
+				"discountId": tc.discountID,
+				"items": []map[string]any{
+					{"itemType": "other", "quantity": 1, "amount": 10},
+				},
+			}), tok)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("code = %d want %d body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+			}
+			containsString(t, rec.Body.String(), tc.text)
+			if after := countTableRows(t, "invoices", "voided_at = ''"); after != before {
+				t.Errorf("active invoices changed from %d to %d", before, after)
+			}
+		})
+	}
+}
+
+// A line naming a product or a gift recipient that does not exist answers 400
+// with what is missing, not 404 as if the invoice itself were.
+func TestClientInvoice_Create_UnknownLineRecordAnswersClientError(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	pid := createPatientAndGetID(t, e, tok, "InvUnknownLine")
+	unknown := "00000000-0000-7000-8000-000000000000"
+
+	cases := []struct {
+		name string
+		line map[string]any
+		text string
+	}{
+		{"unknown product", map[string]any{"itemType": "product", "itemId": unknown, "quantity": 1, "amount": 10}, "Product not found"},
+		{"unknown gift patient", map[string]any{"itemType": "gift", "quantity": 1, "amount": 10, "giftPatientId": unknown}, "Patient not found"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			before := countTableRows(t, "invoices", "voided_at = ''")
+			rec := doRequest(t, e, http.MethodPost, "/api/client-invoices", asJSON(t, map[string]any{
+				"patientId": pid,
+				"items":     []any{tc.line},
+			}), tok)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("code = %d want %d body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+			}
+			if msg, _ := decodeEnvelope(t, rec.Body, nil); msg != tc.text {
+				t.Errorf("error = %q want %q", msg, tc.text)
+			}
+			if after := countTableRows(t, "invoices", "voided_at = ''"); after != before {
+				t.Errorf("active invoices changed from %d to %d", before, after)
+			}
+		})
 	}
 }
 

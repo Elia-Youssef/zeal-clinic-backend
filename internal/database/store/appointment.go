@@ -250,7 +250,7 @@ func checkAppointmentConflict(db DBTX, roomID string, startTime, endTime Date, e
 		return fmt.Errorf("check conflict: %w", err)
 	}
 	if count > 0 {
-		return fmt.Errorf("room conflict: another appointment is already booked in this room during the requested time")
+		return fmt.Errorf("%w: This room is already booked for that time", ErrConflict)
 	}
 	return nil
 }
@@ -408,6 +408,10 @@ func (a *Appointment) GetByID(id string) error {
 }
 
 func (a *Appointment) Create() error {
+	return constraintError(a.create(), "")
+}
+
+func (a *Appointment) create() error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
@@ -447,6 +451,10 @@ func (a *Appointment) Create() error {
 }
 
 func (a *Appointment) Update(updates map[string]any) error {
+	return constraintError(a.update(updates), "")
+}
+
+func (a *Appointment) update(updates map[string]any) error {
 	delete(updates, "patientId")
 	procedures, hasProcedures := parseProceduresUpdate(updates)
 
@@ -540,17 +548,18 @@ func (a *Appointment) Update(updates map[string]any) error {
 }
 
 func (a *Appointment) Reschedule(overrides map[string]any) error {
+	return constraintError(a.reschedule(overrides), "")
+}
+
+func (a *Appointment) reschedule(overrides map[string]any) error {
 	delete(overrides, "patientId")
 	var old Appointment
 	old.ID = a.ID
 	if err := old.GetByID(old.ID); err != nil {
 		return err
 	}
-	if old.Status == "Cancelled" {
-		return errors.New("cannot reschedule a cancelled appointment")
-	}
-	if old.Status == "Rescheduled" {
-		return errors.New("cannot reschedule an already-rescheduled appointment")
+	if old.Status == "Cancelled" || old.Status == "Rescheduled" {
+		return fmt.Errorf("%w: This appointment can no longer be rescheduled", ErrValidation)
 	}
 
 	// Hydrate the old procedures so they (and any nurse assignments) carry over

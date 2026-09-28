@@ -131,6 +131,10 @@ func (p *Prescription) GetByID(id string) error {
 }
 
 func (p *Prescription) Create() error {
+	return constraintError(p.create(), "")
+}
+
+func (p *Prescription) create() error {
 	p.ID = uuid.Must(uuid.NewV7()).String()
 	now := DateNow()
 	p.CreatedAt = now
@@ -179,6 +183,10 @@ func (p *Prescription) insertMedicines(tx *sql.Tx, now Date) error {
 // single transaction: the edit form submits the whole prescription at once.
 // patient_id and created_at are immutable here.
 func (p *Prescription) Update() error {
+	return constraintError(p.update(), "")
+}
+
+func (p *Prescription) update() error {
 	now := DateNow()
 
 	tx, err := DB.Begin()

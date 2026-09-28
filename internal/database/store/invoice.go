@@ -125,6 +125,10 @@ func (inv *Invoice) GetByID(id string) error {
 }
 
 func (inv *Invoice) Create() error {
+	return constraintError(inv.create(), "")
+}
+
+func (inv *Invoice) create() error {
 	if inv.CurrencyID == "" {
 		inv.CurrencyID = USDCurrencyID
 	}
@@ -205,10 +209,13 @@ func (inv *Invoice) Create() error {
 	if inv.DiscountID != "" {
 		var offer Discount
 		if err := offer.ScanRow(tx.QueryRow(`SELECT `+discountColumns+` FROM discounts WHERE id = ?`, inv.DiscountID)); err != nil {
-			return fmt.Errorf("discount %s: %w", inv.DiscountID, err)
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("%w: Discount not found", ErrValidation)
+			}
+			return fmt.Errorf("load discount %s: %w", inv.DiscountID, err)
 		}
 		if offer.DiscountType != "offer" {
-			return fmt.Errorf("invoice discount must be of type 'offer', got %q", offer.DiscountType)
+			return fmt.Errorf("%w: Only an offer can discount an invoice", ErrValidation)
 		}
 		if !offer.Active() {
 			return fmt.Errorf("%w: Discount is inactive", ErrValidation)
@@ -261,6 +268,9 @@ func (inv *Invoice) Create() error {
 			var name string
 			var qty int
 			if err := tx.QueryRow(`SELECT name, quantity FROM products WHERE id = ?`, item.ItemID).Scan(&name, &qty); err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return fmt.Errorf("%w: Product not found", ErrValidation)
+				}
 				return fmt.Errorf("check product stock: %w", err)
 			}
 			if qty+delta < 0 {
@@ -317,7 +327,7 @@ func createGiftFromLine(tx *sql.Tx, item *InvoiceItem, now Date) (*Discount, err
 	hasPatient := item.GiftPatientID != nil && *item.GiftPatientID != ""
 	hasCode := item.GiftCode != nil && *item.GiftCode != ""
 	if hasPatient == hasCode {
-		return nil, errors.New("gift line must have exactly one of giftPatientId or giftCode")
+		return nil, fmt.Errorf("%w: A gift line needs either a patient or a code", ErrValidation)
 	}
 	name := "Gift Card"
 	if item.GiftName != "" {
@@ -430,6 +440,9 @@ func resolvePatientBalanceWithTx(tx *sql.Tx, patientID, currencyID string) (*Bal
 	}
 	var firstName, lastName string
 	if err := tx.QueryRow(`SELECT first_name, last_name FROM patients WHERE id = ?`, patientID).Scan(&firstName, &lastName); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w: Patient not found", ErrValidation)
+		}
 		return nil, fmt.Errorf("patient %s: %w", patientID, err)
 	}
 	now := DateNow()
@@ -462,6 +475,10 @@ func selfBalanceIDForCurrency(tx *sql.Tx, currencyID string) (string, error) {
 // new final amount. Other transactions sourced from this invoice (gift
 // auto-applies, supplier payments) are untouched.
 func (inv *Invoice) UpdateItemAmount(itemID string, amount float64) error {
+	return constraintError(inv.updateItemAmount(itemID, amount), "")
+}
+
+func (inv *Invoice) updateItemAmount(itemID string, amount float64) error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
@@ -590,7 +607,7 @@ func (inv *Invoice) Update(updates map[string]any) error {
 	args = append(args, inv.ID)
 	_, err := DB.Exec("UPDATE invoices SET "+setClauses+" WHERE id = ?", args...)
 	if err != nil {
-		return err
+		return constraintError(err, "")
 	}
 	return inv.GetByID(inv.ID)
 }
@@ -924,7 +941,7 @@ func (inv *Invoice) Delete() error {
 			return err
 		}
 		if n > 0 {
-			return fmt.Errorf("cannot delete invoice: gift card has been redeemed")
+			return fmt.Errorf("%w: Can't delete an invoice whose gift card was redeemed", ErrConflict)
 		}
 	}
 

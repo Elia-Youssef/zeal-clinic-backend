@@ -89,6 +89,10 @@ func (s *EmployeeSalary) GetByID(id string) error {
 }
 
 func (s *EmployeeSalary) Create() error {
+	return constraintError(s.create(), "")
+}
+
+func (s *EmployeeSalary) create() error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
@@ -151,7 +155,7 @@ func (s *EmployeeSalary) Update(updates map[string]any) error {
 	args = append(args, s.ID)
 	_, err := DB.Exec("UPDATE employee_salaries SET "+setClauses+" WHERE id = ?", args...)
 	if err != nil {
-		return err
+		return constraintError(err, "")
 	}
 	return s.GetByID(s.ID)
 }

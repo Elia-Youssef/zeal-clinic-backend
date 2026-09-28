@@ -3,8 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"clinic-api/internal/validation"
-	"errors"
 	"log"
 	"net/http"
 
@@ -38,12 +36,7 @@ func GetPatientDropdown(c echo.Context) error {
 func GetPatientByID(c echo.Context) error {
 	p := store.Patient{}
 	if err := p.GetByID(c.Param("id")); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [GetPatientByID] patient not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Patient not found"})
-		}
-		log.Println("Error: [GetPatientByID] failed to fetch patient:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load patient"})
+		return storeError(c, err, "Patient not found", "Couldn't load patient")
 	}
 
 	if p.CountryID != "" {
@@ -72,8 +65,7 @@ func CreatePatient(c echo.Context) error {
 	p.CreatedAt = store.DateNow()
 
 	if err := p.Create(); err != nil {
-		log.Println("Error: [CreatePatient] failed to create patient:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create patient"})
+		return storeError(c, err, "Patient not found", "Couldn't create patient")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: p})
 }
@@ -89,17 +81,7 @@ func UpdatePatient(c echo.Context) error {
 
 	p := store.Patient{ID: c.Param("id")}
 	if err := p.Update(updates); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [UpdatePatient] patient not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Patient not found"})
-		}
-		var validationErr validation.Errors
-		if errors.As(err, &validationErr) {
-			log.Println("Error: [UpdatePatient] validation failed:", err.Error())
-			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
-		}
-		log.Println("Error: [UpdatePatient] failed to update patient:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update patient"})
+		return storeError(c, err, "Patient not found", "Couldn't update patient")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: p})
 }
@@ -112,12 +94,7 @@ func DeletePatient(c echo.Context) error {
 
 	p := store.Patient{ID: id}
 	if err := p.Delete(); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [DeletePatient] patient not found:", id)
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Patient not found"})
-		}
-		log.Println("Error: [DeletePatient] failed to delete patient:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete patient"})
+		return storeError(c, err, "Patient not found", "Couldn't delete patient")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

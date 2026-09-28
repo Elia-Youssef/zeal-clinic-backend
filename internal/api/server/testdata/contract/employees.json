@@ -513,10 +513,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 409,
         "body": {
           "Data": null,
-          "Error": "Couldn't create user account",
+          "Error": "Username is already taken",
           "Success": false
         }
       }

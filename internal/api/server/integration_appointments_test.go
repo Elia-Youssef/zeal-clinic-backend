@@ -89,18 +89,18 @@ func TestCreateAppointment_RoomConflict(t *testing.T) {
 		t.Fatalf("seed appointment: %d %s", rec.Code, rec.Body.String())
 	}
 
-	// Overlapping booking in the same room: the store returns a room conflict
-	// error, which the create handler maps to 500 (it has no conflict branch).
+	// Overlapping booking in the same room answers 409, like the update and
+	// reschedule paths: the store returns the conflict, and every appointment
+	// write maps it the same way.
 	overlap := asJSON(t, map[string]any{
 		"patientId": pid, "roomId": rid,
 		"startTime": "2026-06-02T10:30:00Z", "endTime": "2026-06-02T11:30:00Z",
 	})
 	rec := doRequest(t, e, http.MethodPost, "/api/appointments", overlap, tok)
-	// CreateAppointment has no explicit "room conflict" branch, so the conflict
-	// surfaces as a 500 "failed to create appointment". Assert actual behavior.
-	if rec.Code != http.StatusInternalServerError {
-		t.Errorf("expected 500 (no conflict branch on create), got %d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusConflict {
+		t.Errorf("expected 409 for an overlapping booking, got %d body=%s", rec.Code, rec.Body.String())
 	}
+	containsString(t, rec.Body.String(), "This room is already booked for that time")
 }
 
 func TestGetAllAppointments_RequiresDate(t *testing.T) {
@@ -248,6 +248,13 @@ func TestRescheduleAppointment_CreatesNewAndMarksOld(t *testing.T) {
 	if n := countTableRows(t, "appointments", "id = ? AND status = 'Rescheduled'", old.ID); n != 1 {
 		t.Errorf("old appointment not marked Rescheduled")
 	}
+
+	// The store's state error answers 400 with its message.
+	rec = doRequest(t, e, http.MethodPost, "/api/appointments/"+old.ID+"/reschedule", nil, tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("rescheduling a rescheduled appointment: expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	containsString(t, rec.Body.String(), "This appointment can no longer be rescheduled")
 }
 
 func TestDeleteAppointment_Success(t *testing.T) {
@@ -360,4 +367,31 @@ func TestEmployeeSchedule_DeleteNotFound(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", rec.Code)
 	}
+}
+
+// A malformed override answers 400 through the validation sentinel.
+func TestRescheduleAppointment_MalformedOverride(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	pid := createPatientAndGetID(t, e, tok, "ReschedBad")
+	rid := createRoom(t, e, tok, "Room ReschedBad", "Procedure")
+	rec := doRequest(t, e, http.MethodPost, "/api/appointments",
+		asJSON(t, map[string]any{
+			"patientId": pid, "roomId": rid,
+			"startTime": "2026-06-07T10:00:00Z", "endTime": "2026-06-07T11:00:00Z",
+		}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var old struct{ ID string }
+	decodeEnvelope(t, rec.Body, &old)
+
+	rec = doRequest(t, e, http.MethodPost, "/api/appointments/"+old.ID+"/reschedule",
+		asJSON(t, map[string]any{"startTime": "bad"}), tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	containsString(t, rec.Body.String(), "Please check your input")
 }

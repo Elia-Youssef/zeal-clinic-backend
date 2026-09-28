@@ -147,7 +147,7 @@ func (cur *Currency) Create() error {
 	cur.UpdatedAt = now
 	_, err := DB.Exec(`INSERT INTO currencies (`+currencyColumns+`) VALUES (?,?,?,?,?,?,?)`,
 		cur.ID, cur.Code, cur.Name, cur.Symbol, cur.ExchangeRate, cur.CreatedAt, cur.UpdatedAt)
-	return err
+	return constraintError(err, "A currency with this code already exists")
 }
 
 func (cur *Currency) Update(updates map[string]any) error {
@@ -172,7 +172,7 @@ func (cur *Currency) Update(updates map[string]any) error {
 	args = append(args, DateNow())
 	args = append(args, cur.ID)
 	if _, err := DB.Exec("UPDATE currencies SET "+setClauses+" WHERE id = ?", args...); err != nil {
-		return err
+		return constraintError(err, "A currency with this code already exists")
 	}
 	return cur.GetByID(cur.ID)
 }

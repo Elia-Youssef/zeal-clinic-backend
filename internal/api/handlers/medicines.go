@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
 
@@ -42,8 +41,7 @@ func CreateMedicine(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	if err := m.Create(); err != nil {
-		log.Println("Error: [CreateMedicine] failed to create medicine:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create medicine"})
+		return storeError(c, err, "Medicine not found", "Couldn't create medicine")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: m})
 }
@@ -56,12 +54,7 @@ func UpdateMedicine(c echo.Context) error {
 	}
 	m := store.Medicine{ID: c.Param("id")}
 	if err := m.Update(updates); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [UpdateMedicine] medicine not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Medicine not found"})
-		}
-		log.Println("Error: [UpdateMedicine] failed to update medicine:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update medicine"})
+		return storeError(c, err, "Medicine not found", "Couldn't update medicine")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: m})
 }
@@ -74,12 +67,7 @@ func DeleteMedicine(c echo.Context) error {
 
 	m := store.Medicine{ID: id}
 	if err := m.Delete(); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [DeleteMedicine] medicine not found:", id)
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Medicine not found"})
-		}
-		log.Println("Error: [DeleteMedicine] failed to delete medicine:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete medicine"})
+		return storeError(c, err, "Medicine not found", "Couldn't delete medicine")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

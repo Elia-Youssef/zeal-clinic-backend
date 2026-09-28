@@ -1,11 +1,17 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
 )
+
+// Err is the validation sentinel. Both kinds of validation error a validator
+// returns match it through errors.Is: the sentinel wrapped with a
+// user-facing message, and a field-level Errors map.
+var Err = errors.New("validation")
 
 // Errors holds field-level validation errors. Implements error so IsValid
 // methods can return a plain error while handlers can still serialize the map.
@@ -17,6 +23,12 @@ func (e Errors) Error() string {
 		parts = append(parts, fmt.Sprintf("%s: %s", field, msg))
 	}
 	return strings.Join(parts, "; ")
+}
+
+// Is reports that a field-level error map is a validation error, so both
+// validation kinds answer one errors.Is check against Err.
+func (e Errors) Is(target error) bool {
+	return target == Err
 }
 
 var (

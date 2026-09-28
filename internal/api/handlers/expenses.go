@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
 
@@ -33,12 +32,8 @@ func GetExpenseDropdown(c echo.Context) error {
 
 func GetExpenseByID(c echo.Context) error {
 	var item store.Expense
-	if err := item.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [GetExpenseByID] expense not found:", c.Param("id"))
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Expense not found"})
-	} else if err != nil {
-		log.Println("Error: [GetExpenseByID] failed to fetch expense:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load expense"})
+	if err := item.GetByID(c.Param("id")); err != nil {
+		return storeError(c, err, "Expense not found", "Couldn't load expense")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: item})
 }
@@ -55,8 +50,7 @@ func CreateExpense(c echo.Context) error {
 	}
 
 	if err := e.Create(); err != nil {
-		log.Println("Error: [CreateExpense] failed to create expense:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create expense"})
+		return storeError(c, err, "Expense not found", "Couldn't create expense")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: e})
 }
@@ -71,12 +65,8 @@ func UpdateExpense(c echo.Context) error {
 	delete(updates, "createdAt")
 
 	e := store.Expense{ID: c.Param("id")}
-	if err := e.Update(updates); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [UpdateExpense] expense not found:", c.Param("id"))
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Expense not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdateExpense] failed to update expense:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update expense"})
+	if err := e.Update(updates); err != nil {
+		return storeError(c, err, "Expense not found", "Couldn't update expense")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: e})
 }
@@ -84,14 +74,8 @@ func UpdateExpense(c echo.Context) error {
 func DeleteExpense(c echo.Context) error {
 	id := c.Param("id")
 	e := store.Expense{ID: id}
-	if err := e.Delete(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [DeleteExpense] expense not found:", id)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Expense not found"})
-	} else if errors.Is(err, store.ErrConflict) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: "Can't delete expense while it's in use"})
-	} else if err != nil {
-		log.Println("Error: [DeleteExpense] failed to delete expense:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete expense"})
+	if err := e.Delete(); err != nil {
+		return storeError(c, err, "Expense not found", "Couldn't delete expense")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

@@ -136,6 +136,28 @@ func TestClientWriteOff_Create(t *testing.T) {
 	}
 }
 
+// An adjustment or write-off for an entity that doesn't exist answers 400 with
+// the entity's name, like a payment does.
+func TestClientWriteOff_UnknownPatient(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+	curID := firstSeededCurrencyID(t)
+
+	body := asJSON(t, map[string]any{
+		"patientId": "00000000-0000-7000-8000-000000000000", "amount": 35.0, "currencyId": curID,
+		"direction": "incoming", "description": "forgive debt",
+	})
+	rec := doRequest(t, e, http.MethodPost, "/api/client-write-offs", body, tok)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	containsString(t, rec.Body.String(), "Patient not found")
+	if n := countTableRows(t, "balance_transactions", "transaction_type = 'write-off'"); n != 0 {
+		t.Errorf("expected 0 write-off tx, got %d", n)
+	}
+}
+
 func TestClientPayment_DeleteVoidsTransaction(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

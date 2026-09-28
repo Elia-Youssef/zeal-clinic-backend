@@ -767,10 +767,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't create invoice",
+          "Error": "A gift line needs either a patient or a code",
           "Success": false
         }
       }
@@ -782,10 +782,10 @@
         "path": "/api/client-invoices/<id:5>"
       },
       "response": {
-        "status": 500,
+        "status": 409,
         "body": {
           "Data": null,
-          "Error": "Couldn't delete invoice",
+          "Error": "Can't delete an invoice whose gift card was redeemed",
           "Success": false
         }
       }

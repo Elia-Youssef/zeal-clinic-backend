@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
 
@@ -34,8 +33,7 @@ func AddProductAllergyConflict(c echo.Context) error {
 	}
 	pac.CreatedAt = store.DateNow()
 	if err := pac.Create(); err != nil {
-		log.Println("Error: [AddProductAllergyConflict] failed to add:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't add product allergy conflict"})
+		return storeError(c, err, "Conflict not found", "Couldn't add product allergy conflict")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: pac})
 }
@@ -48,12 +46,7 @@ func UpdateProductAllergyConflictNotes(c echo.Context) error {
 	}
 	pac.ID = c.Param("id")
 	if err := pac.UpdateNotes(); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [UpdateProductAllergyConflictNotes] not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Conflict not found"})
-		}
-		log.Println("Error: [UpdateProductAllergyConflictNotes] failed to update:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update conflict"})
+		return storeError(c, err, "Conflict not found", "Couldn't update conflict")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: pac})
 }
@@ -61,12 +54,7 @@ func UpdateProductAllergyConflictNotes(c echo.Context) error {
 func RemoveProductAllergyConflict(c echo.Context) error {
 	pac := store.ProductAllergyConflict{ID: c.Param("id")}
 	if err := pac.Delete(); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [RemoveProductAllergyConflict] not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Conflict not found"})
-		}
-		log.Println("Error: [RemoveProductAllergyConflict] failed to remove:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't remove conflict"})
+		return storeError(c, err, "Conflict not found", "Couldn't remove conflict")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

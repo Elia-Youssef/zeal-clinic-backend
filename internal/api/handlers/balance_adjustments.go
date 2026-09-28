@@ -5,7 +5,6 @@ import (
 	"clinic-api/internal/database/store"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -32,11 +31,8 @@ func DeleteExpensePayment(c echo.Context) error {
 // removed atomically by the store.
 func deleteBalanceTransaction(c echo.Context, entityType string) error {
 	bt := store.BalanceTransaction{ID: c.Param("id")}
-	if err := bt.DeleteForEntityType(entityType); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Transaction not found"})
-	} else if err != nil {
-		log.Printf("Error: deleteBalanceTransaction[%s]: %v", entityType, err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete transaction"})
+	if err := bt.DeleteForEntityType(entityType); err != nil {
+		return storeError(c, err, "Transaction not found", "Couldn't delete transaction")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
@@ -109,30 +105,49 @@ func createEntityBalanceCorrection(
 	return &bt, nil
 }
 
+// resolveEntityName loads the display name of the entity an adjustment or
+// write-off targets. A missing record answers the store's validation error
+// (a 400 "<Entity> not found"), the way the payment handlers' explicit checks
+// already do; any other error passes through.
 func resolveEntityName(entityType, entityID string) (string, error) {
+	notFound := func(entity string) error {
+		return fmt.Errorf("%w: %s not found", store.ErrValidation, entity)
+	}
 	switch entityType {
 	case "patient":
 		var p store.Patient
 		if err := p.GetByID(entityID); err != nil {
-			return "", errors.New("patient not found")
+			if errors.Is(err, store.ErrNotFound) {
+				return "", notFound("Patient")
+			}
+			return "", err
 		}
 		return p.FirstName + " " + p.LastName, nil
 	case "supplier":
 		var s store.Supplier
 		if err := s.GetByID(entityID); err != nil {
-			return "", errors.New("supplier not found")
+			if errors.Is(err, store.ErrNotFound) {
+				return "", notFound("Supplier")
+			}
+			return "", err
 		}
 		return s.Name, nil
 	case "employee":
 		var e store.Employee
 		if err := e.GetByID(entityID); err != nil {
-			return "", errors.New("employee not found")
+			if errors.Is(err, store.ErrNotFound) {
+				return "", notFound("Employee")
+			}
+			return "", err
 		}
 		return e.FirstName + " " + e.LastName, nil
 	case "expense":
 		var ex store.Expense
 		if err := ex.GetByID(entityID); err != nil {
-			return "", errors.New("expense not found")
+			if errors.Is(err, store.ErrNotFound) {
+				return "", notFound("Expense")
+			}
+			return "", err
 		}
 		return ex.Name, nil
 	}

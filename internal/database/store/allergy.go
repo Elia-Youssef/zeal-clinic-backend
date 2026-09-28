@@ -120,7 +120,7 @@ func (a *Allergy) Create() error {
 	a.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO allergies (id, name, description, created_at) VALUES (?,?,?,?)`,
 		a.ID, a.Name, a.Description, a.CreatedAt)
-	return err
+	return constraintError(err, "An allergy with this name already exists")
 }
 
 func (a *Allergy) Update(updates map[string]any) error {
@@ -143,7 +143,7 @@ func (a *Allergy) Update(updates map[string]any) error {
 	}
 	args = append(args, a.ID)
 	if _, err := DB.Exec("UPDATE allergies SET "+setClauses+" WHERE id = ?", args...); err != nil {
-		return err
+		return constraintError(err, "An allergy with this name already exists")
 	}
 	return a.GetByID(a.ID)
 }

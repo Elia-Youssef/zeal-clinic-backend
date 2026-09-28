@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
 
@@ -33,8 +32,7 @@ func CreateEmployeeSalary(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	if err := s.Create(); err != nil {
-		log.Println("Error: [CreateEmployeeSalary] failed to create salary:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create salary"})
+		return storeError(c, err, "Salary not found", "Couldn't create salary")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: s})
 }
@@ -49,24 +47,16 @@ func UpdateEmployeeSalary(c echo.Context) error {
 	delete(updates, "employeeId")
 
 	s := store.EmployeeSalary{ID: c.Param("id")}
-	if err := s.Update(updates); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [UpdateEmployeeSalary] salary not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Salary not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdateEmployeeSalary] failed to update salary:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update salary"})
+	if err := s.Update(updates); err != nil {
+		return storeError(c, err, "Salary not found", "Couldn't update salary")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: s})
 }
 
 func DeleteEmployeeSalary(c echo.Context) error {
 	s := store.EmployeeSalary{ID: c.Param("id")}
-	if err := s.Delete(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [DeleteEmployeeSalary] salary not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Salary not found"})
-	} else if err != nil {
-		log.Println("Error: [DeleteEmployeeSalary] failed to delete salary:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete salary"})
+	if err := s.Delete(); err != nil {
+		return storeError(c, err, "Salary not found", "Couldn't delete salary")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

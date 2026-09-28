@@ -181,11 +181,8 @@ func UpdateEmployeeScheduleChange(c echo.Context) error {
 	delete(updates, "employeeId")
 	delete(updates, "status") // status changes go through SetEmployeeScheduleChangeStatus
 	v := store.EmployeeScheduleChange{ID: c.Param("id")}
-	if err := v.Update(updates); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Schedule change not found"})
-	} else if err != nil {
-		log.Println("Error: UpdateEmployeeScheduleChange:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
+	if err := v.Update(updates); err != nil {
+		return storeError(c, err, "Schedule change not found", "Couldn't update schedule change")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: v})
 }
@@ -198,22 +195,16 @@ func SetEmployeeScheduleChangeStatus(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	v := store.EmployeeScheduleChange{ID: c.Param("id")}
-	if err := v.SetStatus(req.Status); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Schedule change not found"})
-	} else if err != nil {
-		log.Println("Error: SetEmployeeScheduleChangeStatus:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
+	if err := v.SetStatus(req.Status); err != nil {
+		return storeError(c, err, "Schedule change not found", "Couldn't update schedule change")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: v})
 }
 
 func DeleteEmployeeScheduleChange(c echo.Context) error {
 	v := store.EmployeeScheduleChange{ID: c.Param("id")}
-	if err := v.Delete(); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Schedule change not found"})
-	} else if err != nil {
-		log.Println("Error: DeleteEmployeeScheduleChange:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete schedule change"})
+	if err := v.Delete(); err != nil {
+		return storeError(c, err, "Schedule change not found", "Couldn't delete schedule change")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
@@ -242,8 +233,7 @@ func CreateHoliday(c echo.Context) error {
 		h.CreatedBy = user.DisplayName
 	}
 	if err := h.Create(); err != nil {
-		log.Println("Error: CreateHoliday:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create holiday"})
+		return storeError(c, err, "Holiday not found", "Couldn't create holiday")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: h})
 }
@@ -255,22 +245,16 @@ func UpdateHoliday(c echo.Context) error {
 	}
 	delete(updates, "id")
 	h := store.Holiday{ID: c.Param("id")}
-	if err := h.Update(updates); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Holiday not found"})
-	} else if err != nil {
-		log.Println("Error: UpdateHoliday:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update holiday"})
+	if err := h.Update(updates); err != nil {
+		return storeError(c, err, "Holiday not found", "Couldn't update holiday")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: h})
 }
 
 func DeleteHoliday(c echo.Context) error {
 	h := store.Holiday{ID: c.Param("id")}
-	if err := h.Delete(); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Holiday not found"})
-	} else if err != nil {
-		log.Println("Error: DeleteHoliday:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete holiday"})
+	if err := h.Delete(); err != nil {
+		return storeError(c, err, "Holiday not found", "Couldn't delete holiday")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
@@ -312,11 +296,8 @@ func GetEmployeePreparedSalaries(c echo.Context) error {
 
 func DeleteEmployeeSalaryPreparation(c echo.Context) error {
 	prep := store.EmployeeSalaryPreparation{ID: c.Param("id")}
-	if err := prep.Delete(); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Salary preparation not found"})
-	} else if err != nil {
-		log.Println("Error: DeleteEmployeeSalaryPreparation:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete salary preparation"})
+	if err := prep.Delete(); err != nil {
+		return storeError(c, err, "Salary preparation not found", "Couldn't delete salary preparation")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
@@ -329,11 +310,8 @@ func UpdateEmployeeSalaryPreparation(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	prep := store.EmployeeSalaryPreparation{ID: c.Param("id")}
-	if err := prep.SetAdjustment(req.Adjustment); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Salary preparation not found"})
-	} else if err != nil {
-		log.Println("Error: UpdateEmployeeSalaryPreparation:", err)
-		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Couldn't apply this adjustment"})
+	if err := prep.SetAdjustment(req.Adjustment); err != nil {
+		return storeError(c, err, "Salary preparation not found", "Couldn't apply this adjustment")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: prep})
 }

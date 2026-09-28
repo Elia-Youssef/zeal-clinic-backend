@@ -140,7 +140,7 @@ func (u *User) Create(passwordHash string) error {
 
 	_, err := DB.Exec(`INSERT INTO users (`+userColumns+`) VALUES (?,?,?,?,?,?,?,?)`,
 		u.ID, u.Username, u.PasswordHash, u.DisplayName, u.Role, BoolToInt(u.IsActive), u.CreatedAt, u.UpdatedAt)
-	return err
+	return constraintError(err, "Username is already taken")
 }
 
 func (u *User) Update(updates map[string]any) error {
@@ -177,7 +177,7 @@ func (u *User) Update(updates map[string]any) error {
 	args = append(args, u.ID)
 	_, err := DB.Exec("UPDATE users SET "+setClauses+" WHERE id = ?", args...)
 	if err != nil {
-		return err
+		return constraintError(err, "Username is already taken")
 	}
 	return u.GetByID(u.ID)
 }

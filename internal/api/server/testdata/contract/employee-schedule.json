@@ -359,10 +359,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't save employee schedule",
+          "Error": "Related record not found",
           "Success": false
         }
       }

@@ -4,7 +4,6 @@ import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/monitor"
-	"errors"
 	"log"
 	"net/http"
 
@@ -34,12 +33,8 @@ func GetProductDropdown(c echo.Context) error {
 
 func GetProductByID(c echo.Context) error {
 	var item store.Product
-	if err := item.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [GetProductByID] product not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Product not found"})
-	} else if err != nil {
-		log.Println("Error: [GetProductByID] failed to fetch product:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load product"})
+	if err := item.GetByID(c.Param("id")); err != nil {
+		return storeError(c, err, "Product not found", "Couldn't load product")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: item})
 }
@@ -67,8 +62,7 @@ func CreateProduct(c echo.Context) error {
 	}
 
 	if err := p.Create(); err != nil {
-		log.Println("Error: [CreateProduct] failed to create product:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create product"})
+		return storeError(c, err, "Product not found", "Couldn't create product")
 	}
 	monitor.CheckLowStock([]string{p.ID})
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: p})
@@ -83,12 +77,8 @@ func UpdateProduct(c echo.Context) error {
 	delete(updates, "id")
 
 	item := store.Product{ID: c.Param("id")}
-	if err := item.Update(updates); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [UpdateProduct] product not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Product not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdateProduct] failed to update product:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update product"})
+	if err := item.Update(updates); err != nil {
+		return storeError(c, err, "Product not found", "Couldn't update product")
 	}
 	monitor.CheckLowStock([]string{item.ID})
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: item})
@@ -101,12 +91,8 @@ func DeleteProduct(c echo.Context) error {
 	}
 
 	item := store.Product{ID: id}
-	if err := item.Delete(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [DeleteProduct] product not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Product not found"})
-	} else if err != nil {
-		log.Println("Error: [DeleteProduct] failed to delete product:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete product"})
+	if err := item.Delete(); err != nil {
+		return storeError(c, err, "Product not found", "Couldn't delete product")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

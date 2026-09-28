@@ -3,8 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"clinic-api/internal/validation"
-	"errors"
 	"log"
 	"net/http"
 
@@ -26,13 +24,7 @@ func SaveEmployeeScheduleDay(c echo.Context) error {
 	}
 	shifts, err := version.Save()
 	if err != nil {
-		var validationErr validation.Errors
-		if errors.As(err, &validationErr) {
-			log.Println("Error: [SaveEmployeeScheduleDay] validation failed:", err)
-			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
-		}
-		log.Println("Error: [SaveEmployeeScheduleDay] failed to save schedule day:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't save employee schedule"})
+		return storeError(c, err, "Schedule entry not found", "Couldn't save employee schedule")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: shifts})
 }
@@ -41,12 +33,8 @@ func SaveEmployeeScheduleDay(c echo.Context) error {
 // leaving the dates it covered uncovered.
 func DeleteEmployeeSchedule(c echo.Context) error {
 	sa := store.EmployeeSchedule{ID: c.Param("id")}
-	if err := sa.Delete(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [DeleteEmployeeSchedule] schedule entry not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Schedule entry not found"})
-	} else if err != nil {
-		log.Println("Error: [DeleteEmployeeSchedule] failed to delete schedule entry:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete schedule entry"})
+	if err := sa.Delete(); err != nil {
+		return storeError(c, err, "Schedule entry not found", "Couldn't delete schedule entry")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

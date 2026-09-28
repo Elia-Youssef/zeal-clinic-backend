@@ -50,7 +50,7 @@ func (t *Token) Create() error {
 		`INSERT INTO tokens (`+tokenColumns+`) VALUES (?,?,?,?,?)`,
 		id, t.Token, t.UserID, t.ExpiresAt, DateNow(),
 	)
-	return err
+	return constraintError(err, "")
 }
 
 func (t *Token) GetByValue(tokenStr string) error {

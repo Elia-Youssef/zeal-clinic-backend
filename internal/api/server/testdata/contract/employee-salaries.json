@@ -459,10 +459,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't create salary",
+          "Error": "Related record not found",
           "Success": false
         }
       }
@@ -518,7 +518,7 @@
         "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't apply this adjustment",
+          "Error": "Adjustment would make the prepared amount negative",
           "Success": false
         }
       }
@@ -641,10 +641,10 @@
         "body": {}
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't create salary",
+          "Error": "Related record not found",
           "Success": false
         }
       }

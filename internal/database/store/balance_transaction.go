@@ -86,6 +86,10 @@ func (l *BalanceTransactionList) ScanRows(rows *sql.Rows) error {
 // Balance Transactions
 
 func (bt *BalanceTransaction) Create() error {
+	return constraintError(bt.create(), "")
+}
+
+func (bt *BalanceTransaction) create() error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
@@ -104,6 +108,10 @@ func (bt *BalanceTransaction) Create() error {
 // is both incurred and paid simultaneously, so both balances net to 0.
 // bt is treated as the payment leg; the reverse charge leg is derived from it.
 func (bt *BalanceTransaction) CreateTwoWay() error {
+	return constraintError(bt.createTwoWay(), "")
+}
+
+func (bt *BalanceTransaction) createTwoWay() error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err

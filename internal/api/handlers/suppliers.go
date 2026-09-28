@@ -33,12 +33,8 @@ func GetSupplierDropdown(c echo.Context) error {
 
 func GetSupplierByID(c echo.Context) error {
 	var item store.Supplier
-	if err := item.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [GetSupplierByID] supplier not found:", c.Param("id"))
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Supplier not found"})
-	} else if err != nil {
-		log.Println("Error: [GetSupplierByID] failed to fetch supplier:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load supplier"})
+	if err := item.GetByID(c.Param("id")); err != nil {
+		return storeError(c, err, "Supplier not found", "Couldn't load supplier")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: item})
 }
@@ -55,8 +51,7 @@ func CreateSupplier(c echo.Context) error {
 	}
 
 	if err := s.Create(); err != nil {
-		log.Println("Error: [CreateSupplier] failed to create supplier:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create supplier"})
+		return storeError(c, err, "Supplier not found", "Couldn't create supplier")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: s})
 }
@@ -71,12 +66,8 @@ func UpdateSupplier(c echo.Context) error {
 	delete(updates, "createdAt")
 
 	s := store.Supplier{ID: c.Param("id")}
-	if err := s.Update(updates); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [UpdateSupplier] supplier not found:", c.Param("id"))
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Supplier not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdateSupplier] failed to update supplier:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update supplier"})
+	if err := s.Update(updates); err != nil {
+		return storeError(c, err, "Supplier not found", "Couldn't update supplier")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: s})
 }
@@ -100,12 +91,8 @@ func DeleteSupplier(c echo.Context) error {
 	}
 
 	s := store.Supplier{ID: id}
-	if err := s.Delete(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [DeleteSupplier] supplier not found:", id)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Supplier not found"})
-	} else if err != nil {
-		log.Println("Error: [DeleteSupplier] failed to delete supplier:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete supplier"})
+	if err := s.Delete(); err != nil {
+		return storeError(c, err, "Supplier not found", "Couldn't delete supplier")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

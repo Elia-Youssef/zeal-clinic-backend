@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
 
@@ -34,8 +33,7 @@ func CreatePrescription(c echo.Context) error {
 	}
 
 	if err := p.Create(); err != nil {
-		log.Println("Error: [CreatePrescription] failed to create prescription:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create prescription"})
+		return storeError(c, err, "Prescription not found", "Couldn't create prescription")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: p})
 }
@@ -53,24 +51,16 @@ func UpdatePrescription(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 
-	if err := p.Update(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [UpdatePrescription] prescription not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Prescription not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdatePrescription] failed to update prescription:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update prescription"})
+	if err := p.Update(); err != nil {
+		return storeError(c, err, "Prescription not found", "Couldn't update prescription")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: p})
 }
 
 func DeletePrescription(c echo.Context) error {
 	p := store.Prescription{ID: c.Param("id")}
-	if err := p.Delete(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [DeletePrescription] prescription not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Prescription not found"})
-	} else if err != nil {
-		log.Println("Error: [DeletePrescription] failed to delete prescription:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete prescription"})
+	if err := p.Delete(); err != nil {
+		return storeError(c, err, "Prescription not found", "Couldn't delete prescription")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

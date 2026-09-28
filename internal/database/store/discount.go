@@ -232,7 +232,7 @@ func (d *Discount) CreateWithTx(tx *sql.Tx) error {
 		d.ID, d.Name, d.Description, d.DiscountType, d.ValueType, d.Value,
 		d.PatientID, d.Code, d.RedeemedAt, d.StartDate, d.EndDate,
 		d.IsActive, d.CreatedAt, d.UpdatedAt); err != nil {
-		return err
+		return constraintError(err, "This code is already in use")
 	}
 
 	return nil
@@ -279,7 +279,7 @@ func (d *Discount) Update(updates map[string]any) error {
 	args = append(args, DateNow())
 	args = append(args, d.ID)
 	if _, err := DB.Exec("UPDATE discounts SET "+setClauses+" WHERE id = ?", args...); err != nil {
-		return err
+		return constraintError(err, "This code is already in use")
 	}
 	return d.GetByID(d.ID)
 }

@@ -76,7 +76,7 @@ func (c *ProcedureAllergyConflict) Create() error {
 	c.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO procedure_allergy_conflicts (id, procedure_id, allergy_id, notes, created_at) VALUES (?,?,?,?,?)`,
 		c.ID, c.ProcedureID, c.AllergyID, c.Notes, c.CreatedAt)
-	return err
+	return constraintError(err, "This allergy conflict already exists")
 }
 
 func (c *ProcedureAllergyConflict) UpdateNotes() error {

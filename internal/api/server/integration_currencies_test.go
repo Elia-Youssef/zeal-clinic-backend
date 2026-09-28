@@ -159,3 +159,25 @@ func TestGetCurrencyDropdown(t *testing.T) {
 		t.Errorf("expected at least 1 dropdown item")
 	}
 }
+
+// A currency code that already exists answers 409.
+func TestCreateCurrency_DuplicateCodeAnswersConflict(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	body := asJSON(t, map[string]any{
+		"code": "DUP", "name": "Duplicate", "symbol": "D", "exchangeRate": 2.0,
+	})
+	if rec := doRequest(t, e, http.MethodPost, "/api/currencies", body, tok); rec.Code != http.StatusCreated {
+		t.Fatalf("seed currency: %d body=%s", rec.Code, rec.Body.String())
+	}
+	rec := doRequest(t, e, http.MethodPost, "/api/currencies",
+		asJSON(t, map[string]any{
+			"code": "DUP", "name": "Other", "symbol": "O", "exchangeRate": 3.0,
+		}), tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	containsString(t, rec.Body.String(), "A currency with this code already exists")
+}

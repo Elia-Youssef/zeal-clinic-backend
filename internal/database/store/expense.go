@@ -4,6 +4,7 @@ import (
 	"clinic-api/internal/validation"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -213,7 +214,7 @@ func (e *Expense) Delete() error {
 		return err
 	}
 	if blocked != 0 {
-		return ErrConflict
+		return fmt.Errorf("%w: Can't delete expense while it's in use", ErrConflict)
 	}
 
 	if _, err := tx.Exec(`DELETE FROM balances WHERE entity_type = 'expense' AND entity_id = ?`, e.ID); err != nil {

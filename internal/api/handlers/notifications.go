@@ -4,7 +4,6 @@ import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/realtime"
-	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -54,11 +53,8 @@ func MarkNotificationRead(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, httpx.Response{Error: "This notification isn't yours"})
 	}
 
-	if err := store.MarkNotificationRead(id); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Notification not found"})
-	} else if err != nil {
-		log.Println("Error: [MarkNotificationRead] failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't mark as read"})
+	if err := store.MarkNotificationRead(id); err != nil {
+		return storeError(c, err, "Notification not found", "Couldn't mark as read")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }
@@ -88,8 +84,7 @@ func SendTestNotification(c echo.Context) error {
 		Action:      "test",
 	}
 	if err := n.Create(); err != nil {
-		log.Println("Error: [SendTestNotification] failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't send test notification"})
+		return storeError(c, err, "Notification not found", "Couldn't send test notification")
 	}
 
 	realtime.SendTo(userID, realtime.Event{Type: "notification", Data: n})
@@ -109,11 +104,8 @@ func DeleteNotification(c echo.Context) error {
 	}
 
 	n := store.Notification{ID: id}
-	if err := n.Delete(); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Notification not found"})
-	} else if err != nil {
-		log.Println("Error: [DeleteNotification] failed:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete notification"})
+	if err := n.Delete(); err != nil {
+		return storeError(c, err, "Notification not found", "Couldn't delete notification")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

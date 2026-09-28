@@ -320,3 +320,79 @@ func TestPatientMedicine_ValidationFails(t *testing.T) {
 		t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+// A taken allergy name answers 409 on create and on renaming to it.
+func TestAllergy_DuplicateNameAnswersConflict(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	createAllergy(t, e, tok, "Latex")
+	second := createAllergy(t, e, tok, "Pollen")
+
+	rec := doRequest(t, e, http.MethodPost, "/api/allergies",
+		asJSON(t, map[string]any{"name": "Latex"}), tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("create with a taken name: expected 409, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	containsString(t, rec.Body.String(), "An allergy with this name already exists")
+
+	rec = doRequest(t, e, http.MethodPut, "/api/allergies/"+second,
+		asJSON(t, map[string]any{"name": "Latex"}), tok)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("rename onto a taken name: expected 409, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	containsString(t, rec.Body.String(), "An allergy with this name already exists")
+}
+
+// Unknown parents on a prescription answer 400, on create and on update.
+func TestPrescription_UnknownParentsAnswerClientErrors(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	pid := createPatientAndGetID(t, e, tok, "Rxparents")
+	medID := createMedicine(t, e, tok, "Parentless")
+	empID := createEmployee(t, e, tok, "Doc", "Parents")
+	unknown := "00000000-0000-7000-8000-000000000000"
+
+	good := map[string]any{
+		"patientId":      pid,
+		"prescribedById": empID,
+		"startDate":      "2026-05-01",
+		"endDate":        "2026-05-10",
+		"medicines":      []map[string]any{{"medicineId": medID, "instructions": "once daily"}},
+	}
+	rec := doRequest(t, e, http.MethodPost, "/api/prescriptions", asJSON(t, good), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var created struct{ ID string }
+	decodeEnvelope(t, rec.Body, &created)
+
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   map[string]any
+	}{
+		{"unknown patient on create", http.MethodPost, "/api/prescriptions", map[string]any{
+			"patientId": unknown, "prescribedById": empID, "startDate": "2026-05-01",
+			"medicines": []map[string]any{{"medicineId": medID}}}},
+		{"unknown medicine on update", http.MethodPut, "/api/prescriptions/" + created.ID, map[string]any{
+			"patientId": pid, "prescribedById": empID, "startDate": "2026-05-01", "endDate": "2026-05-15",
+			"medicines": []map[string]any{{"medicineId": unknown}}}},
+		{"unknown prescriber on update", http.MethodPut, "/api/prescriptions/" + created.ID, map[string]any{
+			"patientId": pid, "prescribedById": unknown, "startDate": "2026-05-01", "endDate": "2026-05-15",
+			"medicines": []map[string]any{{"medicineId": medID}}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := doRequest(t, e, tc.method, tc.path, asJSON(t, tc.body), tok)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+			}
+			containsString(t, rec.Body.String(), "Related record not found")
+		})
+	}
+}

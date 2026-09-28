@@ -82,7 +82,7 @@ func (pm *PatientMedicine) Create() error {
 	pm.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO patient_medicines (id, patient_id, medicine_id, is_active, notes, created_at) VALUES (?,?,?,?,?,?)`,
 		pm.ID, pm.PatientID, pm.MedicineID, BoolToInt(pm.IsActive), pm.Notes, pm.CreatedAt)
-	return err
+	return constraintError(err, "Patient already takes this medicine")
 }
 
 func (pm *PatientMedicine) UpdateNotes() error {

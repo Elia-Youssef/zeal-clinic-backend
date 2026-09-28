@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
 
@@ -44,8 +43,7 @@ func CreateCurrency(c echo.Context) error {
 	}
 
 	if err := cur.Create(); err != nil {
-		log.Println("Error: CreateCurrency failed to save currency:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't save currency"})
+		return storeError(c, err, "Currency not found", "Couldn't save currency")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: cur})
 }
@@ -61,12 +59,7 @@ func UpdateCurrency(c echo.Context) error {
 
 	cur := store.Currency{ID: c.Param("id")}
 	if err := cur.Update(updates); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: UpdateCurrency currency not found:", err)
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Currency not found"})
-		}
-		log.Println("Error: UpdateCurrency failed to update currency:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update currency"})
+		return storeError(c, err, "Currency not found", "Couldn't update currency")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: cur})
 }
@@ -79,12 +72,7 @@ func DeleteCurrency(c echo.Context) error {
 
 	cur := store.Currency{ID: id}
 	if err := cur.Delete(); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [DeleteCurrency] currency not found:", err)
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Currency not found"})
-		}
-		log.Println("Error: [DeleteCurrency] failed to delete currency:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete currency"})
+		return storeError(c, err, "Currency not found", "Couldn't delete currency")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

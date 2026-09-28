@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
 
@@ -34,8 +33,7 @@ func AddPatientMedicine(c echo.Context) error {
 	}
 	pm.CreatedAt = store.DateNow()
 	if err := pm.Create(); err != nil {
-		log.Println("Error: [AddPatientMedicine] failed to add:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't add patient medicine"})
+		return storeError(c, err, "Patient medicine not found", "Couldn't add patient medicine")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: pm})
 }
@@ -48,12 +46,7 @@ func UpdatePatientMedicineNotes(c echo.Context) error {
 	}
 	pm.ID = c.Param("id")
 	if err := pm.UpdateNotes(); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [UpdatePatientMedicineNotes] not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Patient medicine not found"})
-		}
-		log.Println("Error: [UpdatePatientMedicineNotes] failed to update:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update patient medicine"})
+		return storeError(c, err, "Patient medicine not found", "Couldn't update patient medicine")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: pm})
 }
@@ -61,12 +54,7 @@ func UpdatePatientMedicineNotes(c echo.Context) error {
 func RemovePatientMedicine(c echo.Context) error {
 	pm := store.PatientMedicine{ID: c.Param("id")}
 	if err := pm.Delete(); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [RemovePatientMedicine] not found:", c.Param("id"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Patient medicine not found"})
-		}
-		log.Println("Error: [RemovePatientMedicine] failed to remove:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't remove patient medicine"})
+		return storeError(c, err, "Patient medicine not found", "Couldn't remove patient medicine")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

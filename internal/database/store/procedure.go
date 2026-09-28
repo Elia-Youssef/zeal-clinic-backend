@@ -182,6 +182,10 @@ func (p *Procedure) GetByID(id string) error {
 }
 
 func (p *Procedure) Create() error {
+	return constraintError(p.create(), "")
+}
+
+func (p *Procedure) create() error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
@@ -208,6 +212,10 @@ func (p *Procedure) Create() error {
 }
 
 func (p *Procedure) Update(updates map[string]any) error {
+	return constraintError(p.update(updates), "")
+}
+
+func (p *Procedure) update(updates map[string]any) error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err

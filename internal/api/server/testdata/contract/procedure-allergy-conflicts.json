@@ -127,10 +127,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 409,
         "body": {
           "Data": null,
-          "Error": "Couldn't add procedure allergy conflict",
+          "Error": "This allergy conflict already exists",
           "Success": false
         }
       }

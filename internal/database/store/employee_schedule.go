@@ -122,6 +122,11 @@ func (v *EmployeeScheduleVersion) IsValid() error {
 // disturbing the chain. Returns the rows written, empty when the weekday is
 // being turned into a day off.
 func (v *EmployeeScheduleVersion) Save() ([]EmployeeSchedule, error) {
+	shifts, err := v.save()
+	return shifts, constraintError(err, "")
+}
+
+func (v *EmployeeScheduleVersion) save() ([]EmployeeSchedule, error) {
 	v.normalize()
 	if err := v.IsValid(); err != nil {
 		return nil, err

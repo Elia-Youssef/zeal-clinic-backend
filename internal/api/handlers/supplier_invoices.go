@@ -6,10 +6,8 @@ import (
 	"clinic-api/internal/monitor"
 	"clinic-api/internal/tracking"
 	"clinic-api/internal/validation"
-	"errors"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -112,11 +110,8 @@ func CreateSupplierInvoice(c echo.Context) error {
 		tracking.Warn(c, "[CreateSupplierInvoice] invoice IsValid failed: "+err.Error())
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
-	if err := inv.Create(); errors.Is(err, store.ErrConflict) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
-	} else if err != nil {
-		log.Println("Error: CreateSupplierInvoice:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create invoice"})
+	if err := inv.Create(); err != nil {
+		return storeError(c, err, "Invoice not found", "Couldn't create invoice")
 	}
 	monitor.CheckLowStock(invoiceProductIDs(inv.Items))
 
@@ -141,11 +136,8 @@ func UpdateSupplierInvoice(c echo.Context) error {
 	delete(updates, "id")
 	delete(updates, "invoiceNumber")
 	inv := store.Invoice{ID: c.Param("id")}
-	if err := inv.Update(updates); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
-	} else if err != nil {
-		log.Println("Error: UpdateSupplierInvoice:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update invoice"})
+	if err := inv.Update(updates); err != nil {
+		return storeError(c, err, "Invoice not found", "Couldn't update invoice")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
 }
@@ -166,11 +158,8 @@ func UpdateSupplierInvoiceItem(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: msg})
 	}
 	inv := store.Invoice{ID: c.Param("id")}
-	if err := inv.UpdateItemAmount(c.Param("itemId"), req.Amount); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice or item not found"})
-	} else if err != nil {
-		log.Println("Error: UpdateSupplierInvoiceItem:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update invoice item"})
+	if err := inv.UpdateItemAmount(c.Param("itemId"), req.Amount); err != nil {
+		return storeError(c, err, "Invoice or item not found", "Couldn't update invoice item")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: inv})
 }
@@ -178,20 +167,12 @@ func UpdateSupplierInvoiceItem(c echo.Context) error {
 func DeleteSupplierInvoice(c echo.Context) error {
 	id := c.Param("id")
 	inv := store.Invoice{ID: id}
-	if err := inv.GetByID(id); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
-	} else if err != nil {
-		log.Println("Error: DeleteSupplierInvoice fetch:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete invoice"})
+	if err := inv.GetByID(id); err != nil {
+		return storeError(c, err, "Invoice not found", "Couldn't delete invoice")
 	}
 	productIDs := invoiceProductIDs(inv.Items)
-	if err := inv.Delete(); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
-	} else if errors.Is(err, store.ErrConflict) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
-	} else if err != nil {
-		log.Println("Error: DeleteSupplierInvoice:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete invoice"})
+	if err := inv.Delete(); err != nil {
+		return storeError(c, err, "Invoice not found", "Couldn't delete invoice")
 	}
 	monitor.CheckLowStock(productIDs)
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})

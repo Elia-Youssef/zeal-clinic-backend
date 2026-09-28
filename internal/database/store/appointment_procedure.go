@@ -24,7 +24,8 @@ type AppointmentProcedure struct {
 type AppointmentProcedureList []AppointmentProcedure
 
 // create inserts the appointment_procedure inside the supplied DBTX so it can
-// run as part of an existing transaction (e.g. Appointment.Create / Update).
+// run as part of an existing transaction (e.g. Appointment.Create / Update),
+// whose exit carries the constraint translation for the whole write.
 func (ap *AppointmentProcedure) create(db DBTX) error {
 	ap.ID = uuid.Must(uuid.NewV7()).String()
 	now := DateNow()

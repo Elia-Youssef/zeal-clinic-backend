@@ -75,7 +75,7 @@ func (pa *PatientAllergy) Create() error {
 	pa.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO patient_allergies (id, patient_id, allergy_id, notes, created_at) VALUES (?,?,?,?,?)`,
 		pa.ID, pa.PatientID, pa.AllergyID, pa.Notes, pa.CreatedAt)
-	return err
+	return constraintError(err, "Patient already has this allergy")
 }
 
 func (pa *PatientAllergy) UpdateNotes() error {

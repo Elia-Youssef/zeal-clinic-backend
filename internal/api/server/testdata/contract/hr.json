@@ -1832,10 +1832,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't create holiday",
+          "Error": "End date must be on or after start date",
           "Success": false
         }
       }
@@ -1851,10 +1851,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't create holiday",
+          "Error": "Name is required",
           "Success": false
         }
       }
@@ -1869,10 +1869,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't update holiday",
+          "Error": "End date must be on or after start date",
           "Success": false
         }
       }
@@ -1995,10 +1995,10 @@
         "body": {}
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't create holiday",
+          "Error": "Name is required",
           "Success": false
         }
       }

@@ -151,6 +151,10 @@ func (p *Product) GetByID(id string) error {
 }
 
 func (p *Product) Create() error {
+	return constraintError(p.create(), "")
+}
+
+func (p *Product) create() error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
@@ -173,6 +177,10 @@ func (p *Product) Create() error {
 }
 
 func (p *Product) Update(updates map[string]any) error {
+	return constraintError(p.update(updates), "")
+}
+
+func (p *Product) update(updates map[string]any) error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err

@@ -36,12 +36,8 @@ func GetEmployeeDropdown(c echo.Context) error {
 
 func GetEmployeeByID(c echo.Context) error {
 	var item store.Employee
-	if err := item.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [GetEmployeeByID] employee not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Employee not found"})
-	} else if err != nil {
-		log.Println("Error: [GetEmployeeByID] failed to fetch employee:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load employee"})
+	if err := item.GetByID(c.Param("id")); err != nil {
+		return storeError(c, err, "Employee not found", "Couldn't load employee")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: item})
 }
@@ -96,15 +92,13 @@ func CreateEmployee(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check the user details"})
 		}
 		if err := user.Create(hash); err != nil {
-			log.Println("Error: [CreateEmployee] failed to create user:", err)
-			return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user account"})
+			return storeError(c, err, "User not found", "Couldn't create user account")
 		}
 		m.UserID = &user.ID
 	}
 
 	if err := m.Create(); err != nil {
-		log.Println("Error: [CreateEmployee] failed to create employee:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create employee"})
+		return storeError(c, err, "Employee not found", "Couldn't create employee")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: m})
 }
@@ -118,12 +112,8 @@ func UpdateEmployee(c echo.Context) error {
 	delete(updates, "id")
 
 	member := store.Employee{ID: c.Param("id")}
-	if err := member.Update(updates); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [UpdateEmployee] employee not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Employee not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdateEmployee] failed to update employee:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update employee"})
+	if err := member.Update(updates); err != nil {
+		return storeError(c, err, "Employee not found", "Couldn't update employee")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: member})
 }
@@ -135,12 +125,8 @@ func DeleteEmployee(c echo.Context) error {
 	}
 
 	member := store.Employee{ID: id}
-	if err := member.Delete(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [DeleteEmployee] employee not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Employee not found"})
-	} else if err != nil {
-		log.Println("Error: [DeleteEmployee] failed to delete employee:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete employee"})
+	if err := member.Delete(); err != nil {
+		return storeError(c, err, "Employee not found", "Couldn't delete employee")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

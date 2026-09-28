@@ -4,10 +4,8 @@ import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/realtime"
-	"errors"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -39,12 +37,7 @@ func GetRoleByName(c echo.Context) error {
 	}
 	role := store.Role{}
 	if err := role.GetByName(c.Param("name")); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [GetRoleByName] role not found:", c.Param("name"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Role not found"})
-		}
-		log.Println("Error: [GetRoleByName] failed to fetch role:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load role"})
+		return storeError(c, err, "Role not found", "Couldn't load role")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: role})
 }
@@ -63,15 +56,7 @@ func UpdateRole(c echo.Context) error {
 
 	role := store.Role{Name: c.Param("name")}
 	if err := role.Update(updates); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			log.Println("Error: [UpdateRole] role not found:", c.Param("name"))
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Role not found"})
-		}
-		if errors.Is(err, store.ErrValidation) {
-			return c.JSON(http.StatusBadRequest, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrValidation.Error()+": ")})
-		}
-		log.Println("Error: [UpdateRole] failed to update role:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update role"})
+		return storeError(c, err, "Role not found", "Couldn't update role")
 	}
 
 	if _, scopesChanged := updates["scopes"]; scopesChanged {

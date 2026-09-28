@@ -29,11 +29,8 @@ func GetAllUsers(c echo.Context) error {
 
 func GetUserByID(c echo.Context) error {
 	var item store.User
-	if err := item.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
-	} else if err != nil {
-		log.Println("Error: [GetUserByID] failed to fetch user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load user"})
+	if err := item.GetByID(c.Param("id")); err != nil {
+		return storeError(c, err, "User not found", "Couldn't load user")
 	}
 	if item.Role == "super-admin" {
 		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
@@ -68,8 +65,7 @@ func CreateUser(c echo.Context) error {
 	}
 
 	if err := body.User.Create(hash); err != nil {
-		log.Println("Error: [CreateUser] failed to create user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create user"})
+		return storeError(c, err, "User not found", "Couldn't create user")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: body.User})
 }
@@ -123,11 +119,8 @@ func UpdateUser(c echo.Context) error {
 	}
 
 	var current store.User
-	if err := current.GetByID(targetID); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdateUser] failed to load user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
+	if err := current.GetByID(targetID); err != nil {
+		return storeError(c, err, "User not found", "Couldn't update user")
 	}
 	if current.Role == "super-admin" {
 		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
@@ -146,11 +139,8 @@ func UpdateUser(c echo.Context) error {
 	}
 
 	user := store.User{ID: targetID}
-	if err := user.Update(updates); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
-	} else if err != nil {
-		log.Println("Error: [UpdateUser] failed to update user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update user"})
+	if err := user.Update(updates); err != nil {
+		return storeError(c, err, "User not found", "Couldn't update user")
 	}
 
 	if passwordHash != "" {
@@ -176,11 +166,8 @@ func UpdateUser(c echo.Context) error {
 
 func GetUserActions(c echo.Context) error {
 	var user store.User
-	if err := user.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})
-	} else if err != nil {
-		log.Println("Error: [GetUserActions] failed to load user:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load activity"})
+	if err := user.GetByID(c.Param("id")); err != nil {
+		return storeError(c, err, "User not found", "Couldn't load activity")
 	}
 	if user.Role == "super-admin" {
 		return c.JSON(http.StatusNotFound, httpx.Response{Error: "User not found"})

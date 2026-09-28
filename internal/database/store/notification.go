@@ -110,7 +110,7 @@ func (n *Notification) Create() error {
 	n.CreatedAt = DateNow()
 	_, err := DB.Exec(`INSERT INTO notifications (`+notificationColumns+`) VALUES (?,?,?,?,?,?,?)`,
 		n.ID, n.UserID, n.Title, n.Description, n.Action, BoolToInt(n.IsRead), n.CreatedAt)
-	return err
+	return constraintError(err, "")
 }
 
 func MarkNotificationRead(id string) error {

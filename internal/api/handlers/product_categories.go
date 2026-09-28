@@ -3,10 +3,8 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"errors"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -46,11 +44,8 @@ func CreateProductCategory(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	cat.CreatedAt = store.DateNow()
-	if err := cat.Create(); errors.Is(err, store.ErrConflict) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
-	} else if err != nil {
-		log.Println("Error: CreateProductCategory failed to create category:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create category"})
+	if err := cat.Create(); err != nil {
+		return storeError(c, err, "Category not found", "Couldn't create category")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: cat})
 }
@@ -62,14 +57,8 @@ func UpdateProductCategory(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Invalid request"})
 	}
 	cat := store.ProductCategory{ID: c.Param("id")}
-	if err := cat.Update(updates); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: UpdateProductCategory category not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Category not found"})
-	} else if errors.Is(err, store.ErrConflict) {
-		return c.JSON(http.StatusConflict, httpx.Response{Error: strings.TrimPrefix(err.Error(), store.ErrConflict.Error()+": ")})
-	} else if err != nil {
-		log.Println("Error: UpdateProductCategory failed to update category:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update category"})
+	if err := cat.Update(updates); err != nil {
+		return storeError(c, err, "Category not found", "Couldn't update category")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: cat})
 }
@@ -81,12 +70,8 @@ func DeleteProductCategory(c echo.Context) error {
 	}
 
 	cat := store.ProductCategory{ID: id}
-	if err := cat.Delete(); errors.Is(err, store.ErrNotFound) {
-		log.Println("Error: [DeleteProductCategory] category not found:", err)
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Category not found"})
-	} else if err != nil {
-		log.Println("Error: [DeleteProductCategory] failed to delete category:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete category"})
+	if err := cat.Delete(); err != nil {
+		return storeError(c, err, "Category not found", "Couldn't delete category")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

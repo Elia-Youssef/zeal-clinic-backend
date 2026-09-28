@@ -99,8 +99,7 @@ func PublishVersion(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	if err := v.Create(); err != nil {
-		log.Println("Error: [PublishVersion] failed to save version:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't save version"})
+		return storeError(c, err, "Version not found", "Couldn't save version")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: v})
 }

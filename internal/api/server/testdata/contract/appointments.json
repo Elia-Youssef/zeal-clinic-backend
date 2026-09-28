@@ -1666,10 +1666,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 409,
         "body": {
           "Data": null,
-          "Error": "Couldn't create appointment",
+          "Error": "This room is already booked for that time",
           "Success": false
         }
       }
@@ -1730,10 +1730,10 @@
         }
       },
       "response": {
-        "status": 500,
+        "status": 400,
         "body": {
           "Data": null,
-          "Error": "Couldn't create appointment",
+          "Error": "Related record not found",
           "Success": false
         }
       }

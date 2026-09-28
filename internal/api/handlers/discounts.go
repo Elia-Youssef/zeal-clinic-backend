@@ -3,7 +3,6 @@ package handlers
 import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
-	"clinic-api/internal/validation"
 	"errors"
 	"log"
 	"net/http"
@@ -28,11 +27,7 @@ func GetAllDiscounts(c echo.Context) error {
 func GetDiscountByID(c echo.Context) error {
 	d := store.Discount{}
 	if err := d.GetByID(c.Param("id")); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Discount not found"})
-		}
-		log.Println("Error: [GetDiscountByID]:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load discount"})
+		return storeError(c, err, "Discount not found", "Couldn't load discount")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: d})
 }
@@ -67,8 +62,7 @@ func CreateDiscount(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
 	}
 	if err := d.Create(); err != nil {
-		log.Println("Error: [CreateDiscount]:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't create discount"})
+		return storeError(c, err, "Discount not found", "Couldn't create discount")
 	}
 	return c.JSON(http.StatusCreated, httpx.Response{Success: true, Data: d})
 }
@@ -107,11 +101,7 @@ func UpdateDiscount(c echo.Context) error {
 
 	d := store.Discount{ID: c.Param("id")}
 	if err := d.GetByID(d.ID); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Discount not found"})
-		}
-		log.Println("Error: [UpdateDiscount]:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update discount"})
+		return storeError(c, err, "Discount not found", "Couldn't update discount")
 	}
 	// Gift cards: only name & description are editable.
 	if d.DiscountType == "gift" {
@@ -125,15 +115,7 @@ func UpdateDiscount(c echo.Context) error {
 	}
 
 	if err := d.Update(updates); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Discount not found"})
-		}
-		var validationErr validation.Errors
-		if errors.As(err, &validationErr) {
-			return c.JSON(http.StatusBadRequest, httpx.Response{Error: "Please check your input"})
-		}
-		log.Println("Error: [UpdateDiscount]:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't update discount"})
+		return storeError(c, err, "Discount not found", "Couldn't update discount")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true, Data: d})
 }
@@ -144,11 +126,7 @@ func DeleteDiscount(c echo.Context) error {
 		return c.JSON(http.StatusConflict, httpx.Response{Error: "This discount is used by invoices and can't be deleted"})
 	}
 	if err := d.Delete(); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return c.JSON(http.StatusNotFound, httpx.Response{Error: "Discount not found"})
-		}
-		log.Println("Error: [DeleteDiscount]:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't delete discount"})
+		return storeError(c, err, "Discount not found", "Couldn't delete discount")
 	}
 	return c.JSON(http.StatusOK, httpx.Response{Success: true})
 }

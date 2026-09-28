@@ -4,7 +4,6 @@ import (
 	"clinic-api/internal/api/httpx"
 	"clinic-api/internal/database/store"
 	"clinic-api/internal/pdf"
-	"errors"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -15,11 +14,8 @@ import (
 // GetInvoicePDF generates a PDF for the invoice and returns its served URL.
 func GetInvoicePDF(c echo.Context) error {
 	var inv store.Invoice
-	if err := inv.GetByID(c.Param("id")); errors.Is(err, store.ErrNotFound) {
-		return c.JSON(http.StatusNotFound, httpx.Response{Error: "Invoice not found"})
-	} else if err != nil {
-		log.Println("Error: GetInvoicePDF:", err)
-		return c.JSON(http.StatusInternalServerError, httpx.Response{Error: "Couldn't load invoice"})
+	if err := inv.GetByID(c.Param("id")); err != nil {
+		return storeError(c, err, "Invoice not found", "Couldn't load invoice")
 	}
 	path, err := pdf.GenerateInvoice(&inv)
 	if err != nil {

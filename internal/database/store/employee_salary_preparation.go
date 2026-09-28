@@ -32,6 +32,11 @@ const employeeSalaryPreparationColumns = `id, employee_id, period_start, period_
 // the period. Idempotent per employee: re-runs skip employees that already
 // have a row and insert only the missing ones.
 func PrepareEmployeeSalaries(periodStart Date, periodEnd Date, notes string, createdBy string) ([]EmployeeSalaryPreparation, error) {
+	preps, err := prepareEmployeeSalaries(periodStart, periodEnd, notes, createdBy)
+	return preps, constraintError(err, "")
+}
+
+func prepareEmployeeSalaries(periodStart Date, periodEnd Date, notes string, createdBy string) ([]EmployeeSalaryPreparation, error) {
 	if _, _, err := parseDateRange(periodStart, periodEnd); err != nil {
 		return nil, err
 	}
@@ -176,6 +181,10 @@ func PreparedSalariesForEmployee(employeeID string, params ListParams) ([]Employ
 // base_salary + adjustment, and patches the linked balance transaction by the
 // delta. Adjustment may be negative, but prepared_amount must stay non-negative.
 func (p *EmployeeSalaryPreparation) SetAdjustment(adjustment float64) error {
+	return constraintError(p.setAdjustment(adjustment), "")
+}
+
+func (p *EmployeeSalaryPreparation) setAdjustment(adjustment float64) error {
 	adjustment = Round2(adjustment)
 
 	tx, err := DB.Begin()
@@ -197,7 +206,7 @@ func (p *EmployeeSalaryPreparation) SetAdjustment(adjustment float64) error {
 
 	newAmount := Round2(current.BaseSalary + adjustment)
 	if newAmount < 0 {
-		return fmt.Errorf("adjustment would make prepared amount negative")
+		return fmt.Errorf("%w: Adjustment would make the prepared amount negative", ErrValidation)
 	}
 	delta := Round2(newAmount - current.PreparedAmount)
 
