@@ -410,22 +410,6 @@
           "Data": {
             "days": [
               {
-                "dayOfWeek": 0,
-                "employeeId": "<id:3>",
-                "employeeName": "Nora Example",
-                "hours": 4,
-                "isOff": false,
-                "overtimeHours": 0,
-                "shifts": [
-                  {
-                    "endTime": "12:00",
-                    "kind": "regular",
-                    "startTime": "08:00"
-                  }
-                ],
-                "workDate": "2025-03-30"
-              },
-              {
                 "dayOfWeek": 1,
                 "employeeId": "<id:3>",
                 "employeeName": "Nora Example",
@@ -505,6 +489,22 @@
                   }
                 ],
                 "workDate": "2025-04-05"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-04-06"
               }
             ],
             "holidays": [],
@@ -600,8 +600,8 @@
                 "updatedAt": "<ts>"
               }
             ],
-            "weekEnd": "2025-04-05",
-            "weekStart": "2025-03-30"
+            "weekEnd": "2025-04-06",
+            "weekStart": "2025-03-31"
           },
           "Error": "",
           "Success": true
@@ -619,22 +619,6 @@
         "body": {
           "Data": {
             "days": [
-              {
-                "dayOfWeek": 0,
-                "employeeId": "<id:3>",
-                "employeeName": "Nora Example",
-                "hours": 4,
-                "isOff": false,
-                "overtimeHours": 0,
-                "shifts": [
-                  {
-                    "endTime": "12:00",
-                    "kind": "regular",
-                    "startTime": "08:00"
-                  }
-                ],
-                "workDate": "2025-04-06"
-              },
               {
                 "dayOfWeek": 1,
                 "employeeId": "<id:3>",
@@ -710,6 +694,22 @@
                   }
                 ],
                 "workDate": "2025-04-12"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-04-13"
               }
             ],
             "holidays": [],
@@ -742,32 +742,6 @@
                 "dayOfWeek": 1,
                 "employeeId": "<id:3>",
                 "employeeName": "Nora Example",
-                "endDate": "2025-04-07",
-                "endTime": "13:00",
-                "id": "<id:10>",
-                "isActive": false,
-                "startDate": "2025-03-03",
-                "startTime": "09:00",
-                "updatedAt": "<ts>"
-              },
-              {
-                "createdAt": "<ts>",
-                "dayOfWeek": 1,
-                "employeeId": "<id:3>",
-                "employeeName": "Nora Example",
-                "endDate": "2025-04-07",
-                "endTime": "18:00",
-                "id": "<id:11>",
-                "isActive": false,
-                "startDate": "2025-03-03",
-                "startTime": "14:00",
-                "updatedAt": "<ts>"
-              },
-              {
-                "createdAt": "<ts>",
-                "dayOfWeek": 1,
-                "employeeId": "<id:3>",
-                "employeeName": "Nora Example",
                 "endTime": "16:00",
                 "id": "<id:13>",
                 "isActive": true,
@@ -788,8 +762,8 @@
                 "updatedAt": "<ts>"
               }
             ],
-            "weekEnd": "2025-04-12",
-            "weekStart": "2025-04-06"
+            "weekEnd": "2025-04-13",
+            "weekStart": "2025-04-07"
           },
           "Error": "",
           "Success": true
@@ -807,22 +781,6 @@
         "body": {
           "Data": {
             "days": [
-              {
-                "dayOfWeek": 0,
-                "employeeId": "<id:3>",
-                "employeeName": "Nora Example",
-                "hours": 4,
-                "isOff": false,
-                "overtimeHours": 0,
-                "shifts": [
-                  {
-                    "endTime": "12:00",
-                    "kind": "regular",
-                    "startTime": "08:00"
-                  }
-                ],
-                "workDate": "2025-10-26"
-              },
               {
                 "dayOfWeek": 1,
                 "employeeId": "<id:3>",
@@ -893,6 +851,22 @@
                   }
                 ],
                 "workDate": "2025-11-01"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-11-02"
               }
             ],
             "holidays": [
@@ -956,8 +930,8 @@
                 "updatedAt": "<ts>"
               }
             ],
-            "weekEnd": "2025-11-01",
-            "weekStart": "2025-10-26"
+            "weekEnd": "2025-11-02",
+            "weekStart": "2025-10-27"
           },
           "Error": "",
           "Success": true
@@ -975,17 +949,6 @@
         "body": {
           "Data": {
             "days": [
-              {
-                "dayOfWeek": 0,
-                "employeeId": "<id:7>",
-                "employeeName": "Sam Sample",
-                "hours": 0,
-                "isOff": true,
-                "offReason": "no-schedule",
-                "overtimeHours": 0,
-                "shifts": [],
-                "workDate": "2025-03-02"
-              },
               {
                 "dayOfWeek": 1,
                 "employeeId": "<id:7>",
@@ -1056,6 +1019,17 @@
                 "overtimeHours": 0,
                 "shifts": [],
                 "workDate": "2025-03-08"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:7>",
+                "employeeName": "Sam Sample",
+                "hours": 0,
+                "isOff": true,
+                "offReason": "no-schedule",
+                "overtimeHours": 0,
+                "shifts": [],
+                "workDate": "2025-03-09"
               }
             ],
             "holidays": [],
@@ -1084,8 +1058,8 @@
                 "updatedAt": "<ts>"
               }
             ],
-            "weekEnd": "2025-03-08",
-            "weekStart": "2025-03-02"
+            "weekEnd": "2025-03-09",
+            "weekStart": "2025-03-03"
           },
           "Error": "",
           "Success": true
@@ -1104,22 +1078,6 @@
         "body": {
           "Data": {
             "days": [
-              {
-                "dayOfWeek": 0,
-                "employeeId": "<id:3>",
-                "employeeName": "Nora Example",
-                "hours": 4,
-                "isOff": false,
-                "overtimeHours": 0,
-                "shifts": [
-                  {
-                    "endTime": "12:00",
-                    "kind": "regular",
-                    "startTime": "08:00"
-                  }
-                ],
-                "workDate": "2025-03-30"
-              },
               {
                 "dayOfWeek": 1,
                 "employeeId": "<id:3>",
@@ -1200,6 +1158,22 @@
                   }
                 ],
                 "workDate": "2025-04-05"
+              },
+              {
+                "dayOfWeek": 0,
+                "employeeId": "<id:3>",
+                "employeeName": "Nora Example",
+                "hours": 4,
+                "isOff": false,
+                "overtimeHours": 0,
+                "shifts": [
+                  {
+                    "endTime": "12:00",
+                    "kind": "regular",
+                    "startTime": "08:00"
+                  }
+                ],
+                "workDate": "2025-04-06"
               }
             ],
             "holidays": [],
@@ -1295,8 +1269,8 @@
                 "updatedAt": "<ts>"
               }
             ],
-            "weekEnd": "2025-04-05",
-            "weekStart": "2025-03-30"
+            "weekEnd": "2025-04-06",
+            "weekStart": "2025-03-31"
           },
           "Error": "",
           "Success": true

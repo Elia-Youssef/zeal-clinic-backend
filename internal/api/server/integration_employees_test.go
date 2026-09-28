@@ -295,6 +295,84 @@ func TestGetEmployeeSchedule_Projection(t *testing.T) {
 	}
 }
 
+// The schedule endpoint and the employee-appointments endpoint read the same
+// clinic week: for a mid-week date the schedule response names the week, and
+// the appointments endpoint returns the bookings on its Monday and its Sunday.
+func TestEmployeeScheduleAndAppointments_SameWeek(t *testing.T) {
+	setupTestEnv(t)
+	e := newTestServer(t)
+	tok := adminToken(t, e)
+
+	empID := createEmployee(t, e, tok, "Week", "Agree")
+	pid := createPatientAndGetID(t, e, tok, "Week")
+	rid := createRoom(t, e, tok, "Week Room", "Procedure")
+	typeID := createProcedureType(t, e, tok, "WeekType")
+	catID := createProcedureCategory(t, e, tok, "WeekCat")
+	rec := doRequest(t, e, http.MethodPost, "/api/procedures",
+		asJSON(t, map[string]any{"name": "Week Procedure", "typeId": typeID, "categoryId": catID, "price": 10.0, "isActive": true}), tok)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create procedure: %d %s", rec.Code, rec.Body.String())
+	}
+	var proc struct{ ID string }
+	decodeEnvelope(t, rec.Body, &proc)
+
+	// Wednesday 2026-06-17; its clinic week runs from Monday the 15th to
+	// Sunday the 21st.
+	const mid, monday, sunday = "2026-06-17", "2026-06-15", "2026-06-21"
+	for _, day := range []string{monday, sunday} {
+		rec := doRequest(t, e, http.MethodPost, "/api/appointments",
+			asJSON(t, map[string]any{
+				"patientId": pid, "roomId": rid,
+				"startTime": clinicUTC(t, day, "10:00"), "endTime": clinicUTC(t, day, "10:30"),
+				"appointmentProcedures": []map[string]any{{"procedureId": proc.ID, "assignedToId": empID}},
+			}), tok)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("book %s: %d %s", day, rec.Code, rec.Body.String())
+		}
+	}
+
+	rec = doRequest(t, e, http.MethodGet, "/api/employees/"+empID+"/schedule?date="+mid, nil, tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("schedule: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var schedule struct {
+		WeekStart string `json:"weekStart"`
+		WeekEnd   string `json:"weekEnd"`
+	}
+	decodeEnvelope(t, rec.Body, &schedule)
+	if schedule.WeekStart != monday || schedule.WeekEnd != sunday {
+		t.Fatalf("schedule week of %s = [%s, %s], want [%s, %s]", mid, schedule.WeekStart, schedule.WeekEnd, monday, sunday)
+	}
+
+	rec = doRequest(t, e, http.MethodGet, "/api/employees/"+empID+"/appointments?date="+mid, nil, tok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("appointments: %d body=%s", rec.Code, rec.Body.String())
+	}
+	var page struct {
+		Items []struct {
+			StartTime string `json:"startTime"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	decodeEnvelope(t, rec.Body, &page)
+	want := map[string]bool{clinicUTC(t, monday, "10:00"): false, clinicUTC(t, sunday, "10:00"): false}
+	if page.Total != len(want) || len(page.Items) != len(want) {
+		t.Fatalf("appointments for the week of %s: total %d, items %d, want %d (%s)", mid, page.Total, len(page.Items), len(want), rec.Body.String())
+	}
+	for _, it := range page.Items {
+		if _, ok := want[it.StartTime]; !ok {
+			t.Errorf("appointment at %s is outside the schedule week [%s, %s]", it.StartTime, monday, sunday)
+			continue
+		}
+		want[it.StartTime] = true
+	}
+	for start, seen := range want {
+		if !seen {
+			t.Errorf("the %s booking is missing from the employee's week", start)
+		}
+	}
+}
+
 func TestSaveEmployeeScheduleDay_RejectsOverlappingShifts(t *testing.T) {
 	setupTestEnv(t)
 	e := newTestServer(t)

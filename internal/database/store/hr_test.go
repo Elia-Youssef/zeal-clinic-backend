@@ -58,11 +58,12 @@ func findScheduleDay(t *testing.T, days []EmployeeScheduleDay, workDate Date) Em
 	return EmployeeScheduleDay{}
 }
 
-// projectWeek projects the week 2026-11-01..2026-11-07, which contains the
-// Wednesday (dayOfWeek=3) the shift tests below are built around.
+// projectWeek projects the clinic week 2026-11-02..2026-11-08 (Monday to
+// Sunday), which contains the Wednesday (dayOfWeek=3) the shift tests below
+// are built around.
 func projectWeek(t *testing.T, employeeID string) []EmployeeScheduleDay {
 	t.Helper()
-	days, err := EmployeeScheduleForRange(employeeID, "2026-11-01", "2026-11-07")
+	days, err := EmployeeScheduleForRange(employeeID, "2026-11-02", "2026-11-08")
 	if err != nil {
 		t.Fatalf("project schedule: %v", err)
 	}
@@ -100,7 +101,7 @@ func TestEmployeeScheduleVersion_MultipleShiftsInOneDay(t *testing.T) {
 		t.Fatalf("expected 4 + 3 = 7 hours, got %v", day.Hours)
 	}
 
-	templates, err := SchedulesForWeek(emp.ID, "2026-11-01", "2026-11-07")
+	templates, err := SchedulesForWeek(emp.ID, "2026-11-02", "2026-11-08")
 	if err != nil {
 		t.Fatalf("templates: %v", err)
 	}
@@ -178,7 +179,7 @@ func TestEmployeeScheduleVersion_EmptyShiftsTurnsWeekdayOff(t *testing.T) {
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "17:00"))
 	setSchedule(t, emp.ID, 3, "2026-11-04")
 
-	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-25", "2026-11-07")
+	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-26", "2026-11-08")
 	if err != nil {
 		t.Fatalf("project schedule: %v", err)
 	}
@@ -200,7 +201,7 @@ func TestEmployeeScheduleVersion_SupersedesPreviousVersion(t *testing.T) {
 	setSchedule(t, emp.ID, 3, "2026-01-01", shift("09:00", "17:00"))
 	setSchedule(t, emp.ID, 3, "2026-11-04", shift("10:00", "13:00"), shift("14:00", "16:00"))
 
-	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-25", "2026-11-07")
+	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-26", "2026-11-08")
 	if err != nil {
 		t.Fatalf("project schedule: %v", err)
 	}
@@ -218,7 +219,7 @@ func TestEmployeeScheduleVersion_SameStartDateReplaces(t *testing.T) {
 	assertShifts(t, findScheduleDay(t, projectWeek(t, emp.ID), "2026-11-04"), shift("10:00", "16:00"))
 
 	// The replaced shifts are gone, not kept as zero-width superseded rows.
-	templates, err := SchedulesForWeek(emp.ID, "2026-11-01", "2026-11-07")
+	templates, err := SchedulesForWeek(emp.ID, "2026-11-02", "2026-11-08")
 	if err != nil {
 		t.Fatalf("templates: %v", err)
 	}
@@ -295,7 +296,7 @@ func TestEmployeeSchedule_DeleteRemovesWholeVersion(t *testing.T) {
 		t.Fatalf("delete version: %v", err)
 	}
 
-	templates, err := SchedulesForWeek(emp.ID, "2026-11-01", "2026-11-07")
+	templates, err := SchedulesForWeek(emp.ID, "2026-11-02", "2026-11-08")
 	if err != nil {
 		t.Fatalf("templates: %v", err)
 	}
@@ -344,7 +345,7 @@ func TestLegacySchedule_SupersededChainProjectsUnchanged(t *testing.T) {
 	insertLegacySchedule(t, emp.ID, 3, "09:00", "17:00", "2026-01-01", "2026-11-04", false)
 	insertLegacySchedule(t, emp.ID, 3, "10:00", "14:00", "2026-11-04", "", true)
 
-	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-25", "2026-11-07")
+	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-26", "2026-11-08")
 	if err != nil {
 		t.Fatalf("project schedule: %v", err)
 	}
@@ -389,7 +390,7 @@ func TestLegacySchedule_SplitDaySaveKeepsHistory(t *testing.T) {
 	insertLegacySchedule(t, emp.ID, 3, "09:00", "17:00", "2026-01-01", "", true)
 	setSchedule(t, emp.ID, 3, "2026-11-04", shift("09:00", "13:00"), shift("15:00", "18:00"))
 
-	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-25", "2026-11-07")
+	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-26", "2026-11-08")
 	if err != nil {
 		t.Fatalf("project schedule: %v", err)
 	}
@@ -398,7 +399,7 @@ func TestLegacySchedule_SplitDaySaveKeepsHistory(t *testing.T) {
 	assertShifts(t, findScheduleDay(t, days, "2026-11-04"), shift("09:00", "13:00"), shift("15:00", "18:00"))
 
 	// The legacy row is still there as an editable superseded version.
-	templates, err := SchedulesForWeek(emp.ID, "2026-10-25", "2026-11-07")
+	templates, err := SchedulesForWeek(emp.ID, "2026-10-26", "2026-11-08")
 	if err != nil {
 		t.Fatalf("templates: %v", err)
 	}
@@ -432,7 +433,7 @@ func TestLegacySchedule_DeleteRemovesOnlyThatRow(t *testing.T) {
 		t.Fatalf("delete legacy version: %v", err)
 	}
 
-	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-25", "2026-11-07")
+	days, err := EmployeeScheduleForRange(emp.ID, "2026-10-26", "2026-11-08")
 	if err != nil {
 		t.Fatalf("project schedule: %v", err)
 	}

@@ -84,11 +84,49 @@ func TestDateHelpers_ClinicLocalDays(t *testing.T) {
 	if s, e := clinicDayBoundsIn(now, time.UTC); s != "2026-03-29T00:00:00Z" || e != "2026-03-30T00:00:00Z" {
 		t.Errorf("clinicDayBoundsIn(UTC) = [%s, %s)", s, e)
 	}
-	if s, e := clinicWeekBounds(now, loc, time.Sunday); DateFrom(s) != "2026-03-28T22:00:00Z" || DateFrom(e) != "2026-04-04T21:00:00Z" {
-		t.Errorf("clinicWeekBounds(clinic, Sunday) = [%s, %s)", DateFrom(s), DateFrom(e))
+	// 21:30 UTC on 29 March 2026 is 00:30 on Monday 30 March in Beirut, inside
+	// the clinic week that starts there.
+	if s, e := clinicWeekBoundsIn(now, loc); DateFrom(s) != "2026-03-29T21:00:00Z" || DateFrom(e) != "2026-04-05T21:00:00Z" {
+		t.Errorf("clinicWeekBoundsIn(clinic) = [%s, %s)", DateFrom(s), DateFrom(e))
 	}
 	if s, e := clinicMonthBounds(now, loc); DateFrom(s) != "2026-02-28T22:00:00Z" || DateFrom(e) != "2026-03-31T21:00:00Z" {
 		t.Errorf("clinicMonthBounds(clinic) = [%s, %s)", DateFrom(s), DateFrom(e))
+	}
+}
+
+// The one clinic week rule: Monday to Sunday, whatever day of the week it is
+// read from, including across month and year boundaries (in the clinic's
+// time zone, whose calendar day the bare date names).
+func TestWeekRange_MondayToSunday(t *testing.T) {
+	cases := []struct {
+		name, day, start, end string
+	}{
+		{"a Monday", "2026-09-28", "2026-09-28", "2026-10-04"},
+		{"a Sunday closes its own week", "2026-09-27", "2026-09-21", "2026-09-27"},
+		{"a mid-week day", "2026-06-17", "2026-06-15", "2026-06-21"},
+		{"across a month boundary", "2026-10-01", "2026-09-28", "2026-10-04"},
+		{"across a year boundary", "2027-01-01", "2026-12-28", "2027-01-03"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			start, end := WeekRange(Date(tc.day))
+			if start != Date(tc.start) || end != Date(tc.end) {
+				t.Errorf("WeekRange(%s) = [%s, %s], want [%s, %s]", tc.day, start, end, tc.start, tc.end)
+			}
+		})
+	}
+	// The empty and unparseable fallback is the current clinic-local week: its
+	// bounds are a Monday and its following Sunday.
+	start, end := WeekRange("")
+	startT, err := time.Parse(DateFormat, string(start))
+	if err != nil {
+		t.Fatalf("fallback start %q: %v", start, err)
+	}
+	if got := startT.Weekday(); got != time.Monday {
+		t.Errorf("fallback week starts on %v, want Monday", got)
+	}
+	if endT, _ := time.Parse(DateFormat, string(end)); endT.Sub(startT) != 6*24*time.Hour {
+		t.Errorf("fallback week = [%s, %s], want six days apart", start, end)
 	}
 }
 

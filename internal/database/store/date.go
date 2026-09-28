@@ -99,13 +99,20 @@ func clinicDayBoundsIn(t time.Time, loc *time.Location) (Date, Date) {
 // timezone.
 func ClinicTodayBounds() (Date, Date) { return ClinicDayBounds(time.Now()) }
 
-// clinicWeekBounds returns the [start, end) instants of the week containing t
-// on the calendar of loc: from the first instant of its firstWeekday to the
-// first instant of the next one.
-func clinicWeekBounds(t time.Time, loc *time.Location, firstWeekday time.Weekday) (time.Time, time.Time) {
+// ClinicWeekBounds returns the [start, end) instants of the clinic week
+// containing t, on the clinic's calendar.
+func ClinicWeekBounds(t time.Time) (time.Time, time.Time) {
+	return clinicWeekBoundsIn(t, ClinicLocation())
+}
+
+// clinicWeekBoundsIn returns the [start, end) instants of the clinic week
+// containing t on the calendar of loc. This is the clinic's one week rule: a
+// week runs Monday to Sunday, from the first instant of its Monday to the
+// first instant of the next Monday.
+func clinicWeekBoundsIn(t time.Time, loc *time.Location) (time.Time, time.Time) {
 	local := t.In(loc)
 	y, m, d := local.Date()
-	first := d - (int(local.Weekday())-int(firstWeekday)+7)%7
+	first := d - (int(local.Weekday())+6)%7
 	return dayStart(y, m, first, loc), dayStart(y, m, first+7, loc)
 }
 
@@ -333,16 +340,17 @@ func (d Date) After(other Date) bool {
 	return d.DateOnly() > other.DateOnly()
 }
 
-// WeekRange returns the Sunday–Saturday week containing d as YYYY-MM-DD
-// strings, read on the calendar d carries (a bare date is a UTC day). Falls
-// back to the clinic-local current week if d is empty or unparseable.
+// WeekRange returns the first and last day of the clinic week
+// (clinicWeekBoundsIn) containing d as YYYY-MM-DD strings, read on the
+// calendar d carries (a bare date is a UTC day). Falls back to the
+// clinic-local current week if d is empty or unparseable.
 func WeekRange(d Date) (Date, Date) {
 	t, err := d.Time()
 	if err != nil || t.IsZero() {
 		t = ClinicNow()
 	}
 	loc := t.Location()
-	start, end := clinicWeekBounds(t, loc, time.Sunday)
+	start, end := clinicWeekBoundsIn(t, loc)
 	return Date(start.In(loc).Format(DateFormat)), Date(end.AddDate(0, 0, -1).In(loc).Format(DateFormat))
 }
 

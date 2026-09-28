@@ -32,8 +32,8 @@ func GetInvoicePDF(c echo.Context) error {
 // GetAllAppointmentsPDF generates a PDF listing appointments. Mirrors
 // GetAllAppointments: requires a `date` query param and honors the same list
 // params (filter, sort, order). When `range=week` is passed it lists the whole
-// Monday-Sunday week containing date instead of the single day. Cancelled
-// appointments are listed too, marked as such.
+// clinic week (Monday to Sunday) containing date instead of the single day.
+// Cancelled appointments are listed too, marked as such.
 func GetAllAppointmentsPDF(c echo.Context) error {
 	// The file is named after the parsed day, never after the raw parameter.
 	date, err := requiredDate(c)

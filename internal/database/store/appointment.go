@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -268,10 +267,10 @@ func (a *AppointmentList) GetAll(date string, params ListParams) (int, error) {
 	return total, a.LoadPatientBalances()
 }
 
-// GetWeek loads appointments for the Monday-Sunday clinic week containing
+// GetWeek loads appointments for the clinic week (Monday to Sunday) containing
 // date, matching the weekly appointment grid (GetAppointmentCountPerRoom).
 func (a *AppointmentList) GetWeek(date string, params ListParams) (int, error) {
-	weekStart, weekEnd := clinicWeekBounds(clinicDay(date), ClinicLocation(), time.Monday)
+	weekStart, weekEnd := ClinicWeekBounds(clinicDay(date))
 	total, err := a.getAllBetween(DateFrom(weekStart), DateFrom(weekEnd), params)
 	if err != nil {
 		return total, err
@@ -300,14 +299,14 @@ type RoomDayCount struct {
 }
 
 // GetAppointmentCountPerRoom counts, per room and clinic-local calendar day,
-// the appointments that start in the Monday-Sunday clinic week containing
+// the appointments that start in the clinic week (Monday to Sunday) containing
 // date (a bare YYYY-MM-DD). Each appointment counts on the clinic day of its
 // start, so one booked at 00:30 clinic time counts on that day even though it
 // is stored on the previous UTC day. The week's first and last day come back
 // with the counts, for the caller's holiday lookup.
 func GetAppointmentCountPerRoom(date string) ([]RoomDayCount, Date, Date, error) {
 	loc := ClinicLocation()
-	rangeStart, rangeEnd := clinicWeekBounds(clinicDay(date), loc, time.Monday)
+	rangeStart, rangeEnd := ClinicWeekBounds(clinicDay(date))
 	weekStart := Date(rangeStart.In(loc).Format(DateFormat))
 	weekEnd := Date(rangeEnd.AddDate(0, 0, -1).In(loc).Format(DateFormat))
 	query := `SELECT r.id, r.name, a.start_time
@@ -383,11 +382,11 @@ func (a *AppointmentList) GetByPatientID(patientID string, params ListParams) (i
 	return a.listByWhere(" WHERE a.patient_id = ?", []any{patientID}, "a.start_time DESC", params)
 }
 
-// GetByEmployeeWeek loads the employee's appointments for the Monday-Sunday
-// clinic week containing date. Empty/invalid date falls back to the current
-// week.
+// GetByEmployeeWeek loads the employee's appointments for the clinic week
+// (Monday to Sunday) containing date — the same week the schedule endpoint
+// answers for that date. Empty/invalid date falls back to the current week.
 func (a *AppointmentList) GetByEmployeeWeek(employeeID string, date string, params ListParams) (int, error) {
-	weekStart, weekEnd := clinicWeekBounds(clinicDay(date), ClinicLocation(), time.Monday)
+	weekStart, weekEnd := ClinicWeekBounds(clinicDay(date))
 	total, err := a.listByWhere(
 		" WHERE a.start_time >= ? AND a.start_time < ? AND a.id IN (SELECT appointment_id FROM appointment_procedures WHERE assigned_to_id = ?)",
 		[]any{DateFrom(weekStart), DateFrom(weekEnd), employeeID}, "a.start_time", params)

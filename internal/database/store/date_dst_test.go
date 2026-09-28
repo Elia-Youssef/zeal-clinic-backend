@@ -85,59 +85,35 @@ func TestClinicDayBounds_SpringForwardWindowsMeet(t *testing.T) {
 	}
 }
 
+// The one clinic week rule, across the DST switches: Monday to Sunday, the
+// Sunday closing its own week, and the weeks holding the 23-hour Sunday and
+// the 25-hour Saturday run 167 or 169 hours.
 func TestClinicWeekBounds_AcrossDST(t *testing.T) {
 	cases := []struct {
 		day        string
 		start, end string
 		hours      int
 	}{
-		{"2026-03-25", "2026-03-21T22:00:00Z", "2026-03-28T22:00:00Z", 168},
-		// The week starting on the 23-hour Sunday is 167 hours long and ends
-		// at the first instant of the next Sunday, like the day bounds above.
-		{"2026-03-29", "2026-03-28T22:00:00Z", "2026-04-04T21:00:00Z", 167},
-		{"2026-04-01", "2026-03-28T22:00:00Z", "2026-04-04T21:00:00Z", 167},
-		{"2026-04-05", "2026-04-04T21:00:00Z", "2026-04-11T21:00:00Z", 168},
-		{"2026-10-24", "2026-10-17T21:00:00Z", "2026-10-24T22:00:00Z", 169},
-		{"2026-10-25", "2026-10-24T22:00:00Z", "2026-10-31T22:00:00Z", 168},
-		{"2027-10-30", "2027-10-23T21:00:00Z", "2027-10-30T22:00:00Z", 169},
-	}
-	for _, tc := range cases {
-		t.Run(tc.day, func(t *testing.T) {
-			start, end := clinicWeekBounds(clinicTime(t, tc.day, 12, 0), ClinicLocation(), time.Sunday)
-			if s, e := string(DateFrom(start)), string(DateFrom(end)); s != tc.start || e != tc.end {
-				t.Fatalf("clinicWeekBounds(%s, Sunday) = [%s, %s), want [%s, %s)", tc.day, s, e, tc.start, tc.end)
-			}
-			if h := hoursBetween(t, DateFrom(start), DateFrom(end)); h != tc.hours {
-				t.Errorf("window length = %dh, want %dh", h, tc.hours)
-			}
-		})
-	}
-}
-
-// The appointment grid reads Monday-first weeks: a Sunday belongs to the
-// Monday before it, and the weeks holding a DST switch run 167 or 169 hours.
-func TestClinicWeekBounds_MondayFirst(t *testing.T) {
-	cases := []struct {
-		day        string
-		start, end string
-		hours      int
-	}{
+		// The week holding the 23-hour Sunday: Monday 23 March to Monday 30
+		// March, and the Sunday itself stays inside it.
+		{"2026-03-25", "2026-03-22T22:00:00Z", "2026-03-29T21:00:00Z", 167},
+		{"2026-03-29", "2026-03-22T22:00:00Z", "2026-03-29T21:00:00Z", 167},
+		{"2026-04-01", "2026-03-29T21:00:00Z", "2026-04-05T21:00:00Z", 168},
 		{"2026-05-04", "2026-05-03T21:00:00Z", "2026-05-10T21:00:00Z", 168},
 		// The Sunday closes its own Monday-first week rather than opening one.
 		{"2026-05-10", "2026-05-03T21:00:00Z", "2026-05-10T21:00:00Z", 168},
-		// The week of the 23-hour Sunday: Monday 23 March to Monday 30 March.
-		{"2026-03-23", "2026-03-22T22:00:00Z", "2026-03-29T21:00:00Z", 167},
-		{"2026-03-29", "2026-03-22T22:00:00Z", "2026-03-29T21:00:00Z", 167},
 		// The week holding the 25-hour Saturday, 24 October: Monday 19 October
-		// to Monday 26 October.
+		// to Monday 26 October; the Saturday and the Sunday sit inside it.
 		{"2026-10-19", "2026-10-18T21:00:00Z", "2026-10-25T22:00:00Z", 169},
+		{"2026-10-24", "2026-10-18T21:00:00Z", "2026-10-25T22:00:00Z", 169},
 		{"2026-10-25", "2026-10-18T21:00:00Z", "2026-10-25T22:00:00Z", 169},
+		{"2027-10-30", "2027-10-24T21:00:00Z", "2027-10-31T22:00:00Z", 169},
 	}
 	for _, tc := range cases {
 		t.Run(tc.day, func(t *testing.T) {
-			start, end := clinicWeekBounds(clinicTime(t, tc.day, 12, 0), ClinicLocation(), time.Monday)
+			start, end := clinicWeekBoundsIn(clinicTime(t, tc.day, 12, 0), ClinicLocation())
 			if s, e := string(DateFrom(start)), string(DateFrom(end)); s != tc.start || e != tc.end {
-				t.Fatalf("clinicWeekBounds(%s, Monday) = [%s, %s), want [%s, %s)", tc.day, s, e, tc.start, tc.end)
+				t.Fatalf("clinicWeekBoundsIn(%s) = [%s, %s), want [%s, %s)", tc.day, s, e, tc.start, tc.end)
 			}
 			if h := hoursBetween(t, DateFrom(start), DateFrom(end)); h != tc.hours {
 				t.Errorf("window length = %dh, want %dh", h, tc.hours)
