@@ -207,7 +207,11 @@ func stepWriteGate(t *testing.T, h *harness) {
 	}
 
 	// The clinic comes back with a row in its outbox. The new session opens the
-	// gate only after its first pull, push and ready.
+	// gate only after its first pull, push and ready, unless a poll cycle before
+	// the session's events request already pushed the pending row. A narrower race
+	// where a cycle starts before the events request and pushes after it
+	// (events > push > ...) is not covered: accepting push before pull would loosen
+	// the check against client ordering bugs.
 	h.disconnect()
 	h.clinic.start(t)
 	pending := h.createPatient(t, h.clinicAdmin, "Systest", "Pending")
@@ -217,23 +221,8 @@ func stepWriteGate(t *testing.T, h *harness) {
 	mark := h.proxy.mark()
 	h.reconnect()
 	h.waitGateOpen(t, converge)
-	var order []string
-	for _, e := range h.proxy.since(mark) {
-		if e.kind != "request" {
-			continue
-		}
-		path, _, _ := strings.Cut(e.path, "?")
-		step := e.method + " " + path
-		if len(order) == 0 || order[len(order)-1] != step {
-			order = append(order, step)
-		}
-		if path == "/api/sync/ready" {
-			break
-		}
-	}
-	want := "GET /api/sync/events > GET /api/sync/pull > POST /api/sync/push > POST /api/sync/ready"
-	if got := strings.Join(order, " > "); got != want {
-		t.Fatalf("session handshake: %s, want %s", got, want)
+	if err := checkHandshake(h.proxy.since(mark)); err != nil {
+		t.Fatalf("session handshake: %s", err)
 	}
 	h.cloudAdmin.waitStatus(t, "/api/patients/"+pending.ID, http.StatusOK)
 }
@@ -289,6 +278,172 @@ func after(events []proxyEvent, t time.Time) []proxyEvent {
 		}
 	}
 	return out
+}
+
+// checkHandshake judges the clinic's reconnect handshake in the proxy events
+// since the reconnect. The new session starts at its GET /api/sync/events;
+// requests before it belong to the old poll loop. From there up to the first
+// POST /api/sync/ready the order must be events, pull, push, ready; requests
+// after ready are not judged. The session may skip its push only when a POST
+// /api/sync/push came before its events request: the old poll loop then
+// already pushed the pending row.
+func checkHandshake(events []proxyEvent) error {
+	var before, session []proxyEvent
+	for i, e := range events {
+		if e.kind == "request" && e.method == http.MethodGet {
+			path, _, _ := strings.Cut(e.path, "?")
+			if path == "/api/sync/events" {
+				before, session = events[:i], events[i:]
+				break
+			}
+		}
+	}
+	if session == nil {
+		return fmt.Errorf("no GET /api/sync/events request found")
+	}
+
+	var order []string
+	for _, e := range session {
+		if e.kind != "request" {
+			continue
+		}
+		path, _, _ := strings.Cut(e.path, "?")
+		step := e.method + " " + path
+		if len(order) == 0 || order[len(order)-1] != step {
+			order = append(order, step)
+		}
+		if path == "/api/sync/ready" {
+			break
+		}
+	}
+
+	want := "GET /api/sync/events > GET /api/sync/pull > POST /api/sync/push > POST /api/sync/ready"
+	wantNoPush := "GET /api/sync/events > GET /api/sync/pull > POST /api/sync/ready"
+	got := strings.Join(order, " > ")
+	pushedBefore := len(requests(before, http.MethodPost, "/api/sync/push")) > 0
+
+	if got == want || (pushedBefore && got == wantNoPush) {
+		return nil
+	}
+	if pushedBefore {
+		return fmt.Errorf("%s, want %s or %s", got, want, wantNoPush)
+	}
+	return fmt.Errorf("%s, want %s", got, want)
+}
+
+func TestCheckHandshake(t *testing.T) {
+	req := func(method, path string) proxyEvent {
+		return proxyEvent{kind: "request", method: method, path: path}
+	}
+
+	tests := []struct {
+		name    string
+		events  []proxyEvent
+		wantErr bool
+	}{
+		{
+			name: "the recorded race",
+			events: []proxyEvent{
+				req("GET", "/api/sync/pull"),
+				req("POST", "/api/sync/push"),
+				req("GET", "/api/sync/events"),
+				req("GET", "/api/sync/pull"),
+				req("POST", "/api/sync/ready"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "a clean handshake",
+			events: []proxyEvent{
+				req("GET", "/api/sync/events"),
+				req("GET", "/api/sync/pull"),
+				req("POST", "/api/sync/push"),
+				req("POST", "/api/sync/ready"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "a clean handshake followed by a later push",
+			events: []proxyEvent{
+				req("GET", "/api/sync/events"),
+				req("GET", "/api/sync/pull"),
+				req("POST", "/api/sync/push"),
+				req("POST", "/api/sync/ready"),
+				req("POST", "/api/sync/push"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "push before pull",
+			events: []proxyEvent{
+				req("GET", "/api/sync/events"),
+				req("POST", "/api/sync/push"),
+				req("GET", "/api/sync/pull"),
+				req("POST", "/api/sync/ready"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "ready before pull",
+			events: []proxyEvent{
+				req("GET", "/api/sync/events"),
+				req("POST", "/api/sync/ready"),
+				req("GET", "/api/sync/pull"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "a missing ready",
+			events: []proxyEvent{
+				req("GET", "/api/sync/events"),
+				req("GET", "/api/sync/pull"),
+				req("POST", "/api/sync/push"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "a second events after pull",
+			events: []proxyEvent{
+				req("GET", "/api/sync/events"),
+				req("GET", "/api/sync/pull"),
+				req("GET", "/api/sync/events"),
+				req("POST", "/api/sync/push"),
+				req("POST", "/api/sync/ready"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "push after ready",
+			events: []proxyEvent{
+				req("GET", "/api/sync/events"),
+				req("GET", "/api/sync/pull"),
+				req("POST", "/api/sync/ready"),
+				req("POST", "/api/sync/push"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "no push without an earlier push",
+			events: []proxyEvent{
+				req("GET", "/api/sync/events"),
+				req("GET", "/api/sync/pull"),
+				req("POST", "/api/sync/ready"),
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkHandshake(tc.events)
+			if tc.wantErr && err == nil {
+				t.Fatalf("expected error for %q, got nil", tc.name)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("unexpected error for %q: %v", tc.name, err)
+			}
+		})
+	}
 }
 
 func stepNewerWins(t *testing.T, h *harness) {
