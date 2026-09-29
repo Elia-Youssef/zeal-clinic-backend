@@ -9,6 +9,7 @@ client/dist/*
 *.db
 *.db-*
 *.pdf
+!docs/Zeal-Clinic-User-Guide.pdf
 .vscode
 *.log
 # Local config overrides: real values, embedded at build time (see internal/config/*.env.example)
