@@ -216,3 +216,66 @@ func TestMigrate_AlandIslands(t *testing.T) {
 		t.Errorf("after running 00014 twice: name = %q, want %q", got, want)
 	}
 }
+
+// TestMigrate_CountryNames checks that a fresh database holds the corrected
+// country names and that migration 00015 repairs the misspelled names an
+// older database may carry: after planting the old values, rolling back to
+// 00014 and migrating up again fixes the rows, a second round changes
+// nothing, and a name changed since the seed is kept.
+func TestMigrate_CountryNames(t *testing.T) {
+	db := openTestDB(t)
+
+	fixes := []struct{ id, old, want string }{
+		{"985e0564-4053-41e1-8b84-bbd44405b9f5", `AndorrA`, `Andorra`},
+		{"71da3e8c-2168-4d84-8a92-0c7e4c040fc4", `Cote D"Ivoire`, `Cote d'Ivoire`},
+		{"f5ad0814-ab63-41ed-8819-c7e64712828c", `Iran, Islamic Republic Of`, `Iran, Islamic Republic of`},
+		{"d896daf4-8ff2-45a2-9cd5-7524736657d2", `Korea, Democratic People"S Republic of`, `Korea, Democratic People's Republic of`},
+		{"dc8ed5c8-2b31-4a43-8a76-afe531277a1f", `Lao People"S Democratic Republic`, `Lao People's Democratic Republic`},
+		{"66973910-d428-4b58-9c8b-023d3eca46fa", `RWANDA`, `Rwanda`},
+	}
+	name := func(id string) string {
+		t.Helper()
+		var n string
+		if err := db.QueryRow(`SELECT name FROM countries WHERE id = ?`, id).Scan(&n); err != nil {
+			t.Fatalf("query country %s: %v", id, err)
+		}
+		return n
+	}
+	check := func(stage string) {
+		t.Helper()
+		for _, f := range fixes {
+			if got := name(f.id); got != f.want {
+				t.Errorf("%s: name = %q, want %q", stage, got, f.want)
+			}
+		}
+	}
+	check("fresh database")
+
+	for _, f := range fixes {
+		if _, err := db.Exec(`UPDATE countries SET name = ? WHERE id = ?`, f.old, f.id); err != nil {
+			t.Fatalf("plant the old name %q: %v", f.old, err)
+		}
+	}
+	rerun := func() {
+		t.Helper()
+		if err := goose.DownTo(db, ".", 14); err != nil {
+			t.Fatalf("roll back to 00014: %v", err)
+		}
+		if err := goose.Up(db, "."); err != nil {
+			t.Fatalf("migrate up: %v", err)
+		}
+	}
+	rerun()
+	check("after 00015")
+	rerun()
+	check("after running 00015 twice")
+
+	const renamed = "Andorra (edited)"
+	if _, err := db.Exec(`UPDATE countries SET name = ? WHERE id = ?`, renamed, fixes[0].id); err != nil {
+		t.Fatalf("rename a country: %v", err)
+	}
+	rerun()
+	if got := name(fixes[0].id); got != renamed {
+		t.Errorf("after 00015 on a renamed row: name = %q, want %q", got, renamed)
+	}
+}
