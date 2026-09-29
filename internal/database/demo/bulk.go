@@ -326,10 +326,11 @@ func generateGiftCards(ctx context.Context, tx *sql.Tx, c *demoCtx, values []str
 		if c.chance(0.4) {
 			redeemedAt = timeAt(off+c.between(1, 20), 12, 0)
 		}
+		value := c.pick(values)
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO discounts (id, name, description, discount_type, value_type, value, code, redeemed_at, is_active, created_at, updated_at)
 			 VALUES (?,?,?,?,?,?,?,?,1,?,?)`,
-			newID(), "Gift Card $"+c.pick(values), "Demo gift card", "gift", "fixed", c.pick(values),
+			newID(), "Gift Card $"+value, "Demo gift card", "gift", "fixed", value,
 			fmt.Sprintf("GIFT-%05d", c.between(10000, 99999)), redeemedAt, createdAt, createdAt,
 		); err != nil {
 			return err

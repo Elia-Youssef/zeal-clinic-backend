@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"fmt"
 	"log"
 	"sync"
 
@@ -82,30 +81,23 @@ func runLowStockCheck(ids []string) {
 			Scan(&name, &quantity, &threshold); err != nil {
 			continue
 		}
-		action := "low-stock:" + pid
+		notice := store.LowStockNotice(pid, name, quantity, threshold)
 
 		if quantity > threshold {
-			cleared += clearNotices(action)
+			cleared += clearNotices(notice.Action)
 			continue
 		}
 
 		var existing int
-		if err := store.RDB.QueryRow(`SELECT COUNT(*) FROM notifications WHERE action = ?`, action).Scan(&existing); err != nil || existing > 0 {
+		if err := store.RDB.QueryRow(`SELECT COUNT(*) FROM notifications WHERE action = ?`, notice.Action).Scan(&existing); err != nil || existing > 0 {
 			continue
 		}
 
-		title := "Low stock: " + name
-		desc := fmt.Sprintf("Quantity %d at or below min threshold %d.", quantity, threshold)
 		for _, uid := range userIDs {
-			n := store.Notification{
-				UserID:      uid,
-				Title:       title,
-				Description: desc,
-				Action:      action,
-			}
-			if err := n.Create(); err == nil {
+			notice.UserID = uid
+			if err := notice.Create(); err == nil {
 				sent++
-				realtime.SendTo(uid, realtime.Event{Type: "notification", Data: n})
+				realtime.SendTo(uid, realtime.Event{Type: "notification", Data: notice})
 			}
 		}
 	}

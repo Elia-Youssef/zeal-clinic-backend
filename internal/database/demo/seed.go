@@ -6,9 +6,11 @@ package demo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"clinic-api/internal/auth"
+	"clinic-api/internal/database/store"
 
 	"github.com/pressly/goose/v3"
 )
@@ -185,6 +187,12 @@ func seedEmployees(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 			); err != nil {
 				return err
 			}
+			switch e.userRole {
+			case "staff":
+				c.staffName = e.displayName
+			case "admin":
+				c.adminName = e.displayName
+			}
 		}
 
 		empID := newID()
@@ -233,7 +241,7 @@ func seedSchedules(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO holidays (id, name, start_date, end_date, notes, created_by, created_at, updated_at)
 		 VALUES (?,?,?,?,?,?,?,?)`,
-		newID(), "Clinic Maintenance Day", dateOffset(14), dateOffset(14), "Demo closure for maintenance", c.adminUserID, c.now, c.now,
+		newID(), "Clinic Maintenance Day", dateOffset(14), dateOffset(14), "Demo closure for maintenance", c.adminName, c.now, c.now,
 	); err != nil {
 		return err
 	}
@@ -774,7 +782,7 @@ func createInvoice(ctx context.Context, tx *sql.Tx, c *demoCtx, patientBal strin
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO invoices (id, invoice_number, from_balance_id, to_balance_id, amount, discount_id, discount_value, final_amount, currency_id, notes, created_by, created_at, updated_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		invID, nextNumber, c.selfBalanceID, patientBal, amount, discountID, discountValue, finalAmount, c.currencyID, "", c.adminUserID, at, at,
+		invID, nextNumber, c.selfBalanceID, patientBal, amount, discountID, discountValue, finalAmount, c.currencyID, "", c.staffName, at, at,
 	); err != nil {
 		return "", 0, err
 	}
@@ -817,7 +825,7 @@ func createSupplierInvoice(ctx context.Context, tx *sql.Tx, c *demoCtx, supplier
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO invoices (id, invoice_number, from_balance_id, to_balance_id, amount, final_amount, currency_id, notes, created_by, created_at, updated_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		invID, nextNumber, supplierBal, c.selfBalanceID, amount, amount, c.currencyID, "Supplier stock invoice", c.adminUserID, at, at,
+		invID, nextNumber, supplierBal, c.selfBalanceID, amount, amount, c.currencyID, "Supplier stock invoice", c.staffName, at, at,
 	); err != nil {
 		return "", 0, err
 	}
@@ -873,25 +881,63 @@ func botoxOffer(ctx context.Context, tx *sql.Tx) (string, float64) {
 
 // Notifications
 
+// seedNotifications gives every active account each notice, the way the
+// monitor sends its low-stock and appointment notices. The low-stock notice
+// is worded, as the monitor words it, from a product the seed left at or
+// below its threshold; when none sits that low there is no notice to send.
 func seedNotifications(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
-	notifications := []struct {
+	type seededNotice struct {
 		title, description, action string
 		read                       bool
-	}{
-		{"Low stock: Botox Vial 100u", "Quantity 8 has dropped near min threshold.", "/inventory", false},
-		{"Appointment scheduled", "Eleanor Foster is scheduled for today at 16:00.", "/appointments", true},
 	}
+	var notifications []seededNotice
+	var productID, name string
+	var quantity, threshold int
+	err := tx.QueryRowContext(ctx,
+		`SELECT id, name, quantity, min_threshold FROM products WHERE quantity <= min_threshold ORDER BY name LIMIT 1`,
+	).Scan(&productID, &name, &quantity, &threshold)
+	switch {
+	case err == nil:
+		low := store.LowStockNotice(productID, name, quantity, threshold)
+		notifications = append(notifications, seededNotice{low.Title, low.Description, low.Action, false})
+	case errors.Is(err, sql.ErrNoRows):
+		// No product sits at or below its threshold, so the app would send no
+		// notice either.
+	default:
+		return err
+	}
+	notifications = append(notifications, seededNotice{"Appointment scheduled", "Eleanor Foster is scheduled for today at 16:00.", "/appointments", true})
+	var recipients []string
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM users WHERE is_active = 1`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		recipients = append(recipients, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
 	for _, n := range notifications {
 		read := 0
 		if n.read {
 			read = 1
 		}
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO notifications (id, user_id, title, description, action, is_read, created_at)
-			 VALUES (?,?,?,?,?,?,?)`,
-			newID(), c.adminUserID, n.title, n.description, n.action, read, c.now,
-		); err != nil {
-			return err
+		for _, userID := range recipients {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO notifications (id, user_id, title, description, action, is_read, created_at)
+				 VALUES (?,?,?,?,?,?,?)`,
+				newID(), userID, n.title, n.description, n.action, read, c.now,
+			); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

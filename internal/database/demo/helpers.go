@@ -36,11 +36,16 @@ type bulkPatient struct {
 }
 
 // demoCtx holds shared lookups + the singletons every section needs (currency,
-// clinic balance, the admin user that records transactions).
+// clinic balance, the accounts that record entries).
 type demoCtx struct {
 	currencyID    string
 	selfBalanceID string
-	adminUserID   string
+
+	// Display names written to created_by, as the app writes the signed-in
+	// account's: the staff account books invoices and money, the admin
+	// account the holidays (only admins may).
+	staffName string
+	adminName string
 
 	now   string
 	today string
@@ -87,9 +92,6 @@ func newDemoCtx(ctx context.Context, tx *sql.Tx) (*demoCtx, error) {
 	}
 	c.currencyID = store.USDCurrencyID
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM balances WHERE entity_type = 'self' AND currency_id = ?`, c.currencyID).Scan(&c.selfBalanceID); err != nil {
-		return nil, err
-	}
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = 'super-admin'`).Scan(&c.adminUserID); err != nil {
 		return nil, err
 	}
 	if err := loadNameMap(ctx, tx, `SELECT id, name FROM rooms`, c.rooms); err != nil {
@@ -149,7 +151,7 @@ func recordTransactionSource(ctx context.Context, tx *sql.Tx, c *demoCtx, fromID
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO balance_transactions (id, from_balance_id, to_balance_id, amount, currency_id, transaction_type, transaction_method, source_type, source_id, description, created_by, created_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-		newID(), fromID, toID, amount, c.currencyID, txType, method, sourceType, sourceID, desc, c.adminUserID, at,
+		newID(), fromID, toID, amount, c.currencyID, txType, method, sourceType, sourceID, desc, c.staffName, at,
 	); err != nil {
 		return err
 	}
@@ -163,7 +165,7 @@ func insertTxn(ctx context.Context, tx *sql.Tx, c *demoCtx, fromID, toID string,
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO balance_transactions (id, from_balance_id, to_balance_id, amount, currency_id, transaction_type, transaction_method, source_type, source_id, description, created_by, created_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-		newID(), fromID, toID, amount, c.currencyID, txType, method, sourceType, sourceID, desc, c.adminUserID, at,
+		newID(), fromID, toID, amount, c.currencyID, txType, method, sourceType, sourceID, desc, c.staffName, at,
 	)
 	return err
 }

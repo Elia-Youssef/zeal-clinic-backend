@@ -26,7 +26,8 @@ import (
 
 // Demo data is not deterministic, so this is a smoke test only: it seeds a
 // fresh database, checks the seed runs once, fills the main tables, logs
-// every row it writes for sync, and that the demo accounts can sign in.
+// every row it writes for sync, that the demo accounts can sign in, and that
+// its entries and notices belong to those accounts the way the app's do.
 func TestSeedDemo_Smoke(t *testing.T) {
 	cfg := config.Load()
 	cfg.PeerURL = ""
@@ -157,6 +158,126 @@ func TestSeedDemo_Smoke(t *testing.T) {
 		}
 		if code := loginStatus(t, accounts[0].username, "wrong-password"); code != http.StatusUnauthorized {
 			t.Errorf("sign-in with a wrong password = %d, want 401", code)
+		}
+	})
+
+	t.Run("entries name the demo account that made them", func(t *testing.T) {
+		// The app writes the signed-in account's display name to created_by.
+		names := map[string]bool{}
+		rows, err := db.Query(`SELECT display_name FROM users WHERE username != 'super-admin'`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				t.Fatal(err)
+			}
+			names[name] = true
+		}
+		rows.Close()
+		for _, table := range []string{"invoices", "holidays", "balance_transactions"} {
+			rows, err := db.Query(`SELECT DISTINCT created_by FROM ` + table)
+			if err != nil {
+				t.Fatalf("%s: %v", table, err)
+			}
+			for rows.Next() {
+				var by string
+				if err := rows.Scan(&by); err != nil {
+					t.Fatal(err)
+				}
+				if !names[by] {
+					t.Errorf("%s: created_by %q is not a demo account's display name", table, by)
+				}
+			}
+			rows.Close()
+		}
+	})
+
+	t.Run("gift card names match their values", func(t *testing.T) {
+		rows, err := db.Query(`SELECT name, value FROM discounts WHERE discount_type = 'gift'`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var name string
+			var value float64
+			if err := rows.Scan(&name, &value); err != nil {
+				t.Fatal(err)
+			}
+			if want := fmt.Sprintf("$%g", value); !strings.HasSuffix(name, want) {
+				t.Errorf("gift card %q is worth %s", name, want)
+			}
+		}
+	})
+
+	t.Run("every active account gets the notices", func(t *testing.T) {
+		// Like the monitor's notices, the seeded ones go to every active account.
+		if n := scalar(t, db, `SELECT COUNT(*) FROM users u WHERE u.is_active = 1
+			AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id)`); n != 0 {
+			t.Errorf("%d active accounts have no notification", n)
+		}
+	})
+
+	t.Run("the low-stock notice is worded from the seeded stock", func(t *testing.T) {
+		// The monitor's wording, for a product the seed left at or below its
+		// threshold; none when no product sits that low.
+		type lowProduct struct {
+			name          string
+			quantity, min int
+		}
+		low := map[string]lowProduct{}
+		rows, err := db.Query(`SELECT id, name, quantity, min_threshold FROM products WHERE quantity <= min_threshold`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for rows.Next() {
+			var id string
+			var p lowProduct
+			if err := rows.Scan(&id, &p.name, &p.quantity, &p.min); err != nil {
+				t.Fatal(err)
+			}
+			low[id] = p
+		}
+		rows.Close()
+
+		notices, actions := 0, map[string]bool{}
+		rows, err = db.Query(`SELECT action, title, description FROM notifications WHERE title LIKE 'Low stock: %'`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for rows.Next() {
+			var action, title, description string
+			if err := rows.Scan(&action, &title, &description); err != nil {
+				t.Fatal(err)
+			}
+			notices++
+			actions[action] = true
+			id := strings.TrimPrefix(action, "low-stock:")
+			p, ok := low[id]
+			if !ok {
+				t.Errorf("notice %q (action %q) does not name a product at or below its threshold", title, action)
+				continue
+			}
+			want := store.LowStockNotice(id, p.name, p.quantity, p.min)
+			if title != want.Title || description != want.Description {
+				t.Errorf("notice %q %q is not the monitor's wording %q %q", title, description, want.Title, want.Description)
+			}
+		}
+		rows.Close()
+
+		if len(low) == 0 && notices > 0 {
+			t.Errorf("%d low-stock notices exist but no product is at or below its threshold", notices)
+		}
+		if len(low) > 0 {
+			if len(actions) != 1 {
+				t.Errorf("the seed worded %d distinct low-stock notices, want the one product it picked", len(actions))
+			}
+			if n := scalar(t, db, `SELECT COUNT(*) FROM users u WHERE u.is_active = 1
+				AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.title LIKE 'Low stock: %')`); n != 0 {
+				t.Errorf("%d active accounts lack the low-stock notice", n)
+			}
 		}
 	})
 

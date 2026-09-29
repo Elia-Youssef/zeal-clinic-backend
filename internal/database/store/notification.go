@@ -55,6 +55,18 @@ func (l *NotificationList) ScanRows(rows *sql.Rows) error {
 	return nil
 }
 
+// LowStockNotice words the notice a product at or below its min threshold
+// earns: the low-stock monitor sends it and the demo seed writes it, so both
+// read alike. The action keys the notice to the product, which keeps a
+// repeated send idempotent and lets a recovered stock level clear it.
+func LowStockNotice(productID, name string, quantity, threshold int) Notification {
+	return Notification{
+		Title:       "Low stock: " + name,
+		Description: fmt.Sprintf("Quantity %d at or below min threshold %d.", quantity, threshold),
+		Action:      "low-stock:" + productID,
+	}
+}
+
 func (n *Notification) IsValid() error {
 	e := make(validation.Errors)
 	if msg := validation.Required(n.UserID, "User ID"); msg != "" {
