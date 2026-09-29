@@ -535,8 +535,8 @@ var repointCases = []repointCase{
 	{
 		name: "appointment moved to another room",
 		setup: []string{
-			`INSERT INTO rooms (id, name, type) VALUES ('rooms-8', 'Systest Old Room', 'General')`,
-			`INSERT INTO rooms (id, name, type) VALUES ('rooms-9', 'Systest New Room', 'General')`,
+			`INSERT INTO rooms (id, name, type, created_at) VALUES ('rooms-8', 'Systest Old Room', 'General', '` + fixtureTime + `')`,
+			`INSERT INTO rooms (id, name, type, created_at) VALUES ('rooms-9', 'Systest New Room', 'General', '` + fixtureTime + `')`,
 			`INSERT INTO appointments (id, patient_id, room_id, start_time, end_time, status, created_at, updated_at)
 				VALUES ('appointments-9', 'patients-1', 'rooms-8', '2026-02-01T08:00:00Z', '2026-02-01T09:00:00Z', 'Scheduled', '` + fixtureTime + `', '` + fixtureTime + `')`,
 		},
@@ -546,8 +546,10 @@ var repointCases = []repointCase{
 	{
 		name: "procedure line handed to another employee",
 		setup: []string{
-			`INSERT INTO employees (id, first_name, last_name, role, contact, employment_type) VALUES ('employees-8', 'Systest', 'Old', 'Nurse', '555-0108', 'Full-time')`,
-			`INSERT INTO employees (id, first_name, last_name, role, contact, employment_type) VALUES ('employees-9', 'Systest', 'New', 'Nurse', '555-0109', 'Full-time')`,
+			`INSERT INTO employees (id, first_name, last_name, role, contact, employment_type, created_at, updated_at)
+				VALUES ('employees-8', 'Systest', 'Old', 'Nurse', '555-0108', 'Full-time', '` + fixtureTime + `', '` + fixtureTime + `')`,
+			`INSERT INTO employees (id, first_name, last_name, role, contact, employment_type, created_at, updated_at)
+				VALUES ('employees-9', 'Systest', 'New', 'Nurse', '555-0109', 'Full-time', '` + fixtureTime + `', '` + fixtureTime + `')`,
 			`INSERT INTO appointment_procedures (id, patient_id, procedure_id, appointment_id, assigned_to_id, created_at, updated_at)
 				VALUES ('appointment_procedures-9', 'patients-1', 'procedures-1', 'appointments-1', 'employees-8', '` + fixtureTime + `', '` + fixtureTime + `')`,
 		},
