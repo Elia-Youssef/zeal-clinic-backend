@@ -122,28 +122,6 @@ jobs:
             !${{ runner.temp }}/artifacts/**/*.db*
           retention-days: 14
 
-  build-linux:
-    # Disabled until the package stage smoke-tests the Linux binary (--seed-only, then /health).
-    if: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - run: pwsh scripts/ci.ps1 -Stage package
-      - name: Upload reports
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ github.job }}
-          path: |
-            ${{ runner.temp }}/artifacts/
-            !${{ runner.temp }}/artifacts/**/*.exe
-            !${{ runner.temp }}/artifacts/**/*.db*
-          retention-days: 14
-
   e2e-smoke:
     runs-on: windows-latest
     timeout-minutes: 45

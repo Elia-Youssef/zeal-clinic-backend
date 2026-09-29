@@ -20,28 +20,6 @@ env:
   DASHBOARD_REPO: ${{ github.repository_owner }}/zeal-clinic-frontend
 
 jobs:
-  race:
-    # Disabled until the go-test stage has a race detector option.
-    if: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - run: pwsh scripts/ci.ps1 -Stage go-test -Tags cloud -Race
-      - name: Upload reports
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ github.job }}
-          path: |
-            ${{ runner.temp }}/artifacts/
-            !${{ runner.temp }}/artifacts/**/*.exe
-            !${{ runner.temp }}/artifacts/**/*.db*
-          retention-days: 14
-
   tz-matrix:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -66,39 +44,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ matrix.zone.label }}
-          path: |
-            ${{ runner.temp }}/artifacts/
-            !${{ runner.temp }}/artifacts/**/*.exe
-            !${{ runner.temp }}/artifacts/**/*.db*
-          retention-days: 14
-
-  authz-sweep:
-    # Disabled until the per-scope permission sweep exists.
-    if: false
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: windows-latest, tags: default }
-          - { os: ubuntu-latest, tags: cloud }
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    steps:
-      - name: Use LF line endings and long paths
-        if: runner.os == 'Windows'
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.longpaths true
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - run: pwsh scripts/ci.ps1 -Stage contract -Tags ${{ matrix.tags }} -Full
-      - name: Upload reports
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ github.job }}-${{ matrix.tags }}
           path: |
             ${{ runner.temp }}/artifacts/
             !${{ runner.temp }}/artifacts/**/*.exe
@@ -184,83 +129,6 @@ jobs:
         with:
           go-version-file: go.mod
       - run: pwsh scripts/ci.ps1 -Stage system -Full
-      - name: Upload reports
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ github.job }}
-          path: |
-            ${{ runner.temp }}/artifacts/
-            !${{ runner.temp }}/artifacts/**/*.exe
-            !${{ runner.temp }}/artifacts/**/*.db*
-          retention-days: 14
-
-  swapper:
-    # Disabled until a stage runs the Windows updater swap against a sandbox state file.
-    if: false
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - name: Use LF line endings and long paths
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.longpaths true
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - run: pwsh scripts/ci.ps1 -Stage swapper
-      - name: Upload reports
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ github.job }}
-          path: |
-            ${{ runner.temp }}/artifacts/
-            !${{ runner.temp }}/artifacts/**/*.exe
-            !${{ runner.temp }}/artifacts/**/*.db*
-          retention-days: 14
-
-  update-linux:
-    # Disabled until a stage runs the Linux update trial boot and rollback.
-    if: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - run: pwsh scripts/ci.ps1 -Stage update-linux
-      - name: Upload reports
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ github.job }}
-          path: |
-            ${{ runner.temp }}/artifacts/
-            !${{ runner.temp }}/artifacts/**/*.exe
-            !${{ runner.temp }}/artifacts/**/*.db*
-          retention-days: 14
-
-  fresh-clone:
-    # Disabled until a quickstart stage follows the README from fresh clones of both repos.
-    if: false
-    runs-on: windows-latest
-    timeout-minutes: 45
-    steps:
-      - name: Use LF line endings and long paths
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.longpaths true
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - run: pwsh scripts/ci.ps1 -Stage quickstart
       - name: Upload reports
         if: failure()
         uses: actions/upload-artifact@v7

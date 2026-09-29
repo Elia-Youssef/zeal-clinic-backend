@@ -133,7 +133,7 @@ release-check-cloud:
 	go run ./cmd/releasecheck cloud
 
 # release / release-cloud reuse the existing client/dist — run `make frontend`
-# (or `make release-all`) first so one frontend build serves both platforms.
+# first so one frontend build serves both platforms.
 release: release-check
 	$(call MKDIR_P,build/local/output)
 	go build -trimpath -ldflags "$(LDFLAGS)" -o $(LOCAL_BINARY) $(PKG)

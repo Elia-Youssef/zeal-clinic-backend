@@ -554,20 +554,17 @@ function Invoke-WorkflowsStage {
       workflows: actionlint over the files in .github/workflows. go run builds the pinned version, so local
       runs and GitHub Actions check with the same rules; nothing from this repo is built or run. go run asks
       the module proxy about the module even when it is cached, so this stage is not jailed.
-      A job waiting for a stage that does not exist yet is switched off with a literal "if: false"; the
-      constant-condition notice for exactly that is ignored.
     #>
     $module = 'github.com/rhysd/actionlint/cmd/actionlint@v1.7.12'
-    $ignore = 'constant expression .false. in condition'
     $files = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot '.github/workflows') -File -ErrorAction SilentlyContinue |
             Where-Object { $_.Extension -in '.yml', '.yaml' } | Sort-Object Name | ForEach-Object { ".github/workflows/$($_.Name)" })
     if (-not $files.Count) {
         Write-Host 'Summary: workflows: no workflow files in .github/workflows'
         return 1
     }
-    Write-Host "> go run $module -oneline -no-color -ignore '$ignore' $($files -join ' ')"
+    Write-Host "> go run $module -oneline -no-color $($files -join ' ')"
     $global:LASTEXITCODE = 99
-    $out = @(& go run $module -oneline -no-color -ignore $ignore @files)
+    $out = @(& go run $module -oneline -no-color @files)
     $code = $LASTEXITCODE
     [System.IO.File]::WriteAllLines((Join-Path $ArtifactsDir 'actionlint.txt'), [string[]]$out)
     $problems = 0
@@ -1354,7 +1351,7 @@ function Invoke-PackageStage {
     $lines.Add('')
     foreach ($c in $checks) { $lines.Add("$(if ($c.Pass) { 'PASS' } else { 'FAIL' })  $($c.Name): $($c.Detail)") }
     $lines.Add('')
-    $lines.Add('Not checked here: the Linux binary, which runs only on Linux (the Linux CI job starts it with --seed-only and checks /health),')
+    $lines.Add('Not checked here: the Linux binary, which runs only on Linux,')
     $lines.Add('and the Inno Setup installer, which make installer builds only on Windows with Inno Setup installed.')
     [System.IO.File]::WriteAllLines((Join-Path $ArtifactsDir 'package.txt'), $lines)
     foreach ($l in $lines) { Write-Host $l }
