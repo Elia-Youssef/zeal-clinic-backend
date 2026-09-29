@@ -3,8 +3,10 @@ package middleware
 import (
 	"bytes"
 	"clinic-api/internal/database/store"
+	"encoding/json"
 	"io"
 	"log"
+	"net/http"
 	"regexp"
 	"strings"
 
@@ -12,6 +14,10 @@ import (
 )
 
 var passwordRedactor = regexp.MustCompile(`(?i)("(?:\w*password\w*|pin|secret|token)"\s*:\s*)"[^"]*"`)
+
+// createdAnswerLimit caps how much of an answer is kept to read the id of the
+// record it created; one record's answer is far smaller.
+const createdAnswerLimit = 64 << 10
 
 func AuditLogger() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -42,11 +48,24 @@ func AuditLogger() echo.MiddlewareFunc {
 				bodyStr = bodyStr[:2000] + "...(truncated)"
 			}
 
+			// When the path names no record, a create's answer names the new one.
+			entityType, entityID := parseEntityFromPath(path)
+			var answer *answerCapture
+			if entityID == "" {
+				answer = &answerCapture{ResponseWriter: c.Response().Writer}
+				c.Response().Writer = answer
+			}
+
 			err := next(c)
 
+			if answer != nil {
+				c.Response().Writer = answer.ResponseWriter
+			}
 			status := c.Response().Status
 			if status >= 200 && status < 300 {
-				entityType, entityID := parseEntityFromPath(path)
+				if answer != nil {
+					entityID = createdID(answer.body.Bytes())
+				}
 
 				userID := ""
 				userRole := ""
@@ -73,6 +92,37 @@ func AuditLogger() echo.MiddlewareFunc {
 			return err
 		}
 	}
+}
+
+// answerCapture passes an answer through and keeps its first
+// createdAnswerLimit bytes.
+type answerCapture struct {
+	http.ResponseWriter
+	body bytes.Buffer
+}
+
+func (w *answerCapture) Write(b []byte) (int, error) {
+	if room := createdAnswerLimit - w.body.Len(); room > 0 {
+		w.body.Write(b[:min(len(b), room)])
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+// Unwrap lets http.ResponseController reach the writer below (flush, hijack).
+func (w *answerCapture) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// createdID returns the id of the record in an answer's envelope
+// ({"Data": {"id": ...}}), or "" when it names none.
+func createdID(answer []byte) string {
+	var envelope struct {
+		Data struct {
+			ID string `json:"id"`
+		}
+	}
+	if json.Unmarshal(answer, &envelope) != nil {
+		return ""
+	}
+	return envelope.Data.ID
 }
 
 func mapMethodToAction(method string) string {

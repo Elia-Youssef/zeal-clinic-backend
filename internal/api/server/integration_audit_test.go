@@ -74,9 +74,13 @@ func TestAudit_LogsCreateUpdateDelete(t *testing.T) {
 		}
 	}
 
-	// Create should have entity_type = "patients" and entity_id empty (path is /api/patients).
+	// Create should have entity_type = "patients" and the new patient's id, read
+	// from the answer (the path /api/patients has none).
 	if entries[0].EntityType != "patients" {
 		t.Errorf("create entity_type = %q want patients", entries[0].EntityType)
+	}
+	if entries[0].EntityID != pid {
+		t.Errorf("create entity_id = %q want %q", entries[0].EntityID, pid)
 	}
 	// Update + Delete should set entity_id to the patient ID (path is /api/patients/:id).
 	if entries[1].EntityID != pid {

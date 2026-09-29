@@ -223,6 +223,12 @@ func seedEmployees(ctx context.Context, tx *sql.Tx, c *demoCtx) error {
 			c.doctorIDs = append(c.doctorIDs, empID)
 		}
 	}
+
+	// Every later step writes one of these names into created_by; an empty
+	// one would slip silently into the data.
+	if c.staffName == "" || c.adminName == "" {
+		return errors.New("no staff or admin display name to record in created_by")
+	}
 	return nil
 }
 
