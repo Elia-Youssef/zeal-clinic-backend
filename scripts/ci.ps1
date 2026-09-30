@@ -15,7 +15,7 @@
                  names only are printed)
       platform   the cloud build does not depend on the tray library; the clinic server is Windows-only
       vet        go vet for the tag (cloud: natively and for linux; default: natively on Windows)
-      go-test    go test -count=1 -json for the tag; the JSON stream and per-package counts go to -ArtifactsDir
+      go-test    go test -count=1 -json for the tag with an explicit timeout; the JSON stream and per-package counts go to -ArtifactsDir
       fmt        gofmt over the tracked Go files (client/dist excluded), as a ratchet on
                  scripts/baseline/gofmt.json: a new unformatted file fails
       mod        go mod verify and go mod tidy -diff must both be clean. Builds and runs nothing; tidy also
@@ -117,6 +117,7 @@ $NodesDir = Join-Path $ScratchRoot 'nodes'
 if (-not $ArtifactsDir) { $ArtifactsDir = Join-Path $ScratchRoot (Join-Path 'artifacts' "backend-$Stage-$Tags") }
 $ArtifactsDir = [System.IO.Path]::GetFullPath($ArtifactsDir)
 $JailProxy = 'http://127.0.0.1:9'
+$GoTestTimeout = '30m'
 # The git-ignored override file of each build; its committed dev defaults are <file>.defaults.
 $ConfigFiles = [ordered]@{ default = 'internal/config/local.env'; cloud = 'internal/config/cloud.env' }
 $Pkgs = @('./...')
@@ -727,7 +728,7 @@ function Invoke-GoTestStage {
         Enter-GoJail
         $goArgs = @('test')
         if ($Tags -eq 'cloud') { $goArgs += @('-tags', 'cloud') }
-        $goArgs += @('-count=1', '-json')
+        $goArgs += @('-count=1', '-json', '-timeout', $GoTestTimeout)
         if ($Shuffle) { $goArgs += '-shuffle=on' }
         $goArgs += $Pkgs
         $goExit = Invoke-GoToFile -Arguments $goArgs -OutFile $json
@@ -766,7 +767,7 @@ function Invoke-ContractStage {
         $savedDash = Set-TempEnv @{ DASHBOARD_DIR = $(if ($dash) { $dash } else { $null }) }
         $goArgs = @('test')
         if ($Tags -eq 'cloud') { $goArgs += @('-tags', 'cloud') }
-        $goArgs += @('-count=1', '-json', '-run', '^(TestContract|TestParity)') + $script:Pkgs
+        $goArgs += @('-count=1', '-json', '-timeout', $GoTestTimeout, '-run', '^(TestContract|TestParity)') + $script:Pkgs
         $goExit = Invoke-GoToFile -Arguments $goArgs -OutFile $json
     } finally {
         if ($null -ne $savedDash) { $null = Set-TempEnv $savedDash }
@@ -1096,7 +1097,7 @@ function Invoke-SystemStage {
     Enter-GoJail
     $saved = Set-TempEnv $testEnv
     try {
-        $goExit = Invoke-GoToFile -Arguments @('test', '-tags', 'systest', '-count=1', '-json', '-v', '-timeout', '30m', './systest/...') -OutFile $json
+        $goExit = Invoke-GoToFile -Arguments @('test', '-tags', 'systest', '-count=1', '-json', '-v', '-timeout', $GoTestTimeout, './systest/...') -OutFile $json
     } finally {
         $null = Set-TempEnv $saved
         Exit-GoJail
